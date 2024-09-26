@@ -22,7 +22,15 @@ cargo build # 最初にビルド
 assert 0 0
 assert 42 42
 
+assert 2 "1+1"
+assert 1 "2-1"
 assert 21 "5+20-4"
+
 assert 41 ' 12 + 34 - 5 '
+
+assert 10 " 2 * 5 "
+assert 3 " 12 / 4 "
+
+assert 18 "2+4*4"
 
 echo OK
