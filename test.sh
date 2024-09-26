@@ -4,7 +4,7 @@ assert() {
 	expected="$1"
 	input="$2"
 
-	cargo run "$input" > tmp.s
+	./target/debug/jff "$input" > tmp.s
 	cc -o tmp tmp.s
 	./tmp
 	actual="$?"
@@ -16,6 +16,8 @@ assert() {
 		exit 1
 	fi
 }
+
+cargo build # 最初にビルド
 
 assert 0 0
 assert 42 42
