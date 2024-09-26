@@ -1,3 +1,6 @@
+use core::error;
+use std::fmt::format;
+
 #[derive(Debug)]
 enum TokenKind {
     TkPunct,
@@ -51,7 +54,7 @@ fn tokenize(p: &mut &str) -> Vec<Token> {
             index += num.len();
             continue;
         }
-        if c == '+' || c == '-' || c == '*' || c == '/' {
+        if c == '+' || c == '-' || c == '*' || c == '/' || c == '(' || c == ')' {
             tokens.push(Token {
                 kind: TokenKind::TkPunct,
                 val: 0,
@@ -98,10 +101,10 @@ fn new_num(val: i32) -> Node {
 }
 
 // 嘘だけどNodeを返すと書いている
-fn error_tok(t: &Token, input: &str) -> Node {
+fn error_tok(t: &Token, msg: &str, input: &str) -> Node {
     eprintln!("{}", input);
     eprintln!("{}^", " ".repeat(t.loc));
-    eprintln!("expected a number");
+    eprintln!("{}", msg);
     std::process::exit(1);
 }
 
@@ -120,25 +123,27 @@ fn expr(tokens: &mut Vec<Token>, input: &str) -> Node {
             node = new_binary(NodeKind::NdSub, node.clone(), mul(tokens, input));
             continue;
         }
+        break;
     }
     return node;
 }
 
 fn mul(tokens: &mut Vec<Token>, input: &str) -> Node {
-    let mut node = primary(&tokens[0], input);
+    let mut node = primary(tokens, input); // ここが&ありかなしかで変わる
     tokens.remove(0);
     while !tokens.is_empty() {
         // これがemptyになるかどうかでやるのはダメかと思ったけど案外悪くないのか？いや、悪いか。1+1とかだと無限ループになりそう。breakを入れるとよさげ
+        // breakを入れたら動いたというだけでis_emptyが適切かどうかは要確認
         let t = &tokens[0];
         if t.str == "*" {
             tokens.remove(0);
-            node = new_binary(NodeKind::NdMul, node.clone(), primary(&tokens[0], input)); // ()をサポートするようになったら、ここもトークンを一つ渡すのではなくtokensを渡すようになるはず
+            node = new_binary(NodeKind::NdMul, node.clone(), primary(tokens, input)); // ()をサポートするようになったら、ここもトークンを一つ渡すのではなくtokensを渡すようになるはず
             tokens.remove(0);
             continue;
         }
         if t.str == "/" {
             tokens.remove(0);
-            node = new_binary(NodeKind::NdDiv, node.clone(), primary(&tokens[0], input));
+            node = new_binary(NodeKind::NdDiv, node.clone(), primary(tokens, input));
             tokens.remove(0);
             continue;
         }
@@ -147,11 +152,34 @@ fn mul(tokens: &mut Vec<Token>, input: &str) -> Node {
     return node;
 }
 
-fn primary(t: &Token, input: &str) -> Node {
-    match t.kind {
-        TokenKind::TkNum => new_num(t.val),
-        _ => error_tok(t, input),
+// ちゃんと正しくremoveしてトークンを勧められているのかは、動くからみたいな感じになっていてよくない
+
+fn primary(tokens: &mut Vec<Token>, input: &str) -> Node {
+    if tokens[0].str == "(" {
+        tokens.remove(0);
+        let node = expr(tokens, input);
+        // skipを作るべきかも
+        skip(tokens, ")", input);
+        return node;
     }
+    match tokens[0].kind {
+        TokenKind::TkNum => new_num(tokens[0].val),
+        _ => error_tok(&tokens[0], "expected number", input),
+    }
+}
+
+fn skip(tokens: &mut Vec<Token>, op: &str, input: &str) -> bool {
+    if tokens.is_empty() {
+        eprintln!("{}", input);
+        eprintln!("{}^", " ".repeat(input.len()));
+        eprintln!("expected {}", op);
+        std::process::exit(1);
+    }
+    if tokens[0].str != op {
+        error_tok(&tokens[0], format!("expected {}", op).as_str(), ""); // as_str()は&strに変換するためのもので、to_string()はStringに変換するためのもの
+    }
+    tokens.remove(0);
+    return true;
 }
 
 fn gen_expr(node: Node) {
@@ -186,7 +214,7 @@ fn gen_expr(node: Node) {
             println!("  cbz x0, error"); // x0が0の場合はエラー処理に飛ぶ
             println!("  sdiv x0, x1, x0");
         }
-        _ => eprintln!("invalid node kind"), // 今はprimaryだけ
+        _ => eprintln!("invalid node kind"),
     }
 }
 
@@ -223,15 +251,3 @@ fn main() {
     println!("end:");
     println!("  ret");
 }
-
-// fn get_number(t: &Token, input: &str) -> i32 {
-//     match t.kind {
-//         TokenKind::TkNum => t.val,
-//         _ => {
-//             eprintln!("{}", input);
-//             eprintln!("{}^", " ".repeat(t.loc));
-//             eprintln!("expected a number");
-//             std::process::exit(1);
-//         }
-//     }
-// }
