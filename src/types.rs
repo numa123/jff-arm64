@@ -3,6 +3,7 @@ pub enum TokenKind {
     TkPunct,
     TkNum,
     TkIdent, // variable
+    TkKeyword,
 }
 
 #[derive(Debug)]
@@ -15,20 +16,22 @@ pub struct Token {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum NodeKind {
-    NdAdd,    // +
-    NdSub,    // -
-    NdMul,    // *
-    NdDiv,    // /
-    NdNum,    // number
-    NdNeg,    // unary =
-    NdEq,     // ==
-    NdNe,     // !=
-    NdLt,     // <
-    NdLe,     // <=
-    NdGt,     // >
-    NdGe,     // >=
-    NdVar,    // variable
-    NdAssign, // =
+    NdAdd,      // +
+    NdSub,      // -
+    NdMul,      // *
+    NdDiv,      // /
+    NdNum,      // number
+    NdNeg,      // unary =
+    NdEq,       // ==
+    NdNe,       // !=
+    NdLt,       // <
+    NdLe,       // <=
+    NdGt,       // >
+    NdGe,       // >=
+    NdVar,      // variable
+    NdAssign,   // =
+    NdExprStmt, // expression statement
+    NdReturn,   // return
 }
 
 #[derive(Debug, Clone)]

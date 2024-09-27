@@ -7,7 +7,8 @@
 - 四則演算(*, /, ())
 - 比較演算子(==, !=, <, <=, >, >=)
 - 一文字のローカル変数宣言
-- 一文字以上のローカル変数宣言。グローバル変数を使っていない影響で、冗長なコードが多くなっている。そろそろ構造体をいい感じに使うと良いのかもしれない。offsetの計算にunsafeを使ってしまっている
+- 一文字以上のローカル変数宣言。グローバル変数を使っていない影響で、冗長なコードが多くなっている。そろそろ構造体をいい感じに使うと良いのかもしれない。offsetの計算にunsafeを使ってしまっている。変数名に使用できるものはa-zA-Z
+- return 式 ;
 
 ## 演算の優先順位(低い順)
 低
@@ -22,7 +23,8 @@
 高
 
 ## EBNF
-- stmt = expr ";"
+- stmt = expr-stmt | "return" expr ";"
+- expr_stmt = expr ";"
 - expr = assign
 - assign = equality ("=" equality)?
 - equality = relational ("==" relational | "!=" relational)*
@@ -31,6 +33,10 @@
 - mul = unary ( "\*" unary | "/" unary)*
 - unary = ("+" | "-")? primary
 - primary = num | ident | "(" expr ")"
+
+## 課題
+- gen_exprに全部書いちゃってる。stmtに切り分けないと
+- tokenizeを別のファイルに切り分けないと
 
 ## メモ
 数字一つは受け取れた。次は1+1。
@@ -88,3 +94,5 @@ tokens[0]が現在処理しているトークンってわかりづらいかな
 [Token { kind: TkIdent, val: 0, str: "abc", loc: 3 }, Token { kind: TkPunct, val: 0, str: "=", loc: 3 }, Token { kind: TkNum, val: 1, str: "1", loc: 4 }, Token { kind: TkPunct, val: 0, str: ";", loc: 5 }]
 .global _main
 このabcのlocが3なの気になるな
+
+ローカル変数用の領域確保が、グローバル変数のVARIABLESなの絶対良くない。そろそろリファクタリングした方が良い？構造体に入れるなど。

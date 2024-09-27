@@ -1,3 +1,4 @@
+use crate::parse::VARIABLES;
 use crate::types::{Node, NodeKind};
 
 fn gen_addr(node: Node) {
@@ -92,16 +93,30 @@ pub fn gen_expr(node: Node) {
     }
 }
 
+fn gen_stmt(node: Node) {
+    match node.kind {
+        NodeKind::NdExprStmt => {
+            gen_expr(*(node.lhs).unwrap());
+        }
+        NodeKind::NdReturn => {
+            gen_expr(*(node.lhs).unwrap());
+            println!("  ret");
+        }
+        _ => eprintln!("invalid node kind"),
+    }
+}
+
 pub fn codegen(node: &mut Vec<Node>) {
+    let stack_size = unsafe { VARIABLES.len() * 16 + 16 }; // ここで16かけているのはてきとー。8をかけると足りないみたい。
     println!(".global _main");
     println!("_main:");
     // プロローグ
-    println!("  sub sp, sp, 240");
-    // println!("  stp x29, x30, [sp, #16]"); // これは関数内で関数を呼び出すときだけ必要なのかもしれない。
-    // println!("  add x29, sp, #16");
+    println!("  sub sp, sp, {}", stack_size); // ここ変えないと。
+                                              // println!("  stp x29, x30, [sp, #16]"); // これは関数内で関数を呼び出すときだけ必要なのかもしれない。
+                                              // println!("  add x29, sp, #16");
 
     while !node.is_empty() {
-        gen_expr(node[0].clone()); // こうしないとnodeの所有権が移動してしまう。gen_exprを変えれば良いが一旦これで。
+        gen_stmt(node[0].clone()); // こうしないとnodeの所有権が移動してしまう。gen_exprを変えれば良いが一旦これで。
         node.remove(0);
     }
     println!("  b end");
@@ -113,6 +128,6 @@ pub fn codegen(node: &mut Vec<Node>) {
 
     println!("end:");
     // println!("  ldp x29, x30, [sp, #16]"); // これは関数内で関数を呼び出すときだけ必要なのかもしれない。
-    println!("  add sp, sp, #240");
+    println!("  add sp, sp, #{}", stack_size);
     println!("  ret");
 }

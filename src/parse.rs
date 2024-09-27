@@ -114,6 +114,15 @@ pub fn tokenize(p: &mut &str) -> Vec<Token> {
     return tokens;
 }
 
+// キーワードを変換するためのもの。これ今は要らなくね？
+pub fn convert_keywords(tokens: &mut Vec<Token>) {
+    for t in tokens.iter_mut() {
+        if t.str == "return" {
+            t.kind = TokenKind::TkKeyword;
+        }
+    }
+}
+
 fn is_ident(c: char) -> bool {
     return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_';
 }
@@ -121,7 +130,7 @@ fn is_ident(c: char) -> bool {
 //
 // Node
 //
-static mut Variables: Vec<Var> = Vec::new();
+pub static mut VARIABLES: Vec<Var> = Vec::new();
 
 fn new_binary(kind: NodeKind, lhs: Node, rhs: Node) -> Node {
     Node {
@@ -165,7 +174,17 @@ fn new_var(var: Var) -> Node {
 
 //
 fn stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
-    let node = expr(tokens, input);
+    if tokens[0].str == "return" {
+        tokens.remove(0);
+        let node = new_unary(NodeKind::NdReturn, expr(tokens, input));
+        skip(tokens, ";", input);
+        return node;
+    }
+    return expr_stmt(tokens, input);
+}
+
+fn expr_stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
+    let node = new_unary(NodeKind::NdExprStmt, expr(tokens, input));
     skip(tokens, ";", input);
     return node;
 }
@@ -304,14 +323,14 @@ fn primary(tokens: &mut Vec<Token>, input: &str) -> Node {
         TokenKind::TkIdent => {
             let var: Var;
             unsafe {
-                var = if let Some(v) = Variables.iter().find(|v| v.name == tokens[0].str) {
+                var = if let Some(v) = VARIABLES.iter().find(|v| v.name == tokens[0].str) {
                     v.clone()
                 } else {
                     let nv = Var {
                         name: tokens[0].str.clone(),
-                        offset: Variables.len(), // ここで一位に決める
+                        offset: VARIABLES.len(), // ここで一位に決める
                     };
-                    Variables.push(nv.clone());
+                    VARIABLES.push(nv.clone());
                     nv
                 };
             }

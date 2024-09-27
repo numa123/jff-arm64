@@ -20,6 +20,8 @@ assert() {
 cargo build # 最初にビルド
 
 assert 0 "0;"
+assert 0 "return 0;"
+
 assert 42 "42;"
 
 assert 1 "a=1;a;"

@@ -1,7 +1,7 @@
 mod codegen;
 use codegen::codegen;
 mod parse;
-use parse::{parse, tokenize};
+use parse::{convert_keywords, parse, tokenize};
 mod types;
 
 fn main() {
@@ -15,6 +15,8 @@ fn main() {
     let input_copy = input; // デバッグ用。とても美しくない
 
     let mut tokens = tokenize(&mut input);
+    convert_keywords(&mut tokens);
+
     let mut node = parse(&mut tokens, input_copy);
 
     codegen(&mut node);
