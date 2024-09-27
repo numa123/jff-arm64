@@ -1,4 +1,4 @@
-use crate::types::{Node, NodeKind, Token, TokenKind};
+use crate::types::{Node, NodeKind, Token, TokenKind, Var};
 
 fn skip(tokens: &mut Vec<Token>, op: &str, input: &str) -> bool {
     if tokens.is_empty() {
@@ -89,14 +89,19 @@ pub fn tokenize(p: &mut &str) -> Vec<Token> {
 
         // 一文字の識別子のみをサポート
         if c >= 'a' && c <= 'z' {
+            let mut ident = String::new();
+            while !p.is_empty() && is_ident(p.chars().next().unwrap()) {
+                ident.push(p.chars().next().unwrap());
+                *p = &p[1..];
+                index += 1;
+            }
+
             tokens.push(Token {
                 kind: TokenKind::TkIdent,
                 val: 0,
-                str: c.to_string(), // Stringじゃなくて&strの方が良いのかもしれない？
+                str: ident, // Stringじゃなくて&strの方が良いのかもしれない？
                 loc: index,
             });
-            *p = &p[1..];
-            index += 1;
             continue;
         }
 
@@ -105,8 +110,18 @@ pub fn tokenize(p: &mut &str) -> Vec<Token> {
         eprintln!("invalid token");
         std::process::exit(1);
     }
+    // println!("{:?}", tokens); デバッグ用
     return tokens;
 }
+
+fn is_ident(c: char) -> bool {
+    return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_';
+}
+
+//
+// Node
+//
+static mut Variables: Vec<Var> = Vec::new();
 
 fn new_binary(kind: NodeKind, lhs: Node, rhs: Node) -> Node {
     Node {
@@ -114,7 +129,7 @@ fn new_binary(kind: NodeKind, lhs: Node, rhs: Node) -> Node {
         lhs: Some(Box::new(lhs)),
         rhs: Some(Box::new(rhs)),
         val: 0,
-        name: ' '.to_string(),
+        var: None,
     }
 }
 
@@ -124,7 +139,7 @@ fn new_unary(kind: NodeKind, lhs: Node) -> Node {
         lhs: Some(Box::new(lhs)),
         rhs: None,
         val: 0,
-        name: ' '.to_string(),
+        var: None,
     }
 }
 
@@ -134,17 +149,17 @@ fn new_num(val: i32) -> Node {
         lhs: None,
         rhs: None,
         val: val,
-        name: ' '.to_string(),
+        var: None,
     }
 }
 
-fn new_var(name: String) -> Node {
+fn new_var(var: Var) -> Node {
     Node {
         kind: NodeKind::NdVar,
         lhs: None,
         rhs: None,
         val: 0,
-        name: name,
+        var: Some(Box::new(var)),
     }
 }
 
@@ -287,7 +302,20 @@ fn primary(tokens: &mut Vec<Token>, input: &str) -> Node {
             return num;
         }
         TokenKind::TkIdent => {
-            let ident = new_var(tokens[0].str.clone());
+            let var: Var;
+            unsafe {
+                var = if let Some(v) = Variables.iter().find(|v| v.name == tokens[0].str) {
+                    v.clone()
+                } else {
+                    let nv = Var {
+                        name: tokens[0].str.clone(),
+                        offset: Variables.len(), // ここで一位に決める
+                    };
+                    Variables.push(nv.clone());
+                    nv
+                };
+            }
+            let ident = new_var(var);
             tokens.remove(0);
             return ident;
         }

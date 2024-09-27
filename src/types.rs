@@ -13,7 +13,7 @@ pub struct Token {
     pub loc: usize,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum NodeKind {
     NdAdd,    // +
     NdSub,    // -
@@ -31,11 +31,17 @@ pub enum NodeKind {
     NdAssign, // =
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
+pub struct Var {
+    pub name: String,
+    pub offset: usize,
+}
+
+#[derive(Debug, Clone)]
 pub struct Node {
     pub kind: NodeKind,
     pub lhs: Option<Box<Node>>,
     pub rhs: Option<Box<Node>>,
     pub val: i32,
-    pub name: String, // Used if kind == NdVar
+    pub var: Option<Box<Var>>, // Used if kind == NdVar
 }

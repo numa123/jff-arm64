@@ -2,7 +2,8 @@ use crate::types::{Node, NodeKind};
 
 fn gen_addr(node: Node) {
     if node.kind == NodeKind::NdVar {
-        let offset = (node.name.chars().next().unwrap() as u8 - 'a' as u8) * 8; // sp + 16 + offsetでアドレスを計算
+        // println!("{:?}", node); デバッグ用
+        let offset = node.var.unwrap().offset * 8; // sp + 16 + offsetでアドレスを計算
         println!("  add x0, x29, {}", offset);
         return;
     }

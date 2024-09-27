@@ -7,6 +7,7 @@
 - 四則演算(*, /, ())
 - 比較演算子(==, !=, <, <=, >, >=)
 - 一文字のローカル変数宣言
+- 一文字以上のローカル変数宣言。グローバル変数を使っていない影響で、冗長なコードが多くなっている。そろそろ構造体をいい感じに使うと良いのかもしれない。offsetの計算にunsafeを使ってしまっている
 
 ## 演算の優先順位(低い順)
 低
@@ -74,3 +75,16 @@ gotboltによると
 
 
 chibiccでは、gen_exprの中で、rhsから処理してる。そっちの方がわかりやすいかも？
+
+
+複数文字のローカル変数のサポートに必要なもの
+ローカル変数: 名前とオフセットに使える一位の数値
+
+
+tokens[0]が現在処理しているトークンってわかりづらいかな
+
+
+     Running `target/debug/jff 'abc=1;'`
+[Token { kind: TkIdent, val: 0, str: "abc", loc: 3 }, Token { kind: TkPunct, val: 0, str: "=", loc: 3 }, Token { kind: TkNum, val: 1, str: "1", loc: 4 }, Token { kind: TkPunct, val: 0, str: ";", loc: 5 }]
+.global _main
+このabcのlocが3なの気になるな
