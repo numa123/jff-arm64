@@ -18,6 +18,7 @@
 高
 
 ## EBNF
+- stmt = expr ";"
 - expr = equality
 - equality = relational ("==" relational | "!=" relational)*
 - relational = add ("<" add | "<=" add | ">" add | ">=" add)*
@@ -38,3 +39,4 @@ chibiccを参考にしながらやるとすんなりできた
 as_str()とto_string()の違い
 
 
+入力を信頼しすぎているのかな？まあここでは正常系が動く方が何倍も重要だから、一旦このままやってみる

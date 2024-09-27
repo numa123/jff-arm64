@@ -1,5 +1,33 @@
 use crate::types::{Node, NodeKind, Token, TokenKind};
 
+fn skip(tokens: &mut Vec<Token>, op: &str, input: &str) -> bool {
+    if tokens.is_empty() {
+        eprintln!("{}", input);
+        eprintln!("{}^", " ".repeat(input.len()));
+        eprintln!("expected {}", op);
+        std::process::exit(1);
+    }
+    if tokens[0].str != op {
+        error_tok(&tokens[0], format!("expected {}", op).as_str(), input); // as_str()は&strに変換するためのもので、to_string()はStringに変換するためのもの
+    }
+    tokens.remove(0);
+    return true;
+}
+
+fn parse_number(p: &mut &str) -> String {
+    let num: String = p.chars().take_while(|c| c.is_digit(10)).collect();
+    *p = &p[num.len()..]; // これは関数の外に出した方が明示的に書きやすいかも？
+    return num;
+}
+
+// 嘘だけどNodeを返すと書いている
+fn error_tok(t: &Token, msg: &str, input: &str) -> Node {
+    eprintln!("{}", input);
+    eprintln!("{}^", " ".repeat(t.loc));
+    eprintln!("{}", msg);
+    std::process::exit(1);
+}
+
 pub fn tokenize(p: &mut &str) -> Vec<Token> {
     let p_copy = *p;
     let mut tokens = Vec::new();
@@ -45,6 +73,7 @@ pub fn tokenize(p: &mut &str) -> Vec<Token> {
             || c == ')'
             || c == '<'
             || c == '>'
+            || c == ';'
         {
             tokens.push(Token {
                 kind: TokenKind::TkPunct,
@@ -92,7 +121,13 @@ fn new_num(val: i32) -> Node {
 }
 
 //
-pub fn expr(tokens: &mut Vec<Token>, input: &str) -> Node {
+fn stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
+    let node = expr(tokens, input);
+    skip(tokens, ";", input);
+    return node;
+}
+
+fn expr(tokens: &mut Vec<Token>, input: &str) -> Node {
     return equality(tokens, input);
 }
 
@@ -218,30 +253,10 @@ fn primary(tokens: &mut Vec<Token>, input: &str) -> Node {
     }
 }
 
-fn skip(tokens: &mut Vec<Token>, op: &str, input: &str) -> bool {
-    if tokens.is_empty() {
-        eprintln!("{}", input);
-        eprintln!("{}^", " ".repeat(input.len()));
-        eprintln!("expected {}", op);
-        std::process::exit(1);
+pub fn parse(tokens: &mut Vec<Token>, input: &str) -> Vec<Node> {
+    let mut stmts = Vec::new();
+    while !tokens.is_empty() {
+        stmts.push(stmt(tokens, input));
     }
-    if tokens[0].str != op {
-        error_tok(&tokens[0], format!("expected {}", op).as_str(), input); // as_str()は&strに変換するためのもので、to_string()はStringに変換するためのもの
-    }
-    tokens.remove(0);
-    return true;
-}
-
-fn parse_number(p: &mut &str) -> String {
-    let num: String = p.chars().take_while(|c| c.is_digit(10)).collect();
-    *p = &p[num.len()..]; // これは関数の外に出した方が明示的に書きやすいかも？
-    return num;
-}
-
-// 嘘だけどNodeを返すと書いている
-fn error_tok(t: &Token, msg: &str, input: &str) -> Node {
-    eprintln!("{}", input);
-    eprintln!("{}^", " ".repeat(t.loc));
-    eprintln!("{}", msg);
-    std::process::exit(1);
+    return stmts;
 }

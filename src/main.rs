@@ -1,7 +1,7 @@
 mod codegen;
 use codegen::gen_expr;
 mod parse;
-use parse::{expr, tokenize};
+use parse::{parse, tokenize};
 mod types;
 
 fn main() {
@@ -15,11 +15,14 @@ fn main() {
     let input_copy = input; // デバッグ用。とても美しくない
 
     let mut tokens = tokenize(&mut input);
-    let node = expr(&mut tokens, input_copy);
+    let mut node = parse(&mut tokens, input_copy);
 
     println!(".global _main");
     println!("_main:");
-    gen_expr(node);
+    while !node.is_empty() {
+        gen_expr(node[0].clone()); // こうしないとnodeの所有権が移動してしまう。gen_exprを変えれば良いが一旦これで。
+        node.remove(0);
+    }
     println!("  b end");
 
     // ゼロ徐算の場合のエラー処理
