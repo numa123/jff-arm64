@@ -1,7 +1,4 @@
-use core::error;
-use std::fmt::format;
-
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum TokenKind {
     TkPunct,
     TkNum,
@@ -22,6 +19,7 @@ enum NodeKind {
     NdMul,
     NdDiv,
     NdNum,
+    NdNeg,
 }
 
 #[derive(Clone)]
@@ -91,6 +89,15 @@ fn new_binary(kind: NodeKind, lhs: Node, rhs: Node) -> Node {
     }
 }
 
+fn new_unary(kind: NodeKind, lhs: Node) -> Node {
+    Node {
+        kind: kind,
+        lhs: Some(Box::new(lhs)),
+        rhs: None,
+        val: 0,
+    }
+}
+
 fn new_num(val: i32) -> Node {
     Node {
         kind: NodeKind::NdNum,
@@ -99,15 +106,6 @@ fn new_num(val: i32) -> Node {
         val: val,
     }
 }
-
-// 嘘だけどNodeを返すと書いている
-fn error_tok(t: &Token, msg: &str, input: &str) -> Node {
-    eprintln!("{}", input);
-    eprintln!("{}^", " ".repeat(t.loc));
-    eprintln!("{}", msg);
-    std::process::exit(1);
-}
-
 //
 fn expr(tokens: &mut Vec<Token>, input: &str) -> Node {
     let mut node = mul(tokens, input); // この辺の引数の渡し方は合っているのか？
@@ -129,27 +127,39 @@ fn expr(tokens: &mut Vec<Token>, input: &str) -> Node {
 }
 
 fn mul(tokens: &mut Vec<Token>, input: &str) -> Node {
-    let mut node = primary(tokens, input); // ここが&ありかなしかで変わる
-    tokens.remove(0);
+    let mut node = unary(tokens, input); // ここが&ありかなしかで変わる
     while !tokens.is_empty() {
         // これがemptyになるかどうかでやるのはダメかと思ったけど案外悪くないのか？いや、悪いか。1+1とかだと無限ループになりそう。breakを入れるとよさげ
         // breakを入れたら動いたというだけでis_emptyが適切かどうかは要確認
         let t = &tokens[0];
         if t.str == "*" {
             tokens.remove(0);
-            node = new_binary(NodeKind::NdMul, node.clone(), primary(tokens, input)); // ()をサポートするようになったら、ここもトークンを一つ渡すのではなくtokensを渡すようになるはず
-            tokens.remove(0);
+            node = new_binary(NodeKind::NdMul, node.clone(), unary(tokens, input)); // ()をサポートするようになったら、ここもトークンを一つ渡すのではなくtokensを渡すようになるはず
             continue;
         }
         if t.str == "/" {
             tokens.remove(0);
-            node = new_binary(NodeKind::NdDiv, node.clone(), primary(tokens, input));
-            tokens.remove(0);
+            node = new_binary(NodeKind::NdDiv, node.clone(), unary(tokens, input));
             continue;
         }
         break;
     }
     return node;
+}
+
+fn unary(tokens: &mut Vec<Token>, input: &str) -> Node {
+    // これがemptyになるかどうかでやるのはダメかと思ったけど案外悪くないのか？いや、悪いか。1+1とかだと無限ループになりそう。breakを入れるとよさげ
+    // breakを入れたら動いたというだけでis_emptyが適切かどうかは要確認
+    let t = &tokens[0];
+    if t.str == "+" {
+        tokens.remove(0);
+        return unary(tokens, input); // ()をサポートするようになったら、ここもトークンを一つ渡すのではなくtokensを渡すようになるはず。&tokensはだめなんだ
+    }
+    if t.str == "-" {
+        tokens.remove(0);
+        return new_unary(NodeKind::NdNeg, unary(tokens, input));
+    }
+    return primary(tokens, input);
 }
 
 // ちゃんと正しくremoveしてトークンを勧められているのかは、動くからみたいな感じになっていてよくない
@@ -158,34 +168,31 @@ fn primary(tokens: &mut Vec<Token>, input: &str) -> Node {
     if tokens[0].str == "(" {
         tokens.remove(0);
         let node = expr(tokens, input);
-        // skipを作るべきかも
         skip(tokens, ")", input);
         return node;
     }
     match tokens[0].kind {
-        TokenKind::TkNum => new_num(tokens[0].val),
+        TokenKind::TkNum => {
+            let num = new_num(tokens[0].val);
+            tokens.remove(0); // ここで消費すべきだった
+            return num;
+        }
         _ => error_tok(&tokens[0], "expected number", input),
     }
 }
 
-fn skip(tokens: &mut Vec<Token>, op: &str, input: &str) -> bool {
-    if tokens.is_empty() {
-        eprintln!("{}", input);
-        eprintln!("{}^", " ".repeat(input.len()));
-        eprintln!("expected {}", op);
-        std::process::exit(1);
-    }
-    if tokens[0].str != op {
-        error_tok(&tokens[0], format!("expected {}", op).as_str(), ""); // as_str()は&strに変換するためのもので、to_string()はStringに変換するためのもの
-    }
-    tokens.remove(0);
-    return true;
-}
-
 fn gen_expr(node: Node) {
-    if node.kind == NodeKind::NdNum {
-        println!("  mov x0, {}", node.val);
-        return;
+    match node.kind {
+        NodeKind::NdNum => {
+            println!("  mov x0, {}", node.val);
+            return;
+        }
+        NodeKind::NdNeg => {
+            gen_expr(*(node.lhs).unwrap()); // lhsはあるはず
+            println!("  neg x0, x0");
+            return;
+        }
+        _ => {}
     }
 
     // node.lhs, node.rhsがあれば、それを再帰的に呼び出す
@@ -218,12 +225,6 @@ fn gen_expr(node: Node) {
     }
 }
 
-fn parse_number(p: &mut &str) -> String {
-    let num: String = p.chars().take_while(|c| c.is_digit(10)).collect();
-    *p = &p[num.len()..]; // これは関数の外に出した方が明示的に書きやすいかも？
-    return num;
-}
-
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.len() < 2 {
@@ -241,13 +242,41 @@ fn main() {
     println!(".global _main");
     println!("_main:");
     gen_expr(node);
-    println!("  b end"); // これじゃあただ正常に計算結果が1なのか、エラーが1なのかわからない
+    println!("  b end");
 
     // ゼロ徐算の場合のエラー処理
     println!("error:");
     println!("  mov x0, 1");
-    println!("  b end"); // これじゃあただ正常に計算結果が1なのか、エラーが1なのかわからない
+    println!("  b end"); // これじゃあただ正常に計算結果が1なのか、エラーが1なのかわからないのでは？まあ今は動くのでよしとする
 
     println!("end:");
     println!("  ret");
+}
+
+fn skip(tokens: &mut Vec<Token>, op: &str, input: &str) -> bool {
+    if tokens.is_empty() {
+        eprintln!("{}", input);
+        eprintln!("{}^", " ".repeat(input.len()));
+        eprintln!("expected {}", op);
+        std::process::exit(1);
+    }
+    if tokens[0].str != op {
+        error_tok(&tokens[0], format!("expected {}", op).as_str(), input); // as_str()は&strに変換するためのもので、to_string()はStringに変換するためのもの
+    }
+    tokens.remove(0);
+    return true;
+}
+
+fn parse_number(p: &mut &str) -> String {
+    let num: String = p.chars().take_while(|c| c.is_digit(10)).collect();
+    *p = &p[num.len()..]; // これは関数の外に出した方が明示的に書きやすいかも？
+    return num;
+}
+
+// 嘘だけどNodeを返すと書いている
+fn error_tok(t: &Token, msg: &str, input: &str) -> Node {
+    eprintln!("{}", input);
+    eprintln!("{}^", " ".repeat(t.loc));
+    eprintln!("{}", msg);
+    std::process::exit(1);
 }
