@@ -14,12 +14,14 @@ struct Token {
 
 #[derive(Clone, PartialEq)]
 enum NodeKind {
-    NdAdd,
-    NdSub,
-    NdMul,
-    NdDiv,
-    NdNum,
-    NdNeg,
+    NdAdd, // +
+    NdSub, // -
+    NdMul, // *
+    NdDiv, // /
+    NdNum, // number
+    NdNeg, // unary =
+    NdEq,  // ==
+    NdNe,  // !=
 }
 
 #[derive(Clone)]
@@ -52,7 +54,24 @@ fn tokenize(p: &mut &str) -> Vec<Token> {
             index += num.len();
             continue;
         }
-        if c == '+' || c == '-' || c == '*' || c == '/' || c == '(' || c == ')' {
+        // ==, !=, <=, >= p.len() > 2 がないとindex out of boundsになる
+        if p.len() > 2 && (p[0..2].eq("==") || p[0..2].eq("!=")) {
+            //|| p[0..2].eq("<=") || p[0..2].eq(">=") {
+            tokens.push(Token {
+                kind: TokenKind::TkPunct,
+                val: 0,
+                str: p[0..2].to_string(),
+                loc: index,
+            });
+            *p = &p[2..];
+            index += 2;
+            continue;
+        }
+
+        if c == '+' || c == '-' || c == '*' || c == '/' || c == '(' || c == ')'
+        // || c == '<'
+        // || c == '>'
+        {
             tokens.push(Token {
                 kind: TokenKind::TkPunct,
                 val: 0,
@@ -70,15 +89,6 @@ fn tokenize(p: &mut &str) -> Vec<Token> {
     }
     return tokens;
 }
-
-// fn new_node(kind: NodeKind) -> Node {
-//     Node {
-//         kind: kind,
-//         lhs: None,
-//         rhs: None,
-//         val: 0,
-//     }
-// }
 
 fn new_binary(kind: NodeKind, lhs: Node, rhs: Node) -> Node {
     Node {
@@ -106,8 +116,32 @@ fn new_num(val: i32) -> Node {
         val: val,
     }
 }
+
 //
 fn expr(tokens: &mut Vec<Token>, input: &str) -> Node {
+    return equality(tokens, input);
+}
+
+fn equality(tokens: &mut Vec<Token>, input: &str) -> Node {
+    let mut node = add(tokens, input);
+    while !tokens.is_empty() {
+        let t = &tokens[0];
+        if t.str == "==" {
+            tokens.remove(0);
+            node = new_binary(NodeKind::NdEq, node.clone(), add(tokens, input));
+            continue;
+        }
+        if t.str == "!=" {
+            tokens.remove(0);
+            node = new_binary(NodeKind::NdNe, node.clone(), add(tokens, input));
+            continue;
+        }
+        break;
+    }
+    return node;
+}
+
+fn add(tokens: &mut Vec<Token>, input: &str) -> Node {
     let mut node = mul(tokens, input); // この辺の引数の渡し方は合っているのか？
     while !tokens.is_empty() {
         let t = &tokens[0];
@@ -220,6 +254,14 @@ fn gen_expr(node: Node) {
             // x0が0だった場合は未定義になりそう？そのためにはcmpとか？一旦後で
             println!("  cbz x0, error"); // x0が0の場合はエラー処理に飛ぶ
             println!("  sdiv x0, x1, x0");
+        }
+        NodeKind::NdEq => {
+            println!("  cmp x1, x0");
+            println!("  cset x0, eq");
+        }
+        NodeKind::NdNe => {
+            println!("  cmp x1, x0");
+            println!("  cset x0, ne");
         }
         _ => eprintln!("invalid node kind"),
     }

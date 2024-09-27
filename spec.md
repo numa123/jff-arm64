@@ -6,8 +6,30 @@
 - 加減算
 - 四則演算(*, /, ())
 
-## EBNF
-- expr = mul ("+" mul | "-" mul)*
+## 演算の優先順位(低い順)
+低
+1. ==, !=
+2. < <= > >=
+3. +, -
+4. *, /
+5. 単項+, 単項-
+6. ()
+
+高
+
+## EBNF(現状)
+- expr = equality
+- equality = add ("==" add | "!=" add)*
+- add = mul ("+" mul | "-" mul)*
+- mul = unary ( "\*" unary | "/" unary)*
+- unary = ("+" | "-")? primary
+- primary = num | "(" expr ")"
+
+## EBNF(目標)
+- expr = equality
+- equality = relational ("==" relational | "!=" relational)*
+- relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+- add = mul ("+" mul | "-" mul)*
 - mul = unary ( "\*" unary | "/" unary)*
 - unary = ("+" | "-")? primary
 - primary = num | "(" expr ")"
