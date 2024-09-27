@@ -2,6 +2,7 @@
 pub enum TokenKind {
     TkPunct,
     TkNum,
+    TkIdent, // variable
 }
 
 #[derive(Debug)]
@@ -14,18 +15,20 @@ pub struct Token {
 
 #[derive(Clone, PartialEq)]
 pub enum NodeKind {
-    NdAdd, // +
-    NdSub, // -
-    NdMul, // *
-    NdDiv, // /
-    NdNum, // number
-    NdNeg, // unary =
-    NdEq,  // ==
-    NdNe,  // !=
-    NdLt,  // <
-    NdLe,  // <=
-    NdGt,  // >
-    NdGe,  // >=
+    NdAdd,    // +
+    NdSub,    // -
+    NdMul,    // *
+    NdDiv,    // /
+    NdNum,    // number
+    NdNeg,    // unary =
+    NdEq,     // ==
+    NdNe,     // !=
+    NdLt,     // <
+    NdLe,     // <=
+    NdGt,     // >
+    NdGe,     // >=
+    NdVar,    // variable
+    NdAssign, // =
 }
 
 #[derive(Clone)]
@@ -34,4 +37,5 @@ pub struct Node {
     pub lhs: Option<Box<Node>>,
     pub rhs: Option<Box<Node>>,
     pub val: i32,
+    pub name: String, // Used if kind == NdVar
 }

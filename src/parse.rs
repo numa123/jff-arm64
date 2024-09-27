@@ -74,6 +74,7 @@ pub fn tokenize(p: &mut &str) -> Vec<Token> {
             || c == '<'
             || c == '>'
             || c == ';'
+            || c == '='
         {
             tokens.push(Token {
                 kind: TokenKind::TkPunct,
@@ -85,6 +86,20 @@ pub fn tokenize(p: &mut &str) -> Vec<Token> {
             index += 1;
             continue;
         }
+
+        // 一文字の識別子のみをサポート
+        if c >= 'a' && c <= 'z' {
+            tokens.push(Token {
+                kind: TokenKind::TkIdent,
+                val: 0,
+                str: c.to_string(), // Stringじゃなくて&strの方が良いのかもしれない？
+                loc: index,
+            });
+            *p = &p[1..];
+            index += 1;
+            continue;
+        }
+
         eprintln!("{}", p_copy);
         eprintln!("{}^", " ".repeat(index));
         eprintln!("invalid token");
@@ -99,6 +114,7 @@ fn new_binary(kind: NodeKind, lhs: Node, rhs: Node) -> Node {
         lhs: Some(Box::new(lhs)),
         rhs: Some(Box::new(rhs)),
         val: 0,
+        name: ' '.to_string(),
     }
 }
 
@@ -108,6 +124,7 @@ fn new_unary(kind: NodeKind, lhs: Node) -> Node {
         lhs: Some(Box::new(lhs)),
         rhs: None,
         val: 0,
+        name: ' '.to_string(),
     }
 }
 
@@ -117,6 +134,17 @@ fn new_num(val: i32) -> Node {
         lhs: None,
         rhs: None,
         val: val,
+        name: ' '.to_string(),
+    }
+}
+
+fn new_var(name: String) -> Node {
+    Node {
+        kind: NodeKind::NdVar,
+        lhs: None,
+        rhs: None,
+        val: 0,
+        name: name,
     }
 }
 
@@ -128,7 +156,16 @@ fn stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
 }
 
 fn expr(tokens: &mut Vec<Token>, input: &str) -> Node {
-    return equality(tokens, input);
+    return assign(tokens, input);
+}
+
+fn assign(tokens: &mut Vec<Token>, input: &str) -> Node {
+    let node = equality(tokens, input);
+    if tokens[0].str == "=" {
+        tokens.remove(0);
+        return new_binary(NodeKind::NdAssign, node, assign(tokens, input));
+    }
+    return node;
 }
 
 fn equality(tokens: &mut Vec<Token>, input: &str) -> Node {
@@ -248,6 +285,11 @@ fn primary(tokens: &mut Vec<Token>, input: &str) -> Node {
             let num = new_num(tokens[0].val);
             tokens.remove(0); // ここで消費すべきだった
             return num;
+        }
+        TokenKind::TkIdent => {
+            let ident = new_var(tokens[0].str.clone());
+            tokens.remove(0);
+            return ident;
         }
         _ => error_tok(&tokens[0], "expected number", input),
     }

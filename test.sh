@@ -22,6 +22,13 @@ cargo build # 最初にビルド
 assert 0 "0;"
 assert 42 "42;"
 
+assert 1 "a=1;a;"
+assert 10 "z=10;z;"
+
+assert 1 "a=1; a;"
+assert 2 "a=1; b=2; b;"
+assert 21 "a=1; b=2; c=3; d=4; z=a+(b+c)*d; z;"
+
 
 assert 2 "1+1;"
 assert 1 "2-1;"
