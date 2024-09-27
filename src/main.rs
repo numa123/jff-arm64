@@ -22,6 +22,10 @@ enum NodeKind {
     NdNeg, // unary =
     NdEq,  // ==
     NdNe,  // !=
+    NdLt,  // <
+    NdLe,  // <=
+    NdGt,  // >
+    NdGe,  // >=
 }
 
 #[derive(Clone)]
@@ -55,8 +59,9 @@ fn tokenize(p: &mut &str) -> Vec<Token> {
             continue;
         }
         // ==, !=, <=, >= p.len() > 2 がないとindex out of boundsになる
-        if p.len() > 2 && (p[0..2].eq("==") || p[0..2].eq("!=")) {
-            //|| p[0..2].eq("<=") || p[0..2].eq(">=") {
+        if p.len() > 2
+            && (p[0..2].eq("==") || p[0..2].eq("!=") || p[0..2].eq("<=") || p[0..2].eq(">="))
+        {
             tokens.push(Token {
                 kind: TokenKind::TkPunct,
                 val: 0,
@@ -68,9 +73,14 @@ fn tokenize(p: &mut &str) -> Vec<Token> {
             continue;
         }
 
-        if c == '+' || c == '-' || c == '*' || c == '/' || c == '(' || c == ')'
-        // || c == '<'
-        // || c == '>'
+        if c == '+'
+            || c == '-'
+            || c == '*'
+            || c == '/'
+            || c == '('
+            || c == ')'
+            || c == '<'
+            || c == '>'
         {
             tokens.push(Token {
                 kind: TokenKind::TkPunct,
@@ -123,17 +133,46 @@ fn expr(tokens: &mut Vec<Token>, input: &str) -> Node {
 }
 
 fn equality(tokens: &mut Vec<Token>, input: &str) -> Node {
-    let mut node = add(tokens, input);
+    let mut node = relational(tokens, input);
     while !tokens.is_empty() {
         let t = &tokens[0];
         if t.str == "==" {
             tokens.remove(0);
-            node = new_binary(NodeKind::NdEq, node.clone(), add(tokens, input));
+            node = new_binary(NodeKind::NdEq, node.clone(), relational(tokens, input));
             continue;
         }
         if t.str == "!=" {
             tokens.remove(0);
-            node = new_binary(NodeKind::NdNe, node.clone(), add(tokens, input));
+            node = new_binary(NodeKind::NdNe, node.clone(), relational(tokens, input));
+            continue;
+        }
+        break;
+    }
+    return node;
+}
+
+fn relational(tokens: &mut Vec<Token>, input: &str) -> Node {
+    let mut node = add(tokens, input);
+    while !tokens.is_empty() {
+        let t = &tokens[0];
+        if t.str == "<" {
+            tokens.remove(0);
+            node = new_binary(NodeKind::NdLt, node.clone(), add(tokens, input));
+            continue;
+        }
+        if t.str == "<=" {
+            tokens.remove(0);
+            node = new_binary(NodeKind::NdLe, node.clone(), add(tokens, input));
+            continue;
+        }
+        if t.str == ">" {
+            tokens.remove(0);
+            node = new_binary(NodeKind::NdGt, node.clone(), add(tokens, input));
+            continue;
+        }
+        if t.str == ">=" {
+            tokens.remove(0);
+            node = new_binary(NodeKind::NdGe, node.clone(), add(tokens, input));
             continue;
         }
         break;
@@ -262,6 +301,22 @@ fn gen_expr(node: Node) {
         NodeKind::NdNe => {
             println!("  cmp x1, x0");
             println!("  cset x0, ne");
+        }
+        NodeKind::NdLt => {
+            println!("  cmp x1, x0");
+            println!("  cset x0, lt");
+        }
+        NodeKind::NdLe => {
+            println!("  cmp x1, x0");
+            println!("  cset x0, le");
+        }
+        NodeKind::NdGt => {
+            println!("  cmp x1, x0");
+            println!("  cset x0, gt");
+        }
+        NodeKind::NdGe => {
+            println!("  cmp x1, x0");
+            println!("  cset x0, ge");
         }
         _ => eprintln!("invalid node kind"),
     }

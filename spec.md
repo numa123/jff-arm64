@@ -17,15 +17,7 @@
 
 高
 
-## EBNF(現状)
-- expr = equality
-- equality = add ("==" add | "!=" add)*
-- add = mul ("+" mul | "-" mul)*
-- mul = unary ( "\*" unary | "/" unary)*
-- unary = ("+" | "-")? primary
-- primary = num | "(" expr ")"
-
-## EBNF(目標)
+## EBNF
 - expr = equality
 - equality = relational ("==" relational | "!=" relational)*
 - relational = add ("<" add | "<=" add | ">" add | ">=" add)*
