@@ -218,6 +218,11 @@ fn compound_stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
 }
 
 fn expr_stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
+    if tokens[0].str == ";" {
+        let node = new_block(Vec::new());
+        skip(tokens, ";", input);
+        return node;
+    }
     let node = new_unary(NodeKind::NdExprStmt, expr(tokens, input));
     skip(tokens, ";", input);
     return node;

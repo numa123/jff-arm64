@@ -25,7 +25,7 @@
 ## EBNF
 - stmt = expr-stmt | "return" expr ";" | "{" compound-stmt
 - compound-stmt = stmt* "}" // "{" があるかどうかでexpr-stmtと区別している
-- expr_stmt = expr ";"
+- expr_stmt = expr? ";"
 - expr = assign
 - assign = equality ("=" equality)?
 - equality = relational ("==" relational | "!=" relational)*
@@ -99,3 +99,5 @@ tokens[0]が現在処理しているトークンってわかりづらいかな
 ローカル変数用の領域確保が、グローバル変数のVARIABLESなの絶対良くない。そろそろリファクタリングした方が良い？構造体に入れるなど。
 
 NdBlock無しでもいけるかなって思ったけど、stmtを中で複数回実行しないといけないから、NodeとNdBlockを入れた
+
+{int a = 1; a;} というプログラムが実行できるのは良くないのかもしれない？
