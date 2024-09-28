@@ -102,6 +102,11 @@ fn gen_stmt(node: Node) {
             gen_expr(*(node.lhs).unwrap());
             println!("  ret");
         }
+        NodeKind::NdBlock => {
+            for node in node.block_body {
+                gen_stmt(node);
+            }
+        }
         _ => eprintln!("invalid node kind"),
     }
 }

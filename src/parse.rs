@@ -75,6 +75,8 @@ pub fn tokenize(p: &mut &str) -> Vec<Token> {
             || c == '>'
             || c == ';'
             || c == '='
+            || c == '{'
+            || c == '}'
         {
             tokens.push(Token {
                 kind: TokenKind::TkPunct,
@@ -139,6 +141,7 @@ fn new_binary(kind: NodeKind, lhs: Node, rhs: Node) -> Node {
         rhs: Some(Box::new(rhs)),
         val: 0,
         var: None,
+        block_body: Vec::new(),
     }
 }
 
@@ -149,6 +152,7 @@ fn new_unary(kind: NodeKind, lhs: Node) -> Node {
         rhs: None,
         val: 0,
         var: None,
+        block_body: Vec::new(),
     }
 }
 
@@ -159,6 +163,7 @@ fn new_num(val: i32) -> Node {
         rhs: None,
         val: val,
         var: None,
+        block_body: Vec::new(),
     }
 }
 
@@ -169,6 +174,18 @@ fn new_var(var: Var) -> Node {
         rhs: None,
         val: 0,
         var: Some(Box::new(var)),
+        block_body: Vec::new(),
+    }
+}
+
+fn new_block(block_body: Vec<Node>) -> Node {
+    Node {
+        kind: NodeKind::NdBlock,
+        lhs: None,
+        rhs: None,
+        val: 0,
+        var: None,
+        block_body: block_body,
     }
 }
 
@@ -180,7 +197,24 @@ fn stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
         skip(tokens, ";", input);
         return node;
     }
+    if tokens[0].str == "{" {
+        tokens.remove(0);
+        let node = compound_stmt(tokens, input);
+        return node;
+    }
     return expr_stmt(tokens, input);
+}
+
+fn compound_stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
+    let mut block_body = Vec::new();
+    while !(tokens[0].str == "}") {
+        let node = stmt(tokens, input);
+        block_body.push(node);
+        continue;
+    }
+    let node = new_block(block_body);
+    skip(tokens, "}", input);
+    return node;
 }
 
 fn expr_stmt(tokens: &mut Vec<Token>, input: &str) -> Node {

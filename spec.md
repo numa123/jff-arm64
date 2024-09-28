@@ -23,7 +23,8 @@
 高
 
 ## EBNF
-- stmt = expr-stmt | "return" expr ";"
+- stmt = expr-stmt | "return" expr ";" | "{" compound-stmt
+- compound-stmt = stmt* "}" // "{" があるかどうかでexpr-stmtと区別している
 - expr_stmt = expr ";"
 - expr = assign
 - assign = equality ("=" equality)?
@@ -35,8 +36,8 @@
 - primary = num | ident | "(" expr ")"
 
 ## 課題
-- gen_exprに全部書いちゃってる。stmtに切り分けないと
 - tokenizeを別のファイルに切り分けないと
+- a=1; a; っていう記述は許さない方が良いのか？
 
 ## メモ
 数字一つは受け取れた。次は1+1。
@@ -96,3 +97,5 @@ tokens[0]が現在処理しているトークンってわかりづらいかな
 このabcのlocが3なの気になるな
 
 ローカル変数用の領域確保が、グローバル変数のVARIABLESなの絶対良くない。そろそろリファクタリングした方が良い？構造体に入れるなど。
+
+NdBlock無しでもいけるかなって思ったけど、stmtを中で複数回実行しないといけないから、NodeとNdBlockを入れた
