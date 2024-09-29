@@ -7,73 +7,34 @@ use crate::types::{Node, NodeKind, Token, TokenKind, Var};
 pub static mut VARIABLES: Vec<Var> = Vec::new();
 
 fn new_binary(kind: NodeKind, lhs: Node, rhs: Node) -> Node {
-    Node {
-        kind: kind,
-        lhs: Some(Box::new(lhs)),
-        rhs: Some(Box::new(rhs)),
-        val: 0,
-        var: None,
-        block_body: Vec::new(),
-        cond: None,
-        then: None,
-        els: None,
-    }
+    let mut node = new_node(kind);
+    node.lhs = Some(Box::new(lhs));
+    node.rhs = Some(Box::new(rhs));
+    return node;
 }
 
 fn new_unary(kind: NodeKind, lhs: Node) -> Node {
-    Node {
-        kind: kind,
-        lhs: Some(Box::new(lhs)),
-        rhs: None,
-        val: 0,
-        var: None,
-        block_body: Vec::new(),
-        cond: None,
-        then: None,
-        els: None,
-    }
+    let mut node = new_node(kind);
+    node.lhs = Some(Box::new(lhs));
+    return node;
 }
 
 fn new_num(val: i32) -> Node {
-    Node {
-        kind: NodeKind::NdNum,
-        lhs: None,
-        rhs: None,
-        val: val,
-        var: None,
-        block_body: Vec::new(),
-        cond: None,
-        then: None,
-        els: None,
-    }
+    let mut node = new_node(NodeKind::NdNum);
+    node.val = val;
+    return node;
 }
 
 fn new_var(var: Var) -> Node {
-    Node {
-        kind: NodeKind::NdVar,
-        lhs: None,
-        rhs: None,
-        val: 0,
-        var: Some(Box::new(var)),
-        block_body: Vec::new(),
-        cond: None,
-        then: None,
-        els: None,
-    }
+    let mut node = new_node(NodeKind::NdVar);
+    node.var = Some(Box::new(var));
+    return node;
 }
 
 fn new_block(block_body: Vec<Node>) -> Node {
-    Node {
-        kind: NodeKind::NdBlock,
-        lhs: None,
-        rhs: None,
-        val: 0,
-        var: None,
-        block_body: block_body,
-        cond: None,
-        then: None,
-        els: None,
-    }
+    let mut node = new_node(NodeKind::NdBlock);
+    node.block_body = block_body;
+    return node;
 }
 
 fn new_node(kind: NodeKind) -> Node {
@@ -87,6 +48,8 @@ fn new_node(kind: NodeKind) -> Node {
         cond: None,
         then: None,
         els: None,
+        init: None,
+        inc: None,
     }
 }
 
@@ -120,6 +83,26 @@ fn stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
             let els = stmt(tokens, input);
             node.els = Some(Box::new(els));
         }
+        return node;
+    }
+    if tokens[0].str == "for" {
+        let mut node = new_node(NodeKind::NdFor);
+        tokens.remove(0);
+        skip(tokens, "(", input);
+        let init = expr_stmt(tokens, input);
+        node.init = Some(Box::new(init));
+        if tokens[0].str != ";" {
+            let cond = expr(tokens, input);
+            node.cond = Some(Box::new(cond));
+        }
+        skip(tokens, ";", input);
+        if tokens[0].str != ")" {
+            let inc = expr(tokens, input);
+            node.inc = Some(Box::new(inc));
+        }
+        skip(tokens, ")", input);
+        let then = stmt(tokens, input);
+        node.then = Some(Box::new(then));
         return node;
     }
     return expr_stmt(tokens, input);

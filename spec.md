@@ -9,6 +9,9 @@
 - 一文字のローカル変数宣言
 - 一文字以上のローカル変数宣言。グローバル変数を使っていない影響で、冗長なコードが多くなっている。そろそろ構造体をいい感じに使うと良いのかもしれない。offsetの計算にunsafeを使ってしまっている。変数名に使用できるものはa-zA-Z
 - return 式 ;
+- {}
+- if
+- for
 
 ## 演算の優先順位(低い順)
 低
@@ -22,8 +25,10 @@
 
 高
 
+for (初期化;条件式;あとでやるやつ) stmt
+
 ## EBNF
-- stmt = expr-stmt | "return" expr ";" | "{" compound-stmt | "if" "(" expr ")" stmt ("else" stmt)?
+- stmt = expr-stmt | "return" expr ";" | "{" compound-stmt | "if" "(" expr ")" stmt ("else" stmt)? | "for" "(" expr_stmt expr? ";" expr? ")" stmt
 - compound-stmt = stmt* "}" // "{" があるかどうかでexpr-stmtと区別している
 - expr_stmt = expr? ";"
 - expr = assign
@@ -104,8 +109,16 @@ NdBlock無しでもいけるかなって思ったけど、stmtを中で複数回
 
 なんでBoxって、ポインタより安全なんだ?
 
+BCOUNTを最後にインクリメントするのはどうなのか。
+exprとかは暗黙的にtokens.removeしてくれてるけどそれでよいんだかな、コード書く時に紛らわしくないかな
+
+今はブロックじゃなくてもコンパイルできちゃうけど、普通はダメなのかな？あと変数名もちゃんとしないと。
+
 ## バグ
 なんでunaryが2回呼ばれるはずが3回も呼ばれているのか
 問題は、なぜtokensがからなのに、unary, mul, add, relational, equality, assign, exprが呼ばれているのか
 exprが呼ばれるのはどのタイミングか(tokensがから), expr-stmtが呼ばれている。どうして
 returnわすれ！！！
+
+## for
+forのcodegenをやるところで止まってる

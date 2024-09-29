@@ -1,7 +1,7 @@
 use crate::parse::VARIABLES;
 use crate::types::{Node, NodeKind};
 
-pub static mut IFCOUNT: usize = 0;
+pub static mut BCOUNT: usize = 0; // branch count
 
 fn gen_addr(node: Node) {
     if node.kind == NodeKind::NdVar {
@@ -110,7 +110,7 @@ fn gen_stmt(node: Node) {
             }
         }
         NodeKind::NdIf => {
-            let count = unsafe { IFCOUNT };
+            let count = unsafe { BCOUNT };
             gen_expr(*(node.cond).unwrap()); // x0に条件式の結果が入る。x0が1ならthne, 0ならelsを実行するようにジャンプ命令を生成する。この時ジャンプ先命令が一意になるように識別子をつけないといけない。また構造体に格納するモチベーションが生まれた
             println!("  cmp x0, 1");
             println!("  b.eq then{}", count);
@@ -124,7 +124,29 @@ fn gen_stmt(node: Node) {
                 println!("  b end{}", count);
             }
             println!("end{}:", count);
-            unsafe { IFCOUNT += 1 };
+            unsafe { BCOUNT += 1 };
+        }
+        NodeKind::NdFor => {
+            // initをやり、condを評価して、中身を実行し、incをやる。initは最初だけか。
+            let count = unsafe { BCOUNT };
+            gen_stmt(*(node.init).unwrap()); // これで大丈夫か？node.initがNoneとなることはないっけ。多分ない。
+            if !node.cond.is_none() {
+                // 2回もnode.condがあるかどうかを確かめているのは良くない気がする。けどまあ動く。
+                println!("  b check_cond{}", count);
+            }
+            println!("start{}:", count);
+            gen_stmt(*(node.then).unwrap());
+            if let Some(inc) = node.inc {
+                gen_expr(*inc);
+            }
+            if let Some(cond) = node.cond {
+                println!("check_cond{}:", count); // これでちょっと不適切な気がする
+                gen_expr(*cond);
+                println!("  cmp x0, 1");
+                println!("  b.eq start{}", count);
+                println!("  b.ne end{}", count);
+            }
+            println!("end{}:", count);
         }
         _ => eprintln!("invalid node kind"),
     }

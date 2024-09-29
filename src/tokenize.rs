@@ -118,7 +118,7 @@ pub fn tokenize(p: &mut &str) -> Vec<Token> {
 
 // キーワードを変換するためのもの。これ今は要らなくね？
 pub fn convert_keywords(tokens: &mut Vec<Token>) {
-    let keywords = vec!["return", "if", "else"];
+    let keywords = vec!["return", "if", "else", "for"]; // breakは？
     for t in tokens.iter_mut() {
         if keywords.contains(&t.str.as_str()) {
             t.kind = TokenKind::TkKeyword;
