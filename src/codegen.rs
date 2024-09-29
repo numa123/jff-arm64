@@ -154,14 +154,21 @@ fn gen_stmt(node: Node) {
     }
 }
 
+fn align_16(n: usize) -> usize {
+    n / 16 * 16 + 16
+}
+
 pub fn codegen(node: &mut Vec<Node>) {
-    let stack_size = unsafe { VARIABLES.len() * 16 + 16 }; // ここで16かけているのはてきとー。8をかけると足りないみたい。
+    let stack_size = unsafe { VARIABLES.len() * 8 }; // デバッグなど用のwzr, lp, fpは含めない、ローカル変数のみのスタックサイズ。今はlongのみのサポートだから*8
+    let prorogue_size = align_16(stack_size + 4);
     println!(".global _main");
     println!("_main:");
     // プロローグ
-    println!("  sub sp, sp, {}", stack_size); // ここ変えないと。
-                                              // println!("  stp x29, x30, [sp, #16]"); // これは関数内で関数を呼び出すときだけ必要なのかもしれない。
-                                              // println!("  add x29, sp, #16");
+    println!("  sub sp, sp, {}", prorogue_size);
+    println!("  stur wzr, [sp, #{}]", prorogue_size - 4); // 4は、wzr(4バイト)保存用。大きな正のオフセットが必要な場合は、strとかにしないといけないらしい。
+                                                          // また関す呼び出しがある際は、fp, lpの保存の処理を書かなければならない。そういうチェックはまあ適当にやる。
+                                                          // println!("  stp x29, x30, [sp, #16]"); // これは関数内で関数を呼び出すときだけ必要なのかもしれない。
+                                                          // println!("  add x29, sp, #16");
 
     while !node.is_empty() {
         gen_stmt(node[0].clone()); // こうしないとnodeの所有権が移動してしまう。gen_exprを変えれば良いが一旦これで。
@@ -176,6 +183,6 @@ pub fn codegen(node: &mut Vec<Node>) {
 
     println!("end:");
     // println!("  ldp x29, x30, [sp, #16]"); // これは関数内で関数を呼び出すときだけ必要なのかもしれない。
-    println!("  add sp, sp, #{}", stack_size);
+    println!("  add sp, sp, #{}", prorogue_size);
     println!("  ret");
 }

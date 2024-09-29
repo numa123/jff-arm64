@@ -12,6 +12,7 @@
 - {}
 - if
 - for
+- while
 
 ## 演算の優先順位(低い順)
 低
@@ -25,7 +26,8 @@
 
 高
 
-for (初期化;条件式;あとでやるやつ) stmt
+## 大きな課題
+- 現在プロローグや、エピローグがなくても関数呼び出しがないからか、テストは通る。でも関数を呼び出していく中でsp, lp, fpはきちんとやらないといけない。
 
 ## EBNF
 - stmt = expr-stmt | "return" expr ";" | "{" compound-stmt | "if" "(" expr ")" stmt ("else" stmt)? | "for" "(" expr_stmt expr? ";" expr? ")" stmt | "while" "(" expr ")" stmt
@@ -123,3 +125,5 @@ returnわすれ！！！
 
 ## for
 forのcodegenをやるところで止まってる
+
+** スタックポインタは16でアラインメントされるんだ。 **
