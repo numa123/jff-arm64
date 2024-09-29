@@ -1,11 +1,15 @@
 #!/bin/bash
+cat <<EOF | gcc -xc -c -o tmp2.o -
+int reta() { return 3; }
+int retb() { return 5; }
+EOF
 
 assert() {
 	expected="$1"
 	input="$2"
 
 	./target/debug/jff "$input" > tmp.s
-	clang -o tmp tmp.s -lc
+	clang -o tmp tmp.s tmp2.o
 	./tmp
 	actual="$?"
 
@@ -19,7 +23,14 @@ assert() {
 
 cargo build # 最初にビルド
 
-assert 0 "{getpid();}"
+# assert 1 "{a=1;return a;getpid();}"
+# assert 1 "{a=1;getpid();return a;}"
+ assert 1 "{getpid();getuid();return 1;}"
+ assert 3 '{ return reta(); }'
+assert 5 '{ return retb(); }'
+
+assert 8 'a=3; z=5; a+z;'
+
 assert 0 "0;"
 assert 0 "return 0;"
 assert 0 "{return 0;}"

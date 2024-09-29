@@ -1,4 +1,4 @@
-use crate::parse::VARIABLES;
+use crate::parse::{HASFUNCCALL, VARIABLES};
 use crate::types::{Node, NodeKind};
 
 pub static mut BCOUNT: usize = 0; // branch count
@@ -6,8 +6,8 @@ pub static mut BCOUNT: usize = 0; // branch count
 fn gen_addr(node: Node) {
     if node.kind == NodeKind::NdVar {
         // println!("{:?}", node); デバッグ用
-        let offset = node.var.unwrap().offset * 8; // sp + 16 + offsetでアドレスを計算
-        println!("  add x0, x29, {}", offset);
+        let offset = (node.var.unwrap().offset + 1) * 8; // sp + 16 + offsetでアドレスを計算 // 多分+1
+        println!("  add x0, x29, -{}", offset);
         return;
     }
     eprintln!("not a lvalue");
@@ -31,7 +31,7 @@ pub fn gen_expr(node: Node) {
         }
         NodeKind::NdAssign => {
             gen_addr(*(node.lhs).unwrap());
-            println!("  str x0, [sp, -16]!"); // push  16で果たして良いのか、でも8じゃ動かなかった気がするからなあ。いやこれlp, fpのあれか
+            println!("  str x0, [sp, -16]!"); // push  16で果たして良いのか、でも8じゃ動かなかった気がするからなあ。いやこれlp, fpのあれか。これちょっとspをいじるっていう点で危険では？まあ良いのか。
             gen_expr(*(node.rhs).unwrap()); // rhsはx0に入るはず
             println!("  ldr x1, [sp], 16"); // pop to x1 x1には左辺値のアドレスが入っているはず
             println!("  str x0, [x1]"); // a=1;なら、aのアドレスに1を入れる
@@ -47,10 +47,11 @@ pub fn gen_expr(node: Node) {
     }
     if let Some(rhs) = node.rhs {
         gen_expr(*rhs);
+        println!("  ldr x1, [sp], 16"); // pop to x1
+                                        // 今、rhsの計算結果がx0, lhsの計算結果がx1に入っている
+                                        // 変数をアリにしたらここも変えないといけない気がするな
+                                        // これ、ifの中にないといけなかった。そうしないとsegmentation faultがおこっちゃう。spがおかしくなってしまうから。だと思う。
     }
-    println!("  ldr x1, [sp], 16"); // pop to x1
-                                    // 今、rhsの計算結果がx0, lhsの計算結果がx1に入っている
-                                    // 変数をアリにしたらここも変えないといけない気がするな
 
     match node.kind {
         NodeKind::NdAdd => {
@@ -93,7 +94,6 @@ pub fn gen_expr(node: Node) {
         }
         NodeKind::NdFuncCall => {
             println!("  bl _{}", node.funcname);
-            println!("  mov	x0, #0")
         }
         _ => eprintln!("invalid node kind"),
     }
@@ -106,7 +106,7 @@ fn gen_stmt(node: Node) {
         }
         NodeKind::NdReturn => {
             gen_expr(*(node.lhs).unwrap());
-            println!("  ret");
+            println!("  b end"); // これretは不適切でした！
         }
         NodeKind::NdBlock => {
             for node in node.block_body {
@@ -157,17 +157,33 @@ fn gen_stmt(node: Node) {
         _ => eprintln!("invalid node kind"),
     }
 }
+fn align_16(size: usize) -> usize {
+    size / 16 * 16 + 16
+}
 
 pub fn codegen(node: &mut Vec<Node>) {
-    let stack_size = unsafe { VARIABLES.len() * 16 + 16 }; // ここで16かけているのはてきとー。8をかけると足りないみたい。
+    let stack_size = unsafe { VARIABLES.len() * 8 }; // デバッグなど用のwzr, lp, fpは含めない、ローカル変数のみのスタックサイズ。今はlongのみのサポートだから*8
+    let prorogue_size = unsafe {
+        if HASFUNCCALL {
+            align_16(stack_size + 4) + 16
+        } else {
+            align_16(stack_size + 4)
+        }
+    };
     println!(".global _main");
     println!("_main:");
     // プロローグ
-    // println!("  sub sp, sp, {}", stack_size); // ここ変えないと。
-    //                                           // println!("  stp x29, x30, [sp, #16]"); // これは関数内で関数を呼び出すときだけ必要なのかもしれない。
-    //                                           // println!("  add x29, sp, #16");
-    println!("stp x29, x30, [sp, #-16]!");
-    println!("mov x29, sp");
+    println!("  sub sp, sp, {}", prorogue_size); // 関数を実行するだけのmain関数であればこれすらいらないみたい。でもその場合、stp x29, 30とかは必要っぽい。あとで整理する必要がある。それがABI的に正しければの話だけど。
+                                                 // まあいっぱい確保しちゃうっていうだけで、それ以外に影響はないから、問題が発生するまではこれで良いような気持ちもある。
+    unsafe {
+        if HASFUNCCALL {
+            println!("  stp x29, x30, [sp, #{}]", prorogue_size - 16);
+            println!("  add x29, sp, #{}", prorogue_size - 16); // ここ本当は、HASFUNCCALLがtrueかつ、変数宣言があるかどうかっぽい。
+            println!("  stur wzr, [x29, #-4]",); // こっちもHASFUNCCALLがtrueかつ、変数宣言があるかどうかっぽくて
+        } else {
+            println!("  stur wzr, [sp, #{}]", prorogue_size - 4); // 4は、wzr(4バイト)保存用。大きな正のオフセットが必要な場合は、strとかにしないといけないらしい。
+        }
+    }
 
     while !node.is_empty() {
         gen_stmt(node[0].clone()); // こうしないとnodeの所有権が移動してしまう。gen_exprを変えれば良いが一旦これで。
@@ -181,8 +197,11 @@ pub fn codegen(node: &mut Vec<Node>) {
     println!("  b end"); // これじゃあただ正常に計算結果が1なのか、エラーが1なのかわからないのでは？まあ今は動くのでよしとする
 
     println!("end:");
-    // println!("  ldp x29, x30, [sp, #16]"); // これは関数内で関数を呼び出すときだけ必要なのかもしれない。
-    // println!("  add sp, sp, #{}", stack_size);
-    println!("  ldp x29, x30, [sp], #16");
+    unsafe {
+        if HASFUNCCALL {
+            println!("  ldp x29, x30, [sp, #16]"); // これは関数内で関数を呼び出すときだけ必要なのかもしれない。
+        }
+    }
+    println!("  add sp, sp, #{}", prorogue_size);
     println!("  ret");
 }
