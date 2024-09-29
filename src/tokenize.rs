@@ -89,13 +89,18 @@ pub fn tokenize(p: &mut &str) -> Vec<Token> {
             continue;
         }
 
-        // 一文字の識別子のみをサポート
+        // 1文字以上の複数文字の識別子をサポート。コードが読みづらい。
         if c >= 'a' && c <= 'z' {
             let mut ident = String::new();
-            while !p.is_empty() && is_ident(p.chars().next().unwrap()) {
+            if is_ident(p.chars().next().unwrap()) {
                 ident.push(p.chars().next().unwrap());
                 *p = &p[1..];
                 index += 1;
+                while !p.is_empty() && is_ident2(p.chars().next().unwrap()) {
+                    ident.push(p.chars().next().unwrap());
+                    *p = &p[1..];
+                    index += 1;
+                }
             }
 
             tokens.push(Token {
@@ -128,4 +133,8 @@ pub fn convert_keywords(tokens: &mut Vec<Token>) {
 
 fn is_ident(c: char) -> bool {
     return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_';
+}
+
+fn is_ident2(c: char) -> bool {
+    return is_ident(c) || c.is_digit(10);
 }

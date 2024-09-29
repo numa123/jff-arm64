@@ -6,8 +6,8 @@ pub static mut BCOUNT: usize = 0; // branch count
 fn gen_addr(node: Node) {
     if node.kind == NodeKind::NdVar {
         // println!("{:?}", node); デバッグ用
-        let offset = node.var.unwrap().offset * 8; // sp + 16 + offsetでアドレスを計算
-        println!("  add x0, x29, {}", offset);
+        let offset = (node.var.unwrap().offset + 1) * 8; // sp + 16 + offsetでアドレスを計算
+        println!("  add x0, x29, -{}", offset);
         return;
     }
     eprintln!("not a lvalue");
@@ -34,7 +34,7 @@ pub fn gen_expr(node: Node) {
             println!("  str x0, [sp, -16]!"); // push  16で果たして良いのか、でも8じゃ動かなかった気がするからなあ。いやこれlp, fpのあれか
             gen_expr(*(node.rhs).unwrap()); // rhsはx0に入るはず
             println!("  ldr x1, [sp], 16"); // pop to x1 x1には左辺値のアドレスが入っているはず
-            println!("  str x0, [x1]"); // a=1;なら、aのアドレスに1を入れる
+            println!("  str x0, [x1]"); // a=1;の場合、aのアドレスに1を入れる処理
             return;
         }
         _ => {}
@@ -47,10 +47,10 @@ pub fn gen_expr(node: Node) {
     }
     if let Some(rhs) = node.rhs {
         gen_expr(*rhs);
+        println!("  ldr x1, [sp], 16"); // pop to x1
+                                        // 今、rhsの計算結果がx0, lhsの計算結果がx1に入っている
+                                        // 変数をアリにしたらここも変えないといけない気がするな
     }
-    println!("  ldr x1, [sp], 16"); // pop to x1
-                                    // 今、rhsの計算結果がx0, lhsの計算結果がx1に入っている
-                                    // 変数をアリにしたらここも変えないといけない気がするな
 
     match node.kind {
         NodeKind::NdAdd => {
@@ -160,15 +160,15 @@ fn align_16(n: usize) -> usize {
 
 pub fn codegen(node: &mut Vec<Node>) {
     let stack_size = unsafe { VARIABLES.len() * 8 }; // デバッグなど用のwzr, lp, fpは含めない、ローカル変数のみのスタックサイズ。今はlongのみのサポートだから*8
-    let prorogue_size = align_16(stack_size + 4);
+    let prorogue_size = align_16(stack_size + 4) + 16;
     println!(".global _main");
     println!("_main:");
-    // プロローグ
+    // プロローグ。無駄が多くなるが動くのでよしとしている。関数呼び出しの有無、変数宣言の有無などによって変化する。subがなかったり、sturがなかったり、mov x29, spになっていたり。
+    //
     println!("  sub sp, sp, {}", prorogue_size);
-    println!("  stur wzr, [sp, #{}]", prorogue_size - 4); // 4は、wzr(4バイト)保存用。大きな正のオフセットが必要な場合は、strとかにしないといけないらしい。
-                                                          // また関す呼び出しがある際は、fp, lpの保存の処理を書かなければならない。そういうチェックはまあ適当にやる。
-                                                          // println!("  stp x29, x30, [sp, #16]"); // これは関数内で関数を呼び出すときだけ必要なのかもしれない。
-                                                          // println!("  add x29, sp, #16");
+    println!("  stp x29, x30, [sp, #{}]", prorogue_size - 16);
+    println!("  add x29, sp, #{}", prorogue_size - 16);
+    println!("  stur wzr, [x29, #-4]",);
 
     while !node.is_empty() {
         gen_stmt(node[0].clone()); // こうしないとnodeの所有権が移動してしまう。gen_exprを変えれば良いが一旦これで。
@@ -182,7 +182,7 @@ pub fn codegen(node: &mut Vec<Node>) {
     println!("  b end"); // これじゃあただ正常に計算結果が1なのか、エラーが1なのかわからないのでは？まあ今は動くのでよしとする
 
     println!("end:");
-    // println!("  ldp x29, x30, [sp, #16]"); // これは関数内で関数を呼び出すときだけ必要なのかもしれない。
+    println!("  ldp x29, x30, [sp, #{}]", prorogue_size - 16);
     println!("  add sp, sp, #{}", prorogue_size);
     println!("  ret");
 }
