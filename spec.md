@@ -41,7 +41,8 @@
 - add = mul ("+" mul | "-" mul)*
 - mul = unary ( "\*" unary | "/" unary)*
 - unary = ("+" | "-")? primary
-- primary = num | ident | "(" expr ")"
+- primary = num | ident args? | "(" expr ")"
+- args = "(" ")" // args関数は作ってない
 
 ## 課題
 - tokenizeを別のファイルに切り分けないと
@@ -127,4 +128,19 @@ returnわすれ！！！
 ## for
 forのcodegenをやるところで止まってる
 
-** スタックポインタは16でアラインメントされるんだ。 **
+**スタックポインタは16でアラインメントされるんだ。**
+
+## 注意
+- 今、数値は8バイト使っていて、long型になっている。intにした場合は4バイトにするべき。
+- いろいろバイト数をハードコードしている部分はテキトーになっている恐れあり。
+- プロローグのstr wzrとかが必要な場合とかに注意
+- gotboltの`armv8-a clang 18.1.0`と、手元でコンパイルした場合はちょっと違うから注意。gotboltはmainだけど、手元だと_mainになるとか。関数名は_から始まるっぽいとか。そろそろABIとか読もうか
+
+## 手元のコンパイラ
+```
+~/r/s/jff ❯ (feature/zero-arity-function-calls) clang --version                                                                (base) 
+Homebrew clang version 18.1.8
+Target: arm64-apple-darwin23.5.0
+Thread model: posix
+InstalledDir: /opt/homebrew/opt/llvm/bin
+```

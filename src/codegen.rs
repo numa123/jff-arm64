@@ -91,6 +91,9 @@ pub fn gen_expr(node: Node) {
             println!("  cmp x1, x0");
             println!("  cset x0, ge");
         }
+        NodeKind::NdFuncCall => {
+            println!("  bl _{}", node.funcname)
+        }
         _ => eprintln!("invalid node kind"),
     }
 }
@@ -102,7 +105,7 @@ fn gen_stmt(node: Node) {
         }
         NodeKind::NdReturn => {
             gen_expr(*(node.lhs).unwrap());
-            println!("  ret");
+            println!("  b end");
         }
         NodeKind::NdBlock => {
             for node in node.block_body {
@@ -159,12 +162,14 @@ fn align_16(n: usize) -> usize {
 }
 
 pub fn codegen(node: &mut Vec<Node>) {
-    let stack_size = unsafe { VARIABLES.len() * 8 }; // デバッグなど用のwzr, lp, fpは含めない、ローカル変数のみのスタックサイズ。今はlongのみのサポートだから*8
+    let stack_size = unsafe { VARIABLES.len() * 8 }; // デバッグなど用のwzr, lp, fpは含めない、ローカル変数のみのスタックサイズ。
+                                                     // 今はlongのみのサポートを想定しているから8バイトずつ確保している(つもり)
     let prorogue_size = align_16(stack_size + 4) + 16;
     println!(".global _main");
     println!("_main:");
-    // プロローグ。無駄が多くなるが動くのでよしとしている。関数呼び出しの有無、変数宣言の有無などによって変化する。subがなかったり、sturがなかったり、mov x29, spになっていたり。
-    //
+    // プロローグ
+    // 無駄が多くなるが動くのでよしとしている。関数呼び出しの有無、変数宣言の有無などによって変化する。
+    // subがなかったり、sturがなかったり、mov x29, spになっていたり。
     println!("  sub sp, sp, {}", prorogue_size);
     println!("  stp x29, x30, [sp, #{}]", prorogue_size - 16);
     println!("  add x29, sp, #{}", prorogue_size - 16);

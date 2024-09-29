@@ -35,6 +35,7 @@ pub enum NodeKind {
     NdBlock,    // {}
     NdIf,       // if
     NdFor,      // for or while
+    NdFuncCall, // function call
 }
 
 #[derive(Debug, Clone)]
@@ -51,11 +52,13 @@ pub struct Node {
     pub val: i32,
     pub var: Option<Box<Var>>, // Used if kind == NdVar
     pub block_body: Vec<Node>, // Used if kind == NdBlock
-    // if
-    pub cond: Option<Box<Node>>, // Used if kind == NdIf
-    pub then: Option<Box<Node>>, // Used if kind == NdIf
-    pub els: Option<Box<Node>>,  // Used if kind == NdIf
-    // for
-    pub init: Option<Box<Node>>, // Used if kind == NdFor
-    pub inc: Option<Box<Node>>,  // Used if kind == NdFor
+    // if, for, while
+    pub cond: Option<Box<Node>>,
+    pub then: Option<Box<Node>>,
+    // only if
+    pub els: Option<Box<Node>>,
+    // only for, while
+    pub init: Option<Box<Node>>,
+    pub inc: Option<Box<Node>>,
+    pub funcname: String,
 }
