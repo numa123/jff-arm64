@@ -178,15 +178,9 @@ pub fn codegen(node: &mut Vec<Node>) {
     // プロローグ
     println!("  sub sp, sp, {}", prorogue_size); // 関数を実行するだけのmain関数であればこれすらいらないみたい。でもその場合、stp x29, 30とかは必要っぽい。あとで整理する必要がある。それがABI的に正しければの話だけど。
                                                  // まあいっぱい確保しちゃうっていうだけで、それ以外に影響はないから、問題が発生するまではこれで良いような気持ちもある。
-    unsafe {
-        if HASFUNCCALL {
-            println!("  stp x29, x30, [sp, #{}]", prorogue_size - 16);
-            println!("  add x29, sp, #{}", prorogue_size - 16); // ここ本当は、HASFUNCCALLがtrueかつ、変数宣言があるかどうかっぽい。
-            println!("  stur wzr, [x29, #-4]",); // こっちもHASFUNCCALLがtrueかつ、変数宣言があるかどうかっぽくて
-        } else {
-            println!("  stur wzr, [sp, #{}]", prorogue_size - 4); // 4は、wzr(4バイト)保存用。大きな正のオフセットが必要な場合は、strとかにしないといけないらしい。
-        }
-    }
+    println!("  stp x29, x30, [sp, #{}]", prorogue_size - 16);
+    println!("  add x29, sp, #{}", prorogue_size - 16); // ここ本当は、HASFUNCCALLがtrueかつ、変数宣言があるかどうかっぽい。
+    println!("  stur wzr, [x29, #-4]",); // こっちもHASFUNCCALLがtrueかつ、変数宣言があるかどうかっぽくて
 
     while !node.is_empty() {
         gen_stmt(node[0].clone()); // こうしないとnodeの所有権が移動してしまう。gen_exprを変えれば良いが一旦これで。
@@ -200,11 +194,7 @@ pub fn codegen(node: &mut Vec<Node>) {
     println!("  b end"); // これじゃあただ正常に計算結果が1なのか、エラーが1なのかわからないのでは？まあ今は動くのでよしとする
 
     println!("end:");
-    unsafe {
-        if HASFUNCCALL {
-            println!("  ldp x29, x30, [sp, #16]"); // これは関数内で関数を呼び出すときだけ必要なのかもしれない。
-        }
-    }
+    println!("  ldp x29, x30, [sp, #{}]", prorogue_size - 16); // これは関数内で関数を呼び出すときだけ必要なのかもしれない。
     println!("  add sp, sp, #{}", prorogue_size);
     println!("  ret");
 }
