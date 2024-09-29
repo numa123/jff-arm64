@@ -13,12 +13,6 @@
 - if
 - for
 - while
-- 引数なしの関数呼び出し
-
-## 関数呼び出しでなぜ切り分けたのか
-- 現在疎かにしている、fp, lpの保存と復元処理を書いておらず、それをやらないと外部の関数を呼び出せない
-- gotboltによると、関数名はコード名と同じだが、手元で試すと(`clang -S -o main.s main.c`)、`bl _関数名`と、アンダースコアがつく
-- まあ関数呼び出しにはリターンアドレス、ベースアドレスなど、abi関連で重要なものがあるから、しっかり描かないといけないということなので、一旦ブランチを分けた
 
 ## 演算の優先順位(低い順)
 低
@@ -32,7 +26,8 @@
 
 高
 
-for (初期化;条件式;あとでやるやつ) stmt
+## 大きな課題
+- 現在プロローグや、エピローグがなくても関数呼び出しがないからか、テストは通る。でも関数を呼び出していく中でsp, lp, fpはきちんとやらないといけない。
 
 ## EBNF
 - stmt = expr-stmt | "return" expr ";" | "{" compound-stmt | "if" "(" expr ")" stmt ("else" stmt)? | "for" "(" expr_stmt expr? ";" expr? ")" stmt | "while" "(" expr ")" stmt
@@ -45,7 +40,7 @@ for (初期化;条件式;あとでやるやつ) stmt
 - add = mul ("+" mul | "-" mul)*
 - mul = unary ( "\*" unary | "/" unary)*
 - unary = ("+" | "-")? primary
-- primary = num | ident | "(" expr ")" | ident "()"
+- primary = num | ident | "(" expr ")"
 
 ## 課題
 - tokenizeを別のファイルに切り分けないと
@@ -128,5 +123,17 @@ exprとかは暗黙的にtokens.removeしてくれてるけどそれでよいん
 exprが呼ばれるのはどのタイミングか(tokensがから), expr-stmtが呼ばれている。どうして
 returnわすれ！！！
 
-## for
-forのcodegenをやるところで止まってる
+## 注意
+- 今、数値は8バイト使っていて、long型になっている。intにした場合は4バイトにするべき。
+- いろいろバイト数をハードコードしている部分はテキトーになっている恐れあり。
+- プロローグのstr wzrとかが必要な場合とかに注意
+- gotboltの`armv8-a clang 18.1.0`と、手元でコンパイルした場合はちょっと違うから注意。gotboltはmainだけど、手元だと_mainになるとか
+
+## 手元のコンパイラ
+```
+~/r/s/jff ❯ (feature/zero-arity-function-calls) clang --version                                                                (base) 
+Homebrew clang version 18.1.8
+Target: arm64-apple-darwin23.5.0
+Thread model: posix
+InstalledDir: /opt/homebrew/opt/llvm/bin
+```
