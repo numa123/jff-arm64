@@ -33,6 +33,7 @@ pub enum NodeKind {
     NdExprStmt, // expression statement
     NdReturn,   // return
     NdBlock,    // {}
+    NdIf,       // if
 }
 
 #[derive(Debug, Clone)]
@@ -47,6 +48,9 @@ pub struct Node {
     pub lhs: Option<Box<Node>>,
     pub rhs: Option<Box<Node>>,
     pub val: i32,
-    pub var: Option<Box<Var>>, // Used if kind == NdVar
-    pub block_body: Vec<Node>, // Used if kind == NdBlock
+    pub var: Option<Box<Var>>,   // Used if kind == NdVar
+    pub block_body: Vec<Node>,   // Used if kind == NdBlock
+    pub cond: Option<Box<Node>>, // Used if kind == NdIf
+    pub then: Option<Box<Node>>, // Used if kind == NdIf
+    pub els: Option<Box<Node>>,  // Used if kind == NdIf
 }

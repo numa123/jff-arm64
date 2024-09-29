@@ -1,133 +1,5 @@
+use crate::tokenize::{error_tok, skip};
 use crate::types::{Node, NodeKind, Token, TokenKind, Var};
-
-fn skip(tokens: &mut Vec<Token>, op: &str, input: &str) -> bool {
-    if tokens.is_empty() {
-        eprintln!("{}", input);
-        eprintln!("{}^", " ".repeat(input.len()));
-        eprintln!("expected {}", op);
-        std::process::exit(1);
-    }
-    if tokens[0].str != op {
-        error_tok(&tokens[0], format!("expected {}", op).as_str(), input); // as_str()は&strに変換するためのもので、to_string()はStringに変換するためのもの
-    }
-    tokens.remove(0);
-    return true;
-}
-
-fn parse_number(p: &mut &str) -> String {
-    let num: String = p.chars().take_while(|c| c.is_digit(10)).collect();
-    *p = &p[num.len()..]; // これは関数の外に出した方が明示的に書きやすいかも？
-    return num;
-}
-
-// 嘘だけどNodeを返すと書いている
-fn error_tok(t: &Token, msg: &str, input: &str) -> Node {
-    eprintln!("{}", input);
-    eprintln!("{}^", " ".repeat(t.loc));
-    eprintln!("{}", msg);
-    std::process::exit(1);
-}
-
-pub fn tokenize(p: &mut &str) -> Vec<Token> {
-    let p_copy = *p;
-    let mut tokens = Vec::new();
-    let mut index = 0;
-    while !p.is_empty() {
-        let c = p.chars().next().unwrap();
-        if c == ' ' {
-            *p = &p[1..];
-            index += 1;
-            continue;
-        }
-        if c.is_digit(10) {
-            let num = parse_number(p);
-            tokens.push(Token {
-                kind: TokenKind::TkNum,
-                val: num.parse().unwrap(),
-                str: num.clone(),
-                loc: index,
-            });
-            index += num.len();
-            continue;
-        }
-        // ==, !=, <=, >= p.len() > 2 がないとindex out of boundsになる
-        if p.len() > 2
-            && (p[0..2].eq("==") || p[0..2].eq("!=") || p[0..2].eq("<=") || p[0..2].eq(">="))
-        {
-            tokens.push(Token {
-                kind: TokenKind::TkPunct,
-                val: 0,
-                str: p[0..2].to_string(),
-                loc: index,
-            });
-            *p = &p[2..];
-            index += 2;
-            continue;
-        }
-
-        if c == '+'
-            || c == '-'
-            || c == '*'
-            || c == '/'
-            || c == '('
-            || c == ')'
-            || c == '<'
-            || c == '>'
-            || c == ';'
-            || c == '='
-            || c == '{'
-            || c == '}'
-        {
-            tokens.push(Token {
-                kind: TokenKind::TkPunct,
-                val: 0,
-                str: p[0..1].to_string(),
-                loc: index,
-            });
-            *p = &p[1..];
-            index += 1;
-            continue;
-        }
-
-        // 一文字の識別子のみをサポート
-        if c >= 'a' && c <= 'z' {
-            let mut ident = String::new();
-            while !p.is_empty() && is_ident(p.chars().next().unwrap()) {
-                ident.push(p.chars().next().unwrap());
-                *p = &p[1..];
-                index += 1;
-            }
-
-            tokens.push(Token {
-                kind: TokenKind::TkIdent,
-                val: 0,
-                str: ident, // Stringじゃなくて&strの方が良いのかもしれない？
-                loc: index,
-            });
-            continue;
-        }
-
-        eprintln!("{}", p_copy);
-        eprintln!("{}^", " ".repeat(index));
-        eprintln!("invalid token");
-        std::process::exit(1);
-    }
-    // println!("{:?}", tokens); デバッグ用
-    return tokens;
-}
-
-// キーワードを変換するためのもの。これ今は要らなくね？
-pub fn convert_keywords(tokens: &mut Vec<Token>) {
-    for t in tokens.iter_mut() {
-        if t.str == "return" {
-            t.kind = TokenKind::TkKeyword;
-        }
-    }
-}
-
-fn is_ident(c: char) -> bool {
-    return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_';
-}
 
 //
 // Node
@@ -142,6 +14,9 @@ fn new_binary(kind: NodeKind, lhs: Node, rhs: Node) -> Node {
         val: 0,
         var: None,
         block_body: Vec::new(),
+        cond: None,
+        then: None,
+        els: None,
     }
 }
 
@@ -153,6 +28,9 @@ fn new_unary(kind: NodeKind, lhs: Node) -> Node {
         val: 0,
         var: None,
         block_body: Vec::new(),
+        cond: None,
+        then: None,
+        els: None,
     }
 }
 
@@ -164,6 +42,9 @@ fn new_num(val: i32) -> Node {
         val: val,
         var: None,
         block_body: Vec::new(),
+        cond: None,
+        then: None,
+        els: None,
     }
 }
 
@@ -175,6 +56,9 @@ fn new_var(var: Var) -> Node {
         val: 0,
         var: Some(Box::new(var)),
         block_body: Vec::new(),
+        cond: None,
+        then: None,
+        els: None,
     }
 }
 
@@ -186,6 +70,23 @@ fn new_block(block_body: Vec<Node>) -> Node {
         val: 0,
         var: None,
         block_body: block_body,
+        cond: None,
+        then: None,
+        els: None,
+    }
+}
+
+fn new_node(kind: NodeKind) -> Node {
+    Node {
+        kind: kind,
+        lhs: None,
+        rhs: None,
+        val: 0,
+        var: None,
+        block_body: Vec::new(),
+        cond: None,
+        then: None,
+        els: None,
     }
 }
 
@@ -193,13 +94,32 @@ fn new_block(block_body: Vec<Node>) -> Node {
 fn stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
     if tokens[0].str == "return" {
         tokens.remove(0);
+        // println!("returnが呼ばれた時: {:?}", tokens);
         let node = new_unary(NodeKind::NdReturn, expr(tokens, input));
+        // println!("returnが呼ばれたあと: {:?}", tokens);
         skip(tokens, ";", input);
         return node;
     }
     if tokens[0].str == "{" {
         tokens.remove(0);
         let node = compound_stmt(tokens, input);
+        return node;
+    }
+    if tokens[0].str == "if" {
+        let mut node = new_node(NodeKind::NdIf);
+        tokens.remove(0);
+        skip(tokens, "(", input);
+        let cond = expr(tokens, input);
+        skip(tokens, ")", input);
+        let then = stmt(tokens, input);
+        node.cond = Some(Box::new(cond));
+        node.then = Some(Box::new(then));
+        if tokens.len() != 0 && tokens[0].str == "else" {
+            // elseがない場合、index out of boundsになる
+            tokens.remove(0);
+            let els = stmt(tokens, input);
+            node.els = Some(Box::new(els));
+        }
         return node;
     }
     return expr_stmt(tokens, input);
@@ -218,7 +138,7 @@ fn compound_stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
 }
 
 fn expr_stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
-    if tokens[0].str == ";" {
+    if tokens.len() != 0 && tokens[0].str == ";" {
         let node = new_block(Vec::new());
         skip(tokens, ";", input);
         return node;

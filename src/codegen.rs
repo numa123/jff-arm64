@@ -1,6 +1,8 @@
 use crate::parse::VARIABLES;
 use crate::types::{Node, NodeKind};
 
+pub static mut IFCOUNT: usize = 0;
+
 fn gen_addr(node: Node) {
     if node.kind == NodeKind::NdVar {
         // println!("{:?}", node); デバッグ用
@@ -106,6 +108,23 @@ fn gen_stmt(node: Node) {
             for node in node.block_body {
                 gen_stmt(node);
             }
+        }
+        NodeKind::NdIf => {
+            let count = unsafe { IFCOUNT };
+            gen_expr(*(node.cond).unwrap()); // x0に条件式の結果が入る。x0が1ならthne, 0ならelsを実行するようにジャンプ命令を生成する。この時ジャンプ先命令が一意になるように識別子をつけないといけない。また構造体に格納するモチベーションが生まれた
+            println!("  cmp x0, 1");
+            println!("  b.eq then{}", count);
+            println!("  b.ne else{}", count);
+            println!("then{}:", count);
+            gen_stmt(*(node.then).unwrap());
+            println!("  b end{}", count);
+            println!("else{}:", count);
+            if let Some(els) = node.els {
+                gen_stmt(*els);
+                println!("  b end{}", count);
+            }
+            println!("end{}:", count);
+            unsafe { IFCOUNT += 1 };
         }
         _ => eprintln!("invalid node kind"),
     }

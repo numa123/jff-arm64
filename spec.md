@@ -23,7 +23,7 @@
 高
 
 ## EBNF
-- stmt = expr-stmt | "return" expr ";" | "{" compound-stmt
+- stmt = expr-stmt | "return" expr ";" | "{" compound-stmt | "if" "(" expr ")" stmt ("else" stmt)?
 - compound-stmt = stmt* "}" // "{" があるかどうかでexpr-stmtと区別している
 - expr_stmt = expr? ";"
 - expr = assign
@@ -101,3 +101,11 @@ tokens[0]が現在処理しているトークンってわかりづらいかな
 NdBlock無しでもいけるかなって思ったけど、stmtを中で複数回実行しないといけないから、NodeとNdBlockを入れた
 
 {int a = 1; a;} というプログラムが実行できるのは良くないのかもしれない？
+
+なんでBoxって、ポインタより安全なんだ?
+
+## バグ
+なんでunaryが2回呼ばれるはずが3回も呼ばれているのか
+問題は、なぜtokensがからなのに、unary, mul, add, relational, equality, assign, exprが呼ばれているのか
+exprが呼ばれるのはどのタイミングか(tokensがから), expr-stmtが呼ばれている。どうして
+returnわすれ！！！

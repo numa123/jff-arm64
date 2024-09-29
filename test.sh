@@ -24,6 +24,7 @@ assert 0 "return 0;"
 assert 0 "{return 0;}"
 assert 0 "{{return 0;}}"
 
+
 assert 42 "42;"
 
 assert 1 "a=1;a;"
@@ -32,7 +33,6 @@ assert 10 "z=10;z;"
 assert 1 "a=1; a;"
 assert 2 "a=1; b=2; b;"
 assert 21 "a=1; b=2; c=3; d=4; z=a+(b+c)*d; z;"
-
 
 assert 2 "1+1;"
 assert 1 "2-1;"
@@ -117,5 +117,13 @@ assert 3 '{ 1; 2; return 3; }'
 assert 3 '{ {1; {2;} return 3;} }'
 
 assert 5 '{ ;;; return 5;}'
+
+assert 20 "if (0) {return 10;} else {return 20;}"
+assert 3 '{ if (1-1) return 2; return 3; }'
+assert 2 '{ if (1) return 2; return 3; }'
+assert 2 '{ if (2-1) return 2; return 3; }'
+assert 4 '{ if (0) { 1; 2; return 3; } else { return 4; } }'
+assert 3 '{ if (1) { 1; 2; return 3; } else { return 4; } }'
+
 
 echo OK

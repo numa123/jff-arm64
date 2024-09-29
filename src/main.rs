@@ -1,7 +1,9 @@
 mod codegen;
 use codegen::codegen;
 mod parse;
-use parse::{convert_keywords, parse, tokenize};
+use parse::parse;
+mod tokenize;
+use tokenize::{convert_keywords, tokenize};
 mod types;
 
 fn main() {
