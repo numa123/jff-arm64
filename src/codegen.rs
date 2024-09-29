@@ -91,6 +91,10 @@ pub fn gen_expr(node: Node) {
             println!("  cmp x1, x0");
             println!("  cset x0, ge");
         }
+        NodeKind::NdFuncCall => {
+            println!("  bl _{}", node.funcname);
+            println!("  mov	x0, #0")
+        }
         _ => eprintln!("invalid node kind"),
     }
 }
@@ -159,9 +163,11 @@ pub fn codegen(node: &mut Vec<Node>) {
     println!(".global _main");
     println!("_main:");
     // プロローグ
-    println!("  sub sp, sp, {}", stack_size); // ここ変えないと。
-                                              // println!("  stp x29, x30, [sp, #16]"); // これは関数内で関数を呼び出すときだけ必要なのかもしれない。
-                                              // println!("  add x29, sp, #16");
+    // println!("  sub sp, sp, {}", stack_size); // ここ変えないと。
+    //                                           // println!("  stp x29, x30, [sp, #16]"); // これは関数内で関数を呼び出すときだけ必要なのかもしれない。
+    //                                           // println!("  add x29, sp, #16");
+    println!("stp x29, x30, [sp, #-16]!");
+    println!("mov x29, sp");
 
     while !node.is_empty() {
         gen_stmt(node[0].clone()); // こうしないとnodeの所有権が移動してしまう。gen_exprを変えれば良いが一旦これで。
@@ -176,6 +182,7 @@ pub fn codegen(node: &mut Vec<Node>) {
 
     println!("end:");
     // println!("  ldp x29, x30, [sp, #16]"); // これは関数内で関数を呼び出すときだけ必要なのかもしれない。
-    println!("  add sp, sp, #{}", stack_size);
+    // println!("  add sp, sp, #{}", stack_size);
+    println!("  ldp x29, x30, [sp], #16");
     println!("  ret");
 }

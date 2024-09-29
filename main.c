@@ -1,5 +1,7 @@
+#include <unistd.h>
+int p() { return 1; }
 int main() {
   // a-z
-  int a = 19;
-  ;
+  int a = p();
+  return a;
 }

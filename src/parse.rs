@@ -50,6 +50,7 @@ fn new_node(kind: NodeKind) -> Node {
         els: None,
         init: None,
         inc: None,
+        funcname: "".to_string(), // String::new()でもいいのでは。内部的には同じか？
     }
 }
 
@@ -274,6 +275,16 @@ fn primary(tokens: &mut Vec<Token>, input: &str) -> Node {
             return num;
         }
         TokenKind::TkIdent => {
+            // funccall
+            if tokens.len() >= 2 && tokens[1].str == "(" {
+                let mut node = new_node(NodeKind::NdFuncCall);
+                node.funcname = tokens[0].str.clone();
+                tokens.remove(0); // 次は"("の予定
+                skip(tokens, "(", input);
+                skip(tokens, ")", input);
+                return node;
+            }
+
             let var: Var;
             unsafe {
                 var = if let Some(v) = VARIABLES.iter().find(|v| v.name == tokens[0].str) {

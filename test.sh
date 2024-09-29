@@ -5,7 +5,7 @@ assert() {
 	input="$2"
 
 	./target/debug/jff "$input" > tmp.s
-	cc -o tmp tmp.s
+	clang -o tmp tmp.s -lc
 	./tmp
 	actual="$?"
 
@@ -19,6 +19,7 @@ assert() {
 
 cargo build # 最初にビルド
 
+assert 0 "{getpid();}"
 assert 0 "0;"
 assert 0 "return 0;"
 assert 0 "{return 0;}"
