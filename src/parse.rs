@@ -105,6 +105,17 @@ fn stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
         node.then = Some(Box::new(then));
         return node;
     }
+    if tokens[0].str == "while" {
+        let mut node = new_node(NodeKind::NdFor);
+        tokens.remove(0);
+        skip(tokens, "(", input);
+        let cond = expr(tokens, input);
+        node.cond = Some(Box::new(cond));
+        skip(tokens, ")", input);
+        let then = stmt(tokens, input);
+        node.then = Some(Box::new(then));
+        return node;
+    }
     return expr_stmt(tokens, input);
 }
 

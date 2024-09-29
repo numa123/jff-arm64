@@ -24,8 +24,6 @@ assert 0 "return 0;"
 assert 0 "{return 0;}"
 assert 0 "{{return 0;}}"
 
-
-
 assert 42 "42;"
 
 assert 1 "a=1;a;"
@@ -129,6 +127,9 @@ assert 3 '{ if (1) { 1; 2; return 3; } else { return 4; } }'
 assert 2 '{ans = 1; return ans + 1;}'
 assert 55 '{ans=0; for (i=0; i<=10; i=i+1) {ans=ans+i;} return ans; }'
 assert 3 '{ for (;;) {return 3;} return 5; }'
+
+assert 10 '{ i=0; while(i<10) { i=i+1; } return i; }'
+
 
 
 echo OK

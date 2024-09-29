@@ -129,8 +129,10 @@ fn gen_stmt(node: Node) {
         NodeKind::NdFor => {
             // initをやり、condを評価して、中身を実行し、incをやる。initは最初だけか。
             let count = unsafe { BCOUNT };
-            gen_stmt(*(node.init).unwrap()); // これで大丈夫か？node.initがNoneとなることはないっけ。多分ない。
-            if !node.cond.is_none() {
+            if node.init.is_some() {
+                gen_stmt(*(node.init).unwrap()); // 間違えてgen_exprの時があった。
+            }
+            if node.cond.is_some() {
                 // 2回もnode.condがあるかどうかを確かめているのは良くない気がする。けどまあ動く。
                 println!("  b check_cond{}", count);
             }

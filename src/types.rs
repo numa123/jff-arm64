@@ -34,7 +34,7 @@ pub enum NodeKind {
     NdReturn,   // return
     NdBlock,    // {}
     NdIf,       // if
-    NdFor,      // for
+    NdFor,      // for or while
 }
 
 #[derive(Debug, Clone)]

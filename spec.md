@@ -28,7 +28,7 @@
 for (初期化;条件式;あとでやるやつ) stmt
 
 ## EBNF
-- stmt = expr-stmt | "return" expr ";" | "{" compound-stmt | "if" "(" expr ")" stmt ("else" stmt)? | "for" "(" expr_stmt expr? ";" expr? ")" stmt
+- stmt = expr-stmt | "return" expr ";" | "{" compound-stmt | "if" "(" expr ")" stmt ("else" stmt)? | "for" "(" expr_stmt expr? ";" expr? ")" stmt | "while" "(" expr ")" stmt
 - compound-stmt = stmt* "}" // "{" があるかどうかでexpr-stmtと区別している
 - expr_stmt = expr? ";"
 - expr = assign
@@ -113,6 +113,7 @@ BCOUNTを最後にインクリメントするのはどうなのか。
 exprとかは暗黙的にtokens.removeしてくれてるけどそれでよいんだかな、コード書く時に紛らわしくないかな
 
 今はブロックじゃなくてもコンパイルできちゃうけど、普通はダメなのかな？あと変数名もちゃんとしないと。
+エラーの時、eprintlnだけじゃ止まらないの、ダメかも？
 
 ## バグ
 なんでunaryが2回呼ばれるはずが3回も呼ばれているのか
