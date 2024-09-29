@@ -60,5 +60,5 @@ pub struct Node {
     // only for, while
     pub init: Option<Box<Node>>,
     pub inc: Option<Box<Node>>,
-    pub funcname: String,
+    pub func_name: String,
 }

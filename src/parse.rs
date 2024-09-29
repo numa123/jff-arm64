@@ -1,10 +1,24 @@
 use crate::tokenize::{error_tok, skip};
 use crate::types::{Node, NodeKind, Token, TokenKind, Var};
 
-//
-// Node
-//
 pub static mut VARIABLES: Vec<Var> = Vec::new();
+
+fn new_node(kind: NodeKind) -> Node {
+    Node {
+        kind: kind,
+        lhs: None,
+        rhs: None,
+        val: 0,
+        var: None,
+        block_body: Vec::new(),
+        cond: None,
+        then: None,
+        els: None,
+        init: None,
+        inc: None,
+        func_name: String::new(),
+    }
+}
 
 fn new_binary(kind: NodeKind, lhs: Node, rhs: Node) -> Node {
     let mut node = new_node(kind);
@@ -37,38 +51,26 @@ fn new_block(block_body: Vec<Node>) -> Node {
     return node;
 }
 
-fn new_node(kind: NodeKind) -> Node {
-    Node {
-        kind: kind,
-        lhs: None,
-        rhs: None,
-        val: 0,
-        var: None,
-        block_body: Vec::new(),
-        cond: None,
-        then: None,
-        els: None,
-        init: None,
-        inc: None,
-        funcname: String::new(),
-    }
-}
-
+//
+// nodenize functions
 //
 fn stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
+    // return
     if tokens[0].str == "return" {
         tokens.remove(0);
-        // println!("returnが呼ばれた時: {:?}", tokens);
         let node = new_unary(NodeKind::NdReturn, expr(tokens, input));
-        // println!("returnが呼ばれたあと: {:?}", tokens);
         skip(tokens, ";", input);
         return node;
     }
+
+    // compound statement
     if tokens[0].str == "{" {
         tokens.remove(0);
         let node = compound_stmt(tokens, input);
         return node;
     }
+
+    // if
     if tokens[0].str == "if" {
         let mut node = new_node(NodeKind::NdIf);
         tokens.remove(0);
@@ -78,14 +80,16 @@ fn stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
         let then = stmt(tokens, input);
         node.cond = Some(Box::new(cond));
         node.then = Some(Box::new(then));
+        // elseがない場合、index out of boundsにならないように、tokens.len() != 0を入れている
         if tokens.len() != 0 && tokens[0].str == "else" {
-            // elseがない場合、index out of boundsになる
             tokens.remove(0);
             let els = stmt(tokens, input);
             node.els = Some(Box::new(els));
         }
         return node;
     }
+
+    // for
     if tokens[0].str == "for" {
         let mut node = new_node(NodeKind::NdFor);
         tokens.remove(0);
@@ -106,6 +110,9 @@ fn stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
         node.then = Some(Box::new(then));
         return node;
     }
+
+    // while
+    // forを再利用する
     if tokens[0].str == "while" {
         let mut node = new_node(NodeKind::NdFor);
         tokens.remove(0);
@@ -177,6 +184,7 @@ fn equality(tokens: &mut Vec<Token>, input: &str) -> Node {
 
 fn relational(tokens: &mut Vec<Token>, input: &str) -> Node {
     let mut node = add(tokens, input);
+    // !tokens.is_empty()が適切かは不明
     while !tokens.is_empty() {
         let t = &tokens[0];
         if t.str == "<" {
@@ -205,7 +213,7 @@ fn relational(tokens: &mut Vec<Token>, input: &str) -> Node {
 }
 
 fn add(tokens: &mut Vec<Token>, input: &str) -> Node {
-    let mut node = mul(tokens, input); // この辺の引数の渡し方は合っているのか？
+    let mut node = mul(tokens, input);
     while !tokens.is_empty() {
         let t = &tokens[0];
         if t.str == "+" {
@@ -224,14 +232,12 @@ fn add(tokens: &mut Vec<Token>, input: &str) -> Node {
 }
 
 fn mul(tokens: &mut Vec<Token>, input: &str) -> Node {
-    let mut node = unary(tokens, input); // ここが&ありかなしかで変わる
+    let mut node = unary(tokens, input);
     while !tokens.is_empty() {
-        // これがemptyになるかどうかでやるのはダメかと思ったけど案外悪くないのか？いや、悪いか。1+1とかだと無限ループになりそう。breakを入れるとよさげ
-        // breakを入れたら動いたというだけでis_emptyが適切かどうかは要確認
         let t = &tokens[0];
         if t.str == "*" {
             tokens.remove(0);
-            node = new_binary(NodeKind::NdMul, node.clone(), unary(tokens, input)); // ()をサポートするようになったら、ここもトークンを一つ渡すのではなくtokensを渡すようになるはず
+            node = new_binary(NodeKind::NdMul, node.clone(), unary(tokens, input));
             continue;
         }
         if t.str == "/" {
@@ -245,12 +251,10 @@ fn mul(tokens: &mut Vec<Token>, input: &str) -> Node {
 }
 
 fn unary(tokens: &mut Vec<Token>, input: &str) -> Node {
-    // これがemptyになるかどうかでやるのはダメかと思ったけど案外悪くないのか？いや、悪いか。1+1とかだと無限ループになりそう。breakを入れるとよさげ
-    // breakを入れたら動いたというだけでis_emptyが適切かどうかは要確認
     let t = &tokens[0];
     if t.str == "+" {
         tokens.remove(0);
-        return unary(tokens, input); // ()をサポートするようになったら、ここもトークンを一つ渡すのではなくtokensを渡すようになるはず。&tokensはだめなんだ
+        return unary(tokens, input);
     }
     if t.str == "-" {
         tokens.remove(0);
@@ -258,8 +262,6 @@ fn unary(tokens: &mut Vec<Token>, input: &str) -> Node {
     }
     return primary(tokens, input);
 }
-
-// ちゃんと正しくremoveしてトークンを勧められているのかは、動くからみたいな感じになっていてよくない
 
 fn primary(tokens: &mut Vec<Token>, input: &str) -> Node {
     if tokens[0].str == "(" {
@@ -271,19 +273,21 @@ fn primary(tokens: &mut Vec<Token>, input: &str) -> Node {
     match tokens[0].kind {
         TokenKind::TkNum => {
             let num = new_num(tokens[0].val);
-            tokens.remove(0); // ここで消費すべきだった
+            tokens.remove(0); // ここでremoveしないでバグったことがあった
             return num;
         }
         TokenKind::TkIdent => {
-            // funccall
+            // function call
             if tokens.len() >= 2 && tokens[1].str == "(" {
                 let mut node = new_node(NodeKind::NdFuncCall);
-                node.funcname = tokens[0].str.clone();
+                node.func_name = tokens[0].str.clone();
                 tokens.remove(0);
                 skip(tokens, "(", input);
                 skip(tokens, ")", input);
                 return node;
             };
+
+            // variable
             let var: Var;
             unsafe {
                 var = if let Some(v) = VARIABLES.iter().find(|v| v.name == tokens[0].str) {
@@ -291,7 +295,7 @@ fn primary(tokens: &mut Vec<Token>, input: &str) -> Node {
                 } else {
                     let nv = Var {
                         name: tokens[0].str.clone(),
-                        offset: VARIABLES.len(), // ここで一位に決める
+                        offset: VARIABLES.len(), // ここで変数のアドレスを一意に割り当てる
                     };
                     VARIABLES.push(nv.clone());
                     nv

@@ -3,16 +3,19 @@ use crate::types::{Node, NodeKind};
 
 pub static mut BCOUNT: usize = 0; // branch count
 
+// 左辺値のアドレスをx0に入れる処理
 fn gen_addr(node: Node) {
     if node.kind == NodeKind::NdVar {
-        // println!("{:?}", node); デバッグ用
-        let offset = (node.var.unwrap().offset + 1) * 8; // sp + 16 + offsetでアドレスを計算
+        let offset = (node.var.unwrap().offset + 1) * 8; // 例えば、str x0, [x29, -16]とすると、x29-16 ~ x29-24ではなく、x29-16 ~ x29-8になる。
+                                                         // offset設定の際、現在は0から設定しているので、+1しないと、最初の変数がx29~x29+8になってしまって、lp(x30)と被ってしまう(と解釈している)
         println!("  add x0, x29, -{}", offset);
         return;
     }
     eprintln!("not a lvalue");
+    panic!();
 }
 
+// x0に値を入れる処理(関数呼び出しの際はこの限りではないと予想している)
 pub fn gen_expr(node: Node) {
     match node.kind {
         NodeKind::NdNum => {
@@ -20,7 +23,7 @@ pub fn gen_expr(node: Node) {
             return;
         }
         NodeKind::NdNeg => {
-            gen_expr(*(node.lhs).unwrap()); // lhsはあるはず
+            gen_expr(*(node.lhs).unwrap()); // lhsはあるはずだから、panicしても良いためunwrap
             println!("  neg x0, x0");
             return;
         }
@@ -31,8 +34,9 @@ pub fn gen_expr(node: Node) {
         }
         NodeKind::NdAssign => {
             gen_addr(*(node.lhs).unwrap());
-            println!("  str x0, [sp, -16]!"); // push  16で果たして良いのか、でも8じゃ動かなかった気がするからなあ。いやこれlp, fpのあれか
-            gen_expr(*(node.rhs).unwrap()); // rhsはx0に入るはず
+            println!("  str x0, [sp, -16]!"); // push  16で果たして良いのかは不明。ただ、ここでストアした値は後々消えるので、今は問題ない。
+                                              // ただ、扱う値が16バイトを超える(16バイトでも起こるかもしれないが)場合は、もっと大きくしないといけないと予想している
+            gen_expr(*(node.rhs).unwrap()); // rhsはx0に入るはずだから、panicしても良いためunwrap
             println!("  ldr x1, [sp], 16"); // pop to x1 x1には左辺値のアドレスが入っているはず
             println!("  str x0, [x1]"); // a=1;の場合、aのアドレスに1を入れる処理
             return;
@@ -43,13 +47,12 @@ pub fn gen_expr(node: Node) {
     // node.lhs, node.rhsがあれば、それを再帰的に呼び出す
     if let Some(lhs) = node.lhs {
         gen_expr(*lhs);
-        println!("  str x0, [sp, -16]!"); // push  16バイトアラインメントしているのか？。変数をアリにしたらここも変えないといけない気がするな
+        println!("  str x0, [sp, -16]!"); // push  上と同様
     }
     if let Some(rhs) = node.rhs {
         gen_expr(*rhs);
         println!("  ldr x1, [sp], 16"); // pop to x1
                                         // 今、rhsの計算結果がx0, lhsの計算結果がx1に入っている
-                                        // 変数をアリにしたらここも変えないといけない気がするな
     }
 
     match node.kind {
@@ -64,7 +67,7 @@ pub fn gen_expr(node: Node) {
         }
         NodeKind::NdDiv => {
             // x0が0だった場合は未定義になりそう？そのためにはcmpとか？一旦後で
-            println!("  cbz x0, error"); // x0が0の場合はエラー処理に飛ぶ
+            println!("  cbz x0, div_error"); // x0が0の場合はエラー処理に飛ぶ
             println!("  sdiv x0, x1, x0");
         }
         NodeKind::NdEq => {
@@ -92,12 +95,16 @@ pub fn gen_expr(node: Node) {
             println!("  cset x0, ge");
         }
         NodeKind::NdFuncCall => {
-            println!("  bl _{}", node.funcname)
+            println!("  bl _{}", node.func_name)
         }
-        _ => eprintln!("invalid node kind"),
+        _ => {
+            eprintln!("invalid node kind");
+            panic!();
+        }
     }
 }
 
+// 文の生成
 fn gen_stmt(node: Node) {
     match node.kind {
         NodeKind::NdExprStmt => {
@@ -130,13 +137,12 @@ fn gen_stmt(node: Node) {
             unsafe { BCOUNT += 1 };
         }
         NodeKind::NdFor => {
-            // initをやり、condを評価して、中身を実行し、incをやる。initは最初だけか。
             let count = unsafe { BCOUNT };
             if node.init.is_some() {
                 gen_stmt(*(node.init).unwrap()); // 間違えてgen_exprの時があった。
             }
+            // 2回もnode.condがあるかどうかを確かめているのは良くない気がするけど、2回だしまあよしとしている部分
             if node.cond.is_some() {
-                // 2回もnode.condがあるかどうかを確かめているのは良くない気がする。けどまあ動く。
                 println!("  b check_cond{}", count);
             }
             println!("start{}:", count);
@@ -145,7 +151,7 @@ fn gen_stmt(node: Node) {
                 gen_expr(*inc);
             }
             if let Some(cond) = node.cond {
-                println!("check_cond{}:", count); // これでちょっと不適切な気がする
+                println!("check_cond{}:", count);
                 gen_expr(*cond);
                 println!("  cmp x0, 1");
                 println!("  b.eq start{}", count);
@@ -153,7 +159,10 @@ fn gen_stmt(node: Node) {
             }
             println!("end{}:", count);
         }
-        _ => eprintln!("invalid node kind"),
+        _ => {
+            eprintln!("invalid node kind");
+            panic!();
+        }
     }
 }
 
@@ -162,7 +171,7 @@ fn align_16(n: usize) -> usize {
 }
 
 pub fn codegen(node: &mut Vec<Node>) {
-    let stack_size = unsafe { VARIABLES.len() * 8 }; // デバッグなど用のwzr, lp, fpは含めない、ローカル変数のみのスタックサイズ。
+    let stack_size = unsafe { VARIABLES.len() * 8 }; // デバッグなど用のwzr, lp, fpは含めない、ローカル変数のみのスタックサイズ
                                                      // 今はlongのみのサポートを想定しているから8バイトずつ確保している(つもり)
     let prorogue_size = align_16(stack_size + 4) + 16;
     println!(".global _main");
@@ -182,7 +191,7 @@ pub fn codegen(node: &mut Vec<Node>) {
     println!("  b end");
 
     // ゼロ徐算の場合のエラー処理
-    println!("error:");
+    println!("div_error:");
     println!("  mov x0, 1");
     println!("  b end"); // これじゃあただ正常に計算結果が1なのか、エラーが1なのかわからないのでは？まあ今は動くのでよしとする
 

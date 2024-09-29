@@ -1,11 +1,12 @@
 use crate::types::{Node, Token, TokenKind};
+use core::panic;
 
 pub fn skip(tokens: &mut Vec<Token>, op: &str, input: &str) -> bool {
     if tokens.is_empty() {
         eprintln!("{}", input);
         eprintln!("{}^", " ".repeat(input.len()));
         eprintln!("expected {}", op);
-        std::process::exit(1);
+        panic!();
     }
     if tokens[0].str != op {
         error_tok(&tokens[0], format!("expected {}", op).as_str(), input); // as_str()は&strに変換するためのもので、to_string()はStringに変換するためのもの
@@ -25,22 +26,24 @@ pub fn error_tok(t: &Token, msg: &str, input: &str) -> Node {
     eprintln!("{}", input);
     eprintln!("{}^", " ".repeat(t.loc));
     eprintln!("{}", msg);
-    std::process::exit(1);
+    panic!();
 }
 
-pub fn tokenize(p: &mut &str) -> Vec<Token> {
-    let p_copy = *p;
+// r_input: remaining input
+// r_inputは初めの文字から順に消費され、消費されるごとに短くしていく(参照を進めることによって)
+pub fn tokenize(r_input: &mut &str) -> Vec<Token> {
+    let input_copy = *r_input;
     let mut tokens = Vec::new();
     let mut index = 0;
-    while !p.is_empty() {
-        let c = p.chars().next().unwrap();
+    while !r_input.is_empty() {
+        let c = r_input.chars().next().unwrap();
         if c == ' ' {
-            *p = &p[1..];
+            *r_input = &r_input[1..];
             index += 1;
             continue;
         }
         if c.is_digit(10) {
-            let num = parse_number(p);
+            let num = parse_number(r_input);
             tokens.push(Token {
                 kind: TokenKind::TkNum,
                 val: num.parse().unwrap(),
@@ -51,16 +54,19 @@ pub fn tokenize(p: &mut &str) -> Vec<Token> {
             continue;
         }
         // ==, !=, <=, >= p.len() > 2 がないとindex out of boundsになる
-        if p.len() > 2
-            && (p[0..2].eq("==") || p[0..2].eq("!=") || p[0..2].eq("<=") || p[0..2].eq(">="))
+        if r_input.len() > 2
+            && (r_input[0..2].eq("==")
+                || r_input[0..2].eq("!=")
+                || r_input[0..2].eq("<=")
+                || r_input[0..2].eq(">="))
         {
             tokens.push(Token {
                 kind: TokenKind::TkPunct,
                 val: 0,
-                str: p[0..2].to_string(),
+                str: r_input[0..2].to_string(),
                 loc: index,
             });
-            *p = &p[2..];
+            *r_input = &r_input[2..];
             index += 2;
             continue;
         }
@@ -81,49 +87,44 @@ pub fn tokenize(p: &mut &str) -> Vec<Token> {
             tokens.push(Token {
                 kind: TokenKind::TkPunct,
                 val: 0,
-                str: p[0..1].to_string(),
+                str: r_input[0..1].to_string(),
                 loc: index,
             });
-            *p = &p[1..];
+            *r_input = &r_input[1..];
             index += 1;
             continue;
         }
 
-        // 1文字以上の複数文字の識別子をサポート。コードが読みづらい。
-        if c >= 'a' && c <= 'z' {
+        // 1文字以上の変数名をサポート
+        if is_ident(c) {
             let mut ident = String::new();
-            if is_ident(p.chars().next().unwrap()) {
-                ident.push(p.chars().next().unwrap());
-                *p = &p[1..];
+            while !r_input.is_empty() && is_ident2(r_input.chars().next().unwrap()) {
+                ident.push(r_input.chars().next().unwrap());
+                *r_input = &r_input[1..];
                 index += 1;
-                while !p.is_empty() && is_ident2(p.chars().next().unwrap()) {
-                    ident.push(p.chars().next().unwrap());
-                    *p = &p[1..];
-                    index += 1;
-                }
             }
 
             tokens.push(Token {
                 kind: TokenKind::TkIdent,
                 val: 0,
-                str: ident, // Stringじゃなくて&strの方が良いのかもしれない？
+                str: ident,
                 loc: index,
             });
             continue;
         }
 
-        eprintln!("{}", p_copy);
+        eprintln!("{}", input_copy);
         eprintln!("{}^", " ".repeat(index));
         eprintln!("invalid token");
-        std::process::exit(1);
+        panic!();
     }
-    // println!("{:?}", tokens); デバッグ用
     return tokens;
 }
 
-// キーワードを変換するためのもの。これ今は要らなくね？
+// 予約後の場合はトークンの種類を変更する。
+// 意味ないのではと思ったけど、変数名が予約語の場合にエラーになるために必要(多分。未確認)
 pub fn convert_keywords(tokens: &mut Vec<Token>) {
-    let keywords = vec!["return", "if", "else", "for", "while"]; // breakは？
+    let keywords = vec!["return", "if", "else", "for", "while"]; // breakはまだ
     for t in tokens.iter_mut() {
         if keywords.contains(&t.str.as_str()) {
             t.kind = TokenKind::TkKeyword;
