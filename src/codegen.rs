@@ -1,4 +1,4 @@
-use crate::parse::{HASFUNCCALL, VARIABLES};
+use crate::parse::VARIABLES;
 use crate::types::{Node, NodeKind};
 
 pub static mut BCOUNT: usize = 0; // branch count
@@ -166,13 +166,7 @@ fn align_16(size: usize) -> usize {
 
 pub fn codegen(node: &mut Vec<Node>) {
     let stack_size = unsafe { VARIABLES.len() * 8 }; // デバッグなど用のwzr, lp, fpは含めない、ローカル変数のみのスタックサイズ。今はlongのみのサポートだから*8
-    let prorogue_size = unsafe {
-        if HASFUNCCALL {
-            align_16(stack_size + 4) + 16
-        } else {
-            align_16(stack_size + 4)
-        }
-    };
+    let prorogue_size = align_16(stack_size + 4) + 16;
     println!(".global _main");
     println!("_main:");
     // プロローグ

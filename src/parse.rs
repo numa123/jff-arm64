@@ -6,8 +6,6 @@ use crate::types::{Node, NodeKind, Token, TokenKind, Var};
 //
 pub static mut VARIABLES: Vec<Var> = Vec::new();
 
-pub static mut HASFUNCCALL: bool = false;
-
 fn new_binary(kind: NodeKind, lhs: Node, rhs: Node) -> Node {
     let mut node = new_node(kind);
     node.lhs = Some(Box::new(lhs));
@@ -284,11 +282,8 @@ fn primary(tokens: &mut Vec<Token>, input: &str) -> Node {
                 tokens.remove(0); // 次は"("の予定
                 skip(tokens, "(", input);
                 skip(tokens, ")", input);
-                unsafe {
-                    HASFUNCCALL = true;
-                };
                 return node;
-            }
+            };
 
             let var: Var;
             unsafe {
