@@ -14,6 +14,7 @@
 - for
 - while
 - 引数なし関数呼び出し
+- 引数あり関数呼び出し(8個まで)
 
 ## 演算の優先順位(低い順)
 低
@@ -43,7 +44,15 @@
 - mul = unary ( "\*" unary | "/" unary)*
 - unary = ("+" | "-")? primary
 - primary = num | ident args? | "(" expr ")"
-- args = "(" ")" // args関数は作ってない
+- args = "(" ((expr ",")* expr)? ")"
+
+### argsのパース
+1. exprがある場合、2に。なければなし
+2. ,がある場合、,を消費してvec argに入れる。2に戻る。なければ3に
+3. exprを入れて、終わり
+
+- ndfunccallだったら、argsの左からx0, x1, ... x7みたいな感じか。
+
 
 ## 謎
 - str wzrは、なんのためにやっているのか、やっていない時もあるし。ABIに書いてある？

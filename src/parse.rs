@@ -17,6 +17,7 @@ fn new_node(kind: NodeKind) -> Node {
         init: None,
         inc: None,
         func_name: String::new(),
+        args: Vec::new(),
     }
 }
 
@@ -281,8 +282,38 @@ fn primary(tokens: &mut Vec<Token>, input: &str) -> Node {
             if tokens.len() >= 2 && tokens[1].str == "(" {
                 let mut node = new_node(NodeKind::NdFuncCall);
                 node.func_name = tokens[0].str.clone();
+                let mut args: Vec<Node> = Vec::new();
                 tokens.remove(0);
                 skip(tokens, "(", input);
+
+                // // exprなければnodeを返して終わり
+                // // このif文やばい
+                if tokens[0].str == ")" {
+                    skip(tokens, ")", input);
+                    return node;
+                }
+
+                // 引数があるパターン
+                // exprの次に","がある場合
+                //
+                // そうだ、トークンじゃなくて、add()とかもあるから、評価値をベースで次にしないといけない
+                // tokens[1].strで判定しているのがだめ
+                //
+                args.push(expr(tokens, input)); // 最後の引数
+
+                while tokens.len() >= 2 && tokens[0].str == "," {
+                    skip(tokens, ",", input);
+                    let arg = expr(tokens, input);
+                    args.push(arg);
+                }
+
+                // 今は引数の個数の上限が8個(x0 ~ x7)なので、それを超えたらエラーを出す
+                if args.len() > 8 {
+                    error_tok(&tokens[0], "too many arguments", input);
+                }
+
+                node.args = args;
+                // eprintln!("[skip )]が呼ばれる前 : {:#?}", tokens); // なぜかこの時点で")"が消費されている
                 skip(tokens, ")", input);
                 return node;
             };

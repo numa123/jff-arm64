@@ -61,4 +61,5 @@ pub struct Node {
     pub init: Option<Box<Node>>,
     pub inc: Option<Box<Node>>,
     pub func_name: String,
+    pub args: Vec<Node>,
 }

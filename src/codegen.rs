@@ -95,6 +95,15 @@ pub fn gen_expr(node: Node) {
             println!("  cset x0, ge");
         }
         NodeKind::NdFuncCall => {
+            for n in &node.args {
+                gen_expr(n.clone());
+                println!("  str x0, [sp, -16]!",); // 引数はスタックに積む。
+                                                   // またもや16バイトであり、16バイトより大きいデータ型を扱う必要が出てきたら、変えなければならない。具体的な状況は今は思いついていないけど。
+            }
+            for i in (0..node.args.len()).rev() {
+                println!("  ldr x{i}, [sp], 16");
+            }
+
             println!("  bl _{}", node.func_name)
         }
         _ => {

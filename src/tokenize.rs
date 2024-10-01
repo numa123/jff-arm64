@@ -83,6 +83,7 @@ pub fn tokenize(r_input: &mut &str) -> Vec<Token> {
             || c == '='
             || c == '{'
             || c == '}'
+            || c == ','
         {
             tokens.push(Token {
                 kind: TokenKind::TkPunct,
