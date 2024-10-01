@@ -9,7 +9,7 @@ assert() {
 	input="$2"
 
 	./target/debug/jff "$input" > tmp.s
-	clang -o tmp tmp.s tmp2.o
+	gcc -o tmp tmp.s tmp2.o
 	./tmp
 	actual="$?"
 

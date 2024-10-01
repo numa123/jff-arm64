@@ -179,10 +179,8 @@ pub fn codegen(node: &mut Vec<Node>) {
     // プロローグ
     // 無駄が多くなるが動くのでよしとしている。関数呼び出しの有無、変数宣言の有無などによって変化する。
     // subがなかったり、sturがなかったり、mov x29, spになっていたり。
-    println!("  sub sp, sp, {}", prorogue_size);
-    println!("  stp x29, x30, [sp, #{}]", prorogue_size - 16);
-    println!("  add x29, sp, #{}", prorogue_size - 16);
-    println!("  stur wzr, [x29, #-4]",);
+    println!("  stp x29, x30, [sp, -{}]!", prorogue_size);
+    println!("  mov x29, sp");
 
     while !node.is_empty() {
         gen_stmt(node[0].clone()); // こうしないとnodeの所有権が移動してしまう。gen_exprを変えれば良いが一旦これで。
@@ -196,7 +194,6 @@ pub fn codegen(node: &mut Vec<Node>) {
     println!("  b end"); // これじゃあただ正常に計算結果が1なのか、エラーが1なのかわからないのでは？まあ今は動くのでよしとする
 
     println!("end:");
-    println!("  ldp x29, x30, [sp, #{}]", prorogue_size - 16);
-    println!("  add sp, sp, #{}", prorogue_size);
+    println!("  ldp x29, x30, [sp],{}", prorogue_size);
     println!("  ret");
 }

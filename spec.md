@@ -106,6 +106,9 @@ returnわすれ！！！
 - プロローグのstr wzrとかが必要な場合とかに注意
 - gotboltの`armv8-a clang 18.1.0`と、手元でコンパイルした場合はちょっと違うから注意。gotboltはmainだけど、手元だと_mainになるとか。関数名は_から始まるっぽいとか。そろそろABIとか読もうか
 - spは16バイトアラインメントっぽい
+- LP64とやらに準拠してポインタを実装すれば良いのかな
+- wzrは4バイト, xzrは16バイト
+- bl命令をすると、自動的にlpが保存されて、ret   // 'LR'に保存されたアドレスに戻る
 
 ## 手元のコンパイラ
 ```
@@ -116,3 +119,22 @@ Thread model: posix
 InstalledDir: /opt/homebrew/opt/llvm/bin
 ```
 
+## arm64のPCS(Procedure Call Standard)
+```
+5.7   Pointers
+Code and data pointers are either 64-bit or 32-bit unsigned types [5]. A NULL pointer is always represented by all-bits-zero.
+
+All 64 bits in a 64-bit pointer are always significant. When tagged addressing is enabled, a tag is part of a pointer’s value for the purposes of pointer arithmetic. The result of subtracting or comparing two pointers with different tags is unspecified. See also Memory addresses, below. A 32-bit pointer does not support tagged addressing.
+
+Note
+
+(Beta)
+
+The A64 load and store instructions always use the full 64-bit base register and perform a 64-bit address calculation. Care must be taken within ILP32 to ensure that the upper 32 bits of a base register are zero and 32-bit register offsets are sign-extended to 64 bits (immediate offsets are implicitly extended).
+
+```
+
+![alt text](general_register.png)
+
+## 参考にするコンパイラを、clangからgccにする
+llvmじゃない文なんか良い
