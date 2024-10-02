@@ -67,5 +67,5 @@ pub struct Node {
 pub struct Function {
     pub name: String,
     pub stmts: Vec<Node>, // stmts(?)
-                          // pub variables: Vec<Var>,
+    pub variables: Vec<Var>,
 }

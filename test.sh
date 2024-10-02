@@ -29,6 +29,8 @@ assert() {
 
 cargo build # 最初にビルド
 
+assert 32 'int ret32() { return 32; } int main() { return ret32();} '
+
 assert 0 'int main() { return 0; }'
 assert 42 'int main() { return 42; }'
 assert 21 'int main() { return 5+20-4; }'
@@ -89,9 +91,6 @@ assert 5 'int main() { ;;; return 5; }'
 assert 10 'int main() { int i=0; while(i<10) i=i+1; return i; }'
 assert 55 'int main() { int i=0; int j=0; while(i<=10) {j=i+j; i=i+1;} return j; }'
 
-# assert 8 'int main() { int x, y; x=3; y=5; return x+y; }' int x, y; は未対応
-# assert 8 'int main() { int x=3, y=5; return x+y; }' これも未対応
-
 assert 3 'int main() { return ret3(); }'
 assert 5 'int main() { return ret5(); }'
 assert 8 'int main() { return add(3, 5); }'
@@ -100,7 +99,7 @@ assert 21 'int main() { return add6(1,2,3,4,5,6); }'
 assert 66 'int main() { return add6(1,2,add6(3,4,5,6,7,8),9,10,11); }'
 assert 136 'int main() { return add6(1,2,add6(3,add6(4,5,6,7,8,9),10,11,12,13),14,15,16); }'
 
-assert 32 'int main() { return ret32(); } int ret32() { return 32; }'
-assert 32 'int ret32() { int a = 10; int b = 22; return a + b; } int main() { int r = ret32(); return r; } '
+assert 32 'int ret32() { return 32; } int main() { return ret32();} '
+assert 32 'int ret32() { int a = 10; int b = 22; return a + b; } int main() { int b = ret32(); return b; } ' 
 
 echo OK

@@ -7,12 +7,5 @@
 //   long a = 1;
 //   p(a, 1, 2, 3, 4, 5, 6, 7, 8, 9);
 // }
-int ret32() {
-  int a = 10;
-  int b = 22;
-  return a + b;
-}
-int main() {
-  int r = ret32();
-  return r;
-}
+int ret32() { return 32; }
+int main() { return ret32(); }

@@ -1,4 +1,3 @@
-use crate::parse::VARIABLES;
 use crate::types::{Function, Node, NodeKind};
 
 pub static mut BCOUNT: usize = 0; // branch count
@@ -188,10 +187,9 @@ fn align_16(n: usize) -> usize {
 
 // これが丸ごと、gen_funcの中になるみたいなイメージかもしれない
 pub fn codegen(funcs: &mut Vec<Function>) {
-    eprintln!("VARIALBES: {:?}", unsafe { VARIABLES.clone() });
     for f in funcs {
-        let stack_size = unsafe { VARIABLES.len() * 8 }; // デバッグなど用のwzr, lp, fpは含めない、ローカル変数のみのスタックサイズ
-                                                         // 今はlongのみのサポートを想定しているから8バイトずつ確保している(つもり)
+        let stack_size = f.variables.len() * 8; // デバッグなど用のwzr, lp, fpは含めない、ローカル変数のみのスタックサイズ
+                                                // 今はlongのみのサポートを想定しているから8バイトずつ確保している(つもり)
         let prorogue_size = align_16(stack_size) + 16;
         println!(".global _main");
         println!("_{}:", f.name);

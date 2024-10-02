@@ -1,7 +1,7 @@
 use crate::tokenize::{error_tok, skip};
 use crate::types::{Function, Node, NodeKind, Token, TokenKind, Var};
 
-pub static mut VARIABLES: Vec<Var> = Vec::new();
+// pub static mut VARIABLES: Vec<Var> = Vec::new();
 
 fn new_node(kind: NodeKind) -> Node {
     Node {
@@ -60,7 +60,7 @@ fn function(tokens: &mut Vec<Token>, input: &str) -> Function {
     let func = Function {
         name: tokens[0].str.clone(),
         stmts: Vec::new(),
-        // variables: Vec::new(), // あとで使うけど、今は一旦int main()だけ書けるようにするか
+        variables: Vec::new(), // あとで使うけど、今は一旦int main()だけ書けるようにするか
     };
     // let mut variables = Vec::new();
     tokens.remove(0); // 名前を消費
@@ -73,16 +73,16 @@ fn function(tokens: &mut Vec<Token>, input: &str) -> Function {
 // nodenize functions
 //
 
-fn declaration(tokens: &mut Vec<Token>, input: &str) -> Node {
+fn declaration(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
     skip(tokens, "int", input);
-    return expr_stmt(tokens, input);
+    return expr_stmt(tokens, input, v);
 }
 
-fn stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
+fn stmt(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
     // return
     if tokens[0].str == "return" {
         tokens.remove(0);
-        let node = new_unary(NodeKind::NdReturn, expr(tokens, input));
+        let node = new_unary(NodeKind::NdReturn, expr(tokens, input, v));
         skip(tokens, ";", input);
         return node;
     }
@@ -90,7 +90,7 @@ fn stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
     // compound statement
     if tokens[0].str == "{" {
         tokens.remove(0);
-        let node = compound_stmt(tokens, input);
+        let node = compound_stmt(tokens, input, v);
         return node;
     }
 
@@ -99,15 +99,15 @@ fn stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
         let mut node = new_node(NodeKind::NdIf);
         tokens.remove(0);
         skip(tokens, "(", input);
-        let cond = expr(tokens, input);
+        let cond = expr(tokens, input, v);
         skip(tokens, ")", input);
-        let then = stmt(tokens, input);
+        let then = stmt(tokens, input, v);
         node.cond = Some(Box::new(cond));
         node.then = Some(Box::new(then));
         // elseがない場合、index out of boundsにならないように、tokens.len() != 0を入れている
         if tokens.len() != 0 && tokens[0].str == "else" {
             tokens.remove(0);
-            let els = stmt(tokens, input);
+            let els = stmt(tokens, input, v);
             node.els = Some(Box::new(els));
         }
         return node;
@@ -118,19 +118,19 @@ fn stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
         let mut node = new_node(NodeKind::NdFor);
         tokens.remove(0);
         skip(tokens, "(", input);
-        let init = expr_stmt(tokens, input);
+        let init = expr_stmt(tokens, input, v);
         node.init = Some(Box::new(init));
         if tokens[0].str != ";" {
-            let cond = expr(tokens, input);
+            let cond = expr(tokens, input, v);
             node.cond = Some(Box::new(cond));
         }
         skip(tokens, ";", input);
         if tokens[0].str != ")" {
-            let inc = expr(tokens, input);
+            let inc = expr(tokens, input, v);
             node.inc = Some(Box::new(inc));
         }
         skip(tokens, ")", input);
-        let then = stmt(tokens, input);
+        let then = stmt(tokens, input, v);
         node.then = Some(Box::new(then));
         return node;
     }
@@ -141,24 +141,24 @@ fn stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
         let mut node = new_node(NodeKind::NdFor);
         tokens.remove(0);
         skip(tokens, "(", input);
-        let cond = expr(tokens, input);
+        let cond = expr(tokens, input, v);
         node.cond = Some(Box::new(cond));
         skip(tokens, ")", input);
-        let then = stmt(tokens, input);
+        let then = stmt(tokens, input, v);
         node.then = Some(Box::new(then));
         return node;
     }
-    return expr_stmt(tokens, input);
+    return expr_stmt(tokens, input, v);
 }
 
-fn compound_stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
+fn compound_stmt(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
     let mut block_body = Vec::new();
     while !(tokens[0].str == "}") {
         // int declaration
         let node = if tokens[0].str == "int" {
-            declaration(tokens, input)
+            declaration(tokens, input, v)
         } else {
-            stmt(tokens, input)
+            stmt(tokens, input, v)
         };
         block_body.push(node);
         continue;
@@ -168,42 +168,42 @@ fn compound_stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
     return node;
 }
 
-fn expr_stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
+fn expr_stmt(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
     if tokens.len() != 0 && tokens[0].str == ";" {
         let node = new_block(Vec::new());
         skip(tokens, ";", input);
         return node;
     }
-    let node = new_unary(NodeKind::NdExprStmt, expr(tokens, input));
+    let node = new_unary(NodeKind::NdExprStmt, expr(tokens, input, v));
     skip(tokens, ";", input);
     return node;
 }
 
-fn expr(tokens: &mut Vec<Token>, input: &str) -> Node {
-    return assign(tokens, input);
+fn expr(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
+    return assign(tokens, input, v);
 }
 
-fn assign(tokens: &mut Vec<Token>, input: &str) -> Node {
-    let node = equality(tokens, input);
+fn assign(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
+    let node = equality(tokens, input, v);
     if tokens[0].str == "=" {
         tokens.remove(0);
-        return new_binary(NodeKind::NdAssign, node, assign(tokens, input));
+        return new_binary(NodeKind::NdAssign, node, assign(tokens, input, v));
     }
     return node;
 }
 
-fn equality(tokens: &mut Vec<Token>, input: &str) -> Node {
-    let mut node = relational(tokens, input);
+fn equality(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
+    let mut node = relational(tokens, input, v);
     while !tokens.is_empty() {
         let t = &tokens[0];
         if t.str == "==" {
             tokens.remove(0);
-            node = new_binary(NodeKind::NdEq, node.clone(), relational(tokens, input));
+            node = new_binary(NodeKind::NdEq, node.clone(), relational(tokens, input, v));
             continue;
         }
         if t.str == "!=" {
             tokens.remove(0);
-            node = new_binary(NodeKind::NdNe, node.clone(), relational(tokens, input));
+            node = new_binary(NodeKind::NdNe, node.clone(), relational(tokens, input, v));
             continue;
         }
         break;
@@ -211,29 +211,29 @@ fn equality(tokens: &mut Vec<Token>, input: &str) -> Node {
     return node;
 }
 
-fn relational(tokens: &mut Vec<Token>, input: &str) -> Node {
-    let mut node = add(tokens, input);
+fn relational(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
+    let mut node = add(tokens, input, v);
     // !tokens.is_empty()が適切かは不明
     while !tokens.is_empty() {
         let t = &tokens[0];
         if t.str == "<" {
             tokens.remove(0);
-            node = new_binary(NodeKind::NdLt, node.clone(), add(tokens, input));
+            node = new_binary(NodeKind::NdLt, node.clone(), add(tokens, input, v));
             continue;
         }
         if t.str == "<=" {
             tokens.remove(0);
-            node = new_binary(NodeKind::NdLe, node.clone(), add(tokens, input));
+            node = new_binary(NodeKind::NdLe, node.clone(), add(tokens, input, v));
             continue;
         }
         if t.str == ">" {
             tokens.remove(0);
-            node = new_binary(NodeKind::NdGt, node.clone(), add(tokens, input));
+            node = new_binary(NodeKind::NdGt, node.clone(), add(tokens, input, v));
             continue;
         }
         if t.str == ">=" {
             tokens.remove(0);
-            node = new_binary(NodeKind::NdGe, node.clone(), add(tokens, input));
+            node = new_binary(NodeKind::NdGe, node.clone(), add(tokens, input, v));
             continue;
         }
         break;
@@ -241,18 +241,18 @@ fn relational(tokens: &mut Vec<Token>, input: &str) -> Node {
     return node;
 }
 
-fn add(tokens: &mut Vec<Token>, input: &str) -> Node {
-    let mut node = mul(tokens, input);
+fn add(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
+    let mut node = mul(tokens, input, v);
     while !tokens.is_empty() {
         let t = &tokens[0];
         if t.str == "+" {
             tokens.remove(0);
-            node = new_binary(NodeKind::NdAdd, node.clone(), mul(tokens, input));
+            node = new_binary(NodeKind::NdAdd, node.clone(), mul(tokens, input, v));
             continue;
         }
         if t.str == "-" {
             tokens.remove(0);
-            node = new_binary(NodeKind::NdSub, node.clone(), mul(tokens, input));
+            node = new_binary(NodeKind::NdSub, node.clone(), mul(tokens, input, v));
             continue;
         }
         break;
@@ -260,18 +260,18 @@ fn add(tokens: &mut Vec<Token>, input: &str) -> Node {
     return node;
 }
 
-fn mul(tokens: &mut Vec<Token>, input: &str) -> Node {
-    let mut node = unary(tokens, input);
+fn mul(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
+    let mut node = unary(tokens, input, v);
     while !tokens.is_empty() {
         let t = &tokens[0];
         if t.str == "*" {
             tokens.remove(0);
-            node = new_binary(NodeKind::NdMul, node.clone(), unary(tokens, input));
+            node = new_binary(NodeKind::NdMul, node.clone(), unary(tokens, input, v));
             continue;
         }
         if t.str == "/" {
             tokens.remove(0);
-            node = new_binary(NodeKind::NdDiv, node.clone(), unary(tokens, input));
+            node = new_binary(NodeKind::NdDiv, node.clone(), unary(tokens, input, v));
             continue;
         }
         break;
@@ -279,23 +279,23 @@ fn mul(tokens: &mut Vec<Token>, input: &str) -> Node {
     return node;
 }
 
-fn unary(tokens: &mut Vec<Token>, input: &str) -> Node {
+fn unary(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
     let t = &tokens[0];
     if t.str == "+" {
         tokens.remove(0);
-        return unary(tokens, input);
+        return unary(tokens, input, v);
     }
     if t.str == "-" {
         tokens.remove(0);
-        return new_unary(NodeKind::NdNeg, unary(tokens, input));
+        return new_unary(NodeKind::NdNeg, unary(tokens, input, v));
     }
-    return primary(tokens, input);
+    return primary(tokens, input, v);
 }
 
-fn primary(tokens: &mut Vec<Token>, input: &str) -> Node {
+fn primary(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
     if tokens[0].str == "(" {
         tokens.remove(0);
-        let node = expr(tokens, input);
+        let node = expr(tokens, input, v);
         skip(tokens, ")", input);
         return node;
     }
@@ -327,11 +327,11 @@ fn primary(tokens: &mut Vec<Token>, input: &str) -> Node {
                 // そうだ、トークンじゃなくて、add()とかもあるから、評価値をベースで次にしないといけない
                 // tokens[1].strで判定しているのがだめ
                 //
-                args.push(expr(tokens, input)); // 最後の引数
+                args.push(expr(tokens, input, v)); // 最後の引数
 
                 while tokens.len() >= 2 && tokens[0].str == "," {
                     skip(tokens, ",", input);
-                    let arg = expr(tokens, input);
+                    let arg = expr(tokens, input, v);
                     args.push(arg);
                 }
 
@@ -348,18 +348,16 @@ fn primary(tokens: &mut Vec<Token>, input: &str) -> Node {
 
             // variable
             let var: Var;
-            unsafe {
-                var = if let Some(v) = VARIABLES.iter().find(|v| v.name == tokens[0].str) {
-                    v.clone()
-                } else {
-                    let nv = Var {
-                        name: tokens[0].str.clone(),
-                        offset: VARIABLES.len(), // ここで変数のアドレスを一意に割り当てる
-                    };
-                    VARIABLES.push(nv.clone());
-                    nv
+            var = if let Some(v) = v.iter().find(|v| v.name == tokens[0].str) {
+                v.clone()
+            } else {
+                let nv = Var {
+                    name: tokens[0].str.clone(),
+                    offset: v.len(), // ここで変数のアドレスを一意に割り当てる
                 };
-            }
+                v.push(nv.clone());
+                nv
+            };
             let ident = new_var(var);
             tokens.remove(0);
             return ident;
@@ -376,8 +374,12 @@ pub fn parse(tokens: &mut Vec<Token>, input: &str) -> Vec<Function> {
     while !tokens.is_empty() {
         let mut func = function(tokens, input);
         skip(tokens, "{", input); // compound-stmtのEBNF忘れてた
-        let block = compound_stmt(tokens, input);
+        let mut variables = Vec::new();
+        let block = compound_stmt(tokens, input, &mut variables);
+
         func.stmts = block.block_body;
+        func.variables = variables;
+
         funcs.push(func);
     }
     return funcs;
