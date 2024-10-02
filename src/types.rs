@@ -63,3 +63,9 @@ pub struct Node {
     pub func_name: String,
     pub args: Vec<Node>,
 }
+
+// pub struct Function {
+//     pub name: String,
+//     pub body: Vec<Node>, // stmts(?)
+//     pub variables: Vec<Var>,
+// }

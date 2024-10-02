@@ -15,6 +15,7 @@
 - while
 - 引数なし関数呼び出し
 - 引数あり関数呼び出し(8個まで)
+- intから始まる変数定義
 
 ## 演算の優先順位(低い順)
 低
@@ -33,8 +34,10 @@
   - まだ実装してないけど別ブランチで呼べることを確認済み(引数なしに限っていて、引数ありは未確認)
 
 ## EBNF
+- declaration = "int" ident ";"
+
 - stmt = expr-stmt | "return" expr ";" | "{" compound-stmt | "if" "(" expr ")" stmt ("else" stmt)? | "for" "(" expr_stmt expr? ";" expr? ")" stmt | "while" "(" expr ")" stmt
-- compound-stmt = stmt* "}" // "{" があるかどうかでexpr-stmtと区別している
+- compound-stmt = (declaration | stmt)* "}" // "{" があるかどうかでexpr-stmtと区別している
 - expr_stmt = expr? ";"
 - expr = assign
 - assign = equality ("=" equality)?

@@ -29,6 +29,7 @@ assert() {
 
 cargo build # 最初にビルド
 
+assert 3 '{int a; a=3; return a; }'
 
 assert 0 '{ return 0; }'
 assert 42 '{ return 42; }'
