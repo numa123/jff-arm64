@@ -1,5 +1,5 @@
 use crate::parse::VARIABLES;
-use crate::types::{Node, NodeKind};
+use crate::types::{Function, Node, NodeKind};
 
 pub static mut BCOUNT: usize = 0; // branch count
 
@@ -67,7 +67,7 @@ pub fn gen_expr(node: Node) {
         }
         NodeKind::NdDiv => {
             // x0が0だった場合は未定義になりそう？そのためにはcmpとか？一旦後で
-            println!("  cbz x0, div_error"); // x0が0の場合はエラー処理に飛ぶ
+            // println!("  cbz x0, div_error"); // x0が0の場合はエラー処理に飛ぶ // 一旦ゼロ割り算を許容する
             println!("  sdiv x0, x1, x0");
         }
         NodeKind::NdEq => {
@@ -114,18 +114,18 @@ pub fn gen_expr(node: Node) {
 }
 
 // 文の生成
-fn gen_stmt(node: Node) {
+fn gen_stmt(node: Node, func_name: &str) {
     match node.kind {
         NodeKind::NdExprStmt => {
             gen_expr(*(node.lhs).unwrap());
         }
         NodeKind::NdReturn => {
             gen_expr(*(node.lhs).unwrap());
-            println!("  b end");
+            println!("  b end{}", func_name);
         }
         NodeKind::NdBlock => {
             for node in node.block_body {
-                gen_stmt(node);
+                gen_stmt(node, func_name);
             }
         }
         NodeKind::NdIf => {
@@ -135,11 +135,11 @@ fn gen_stmt(node: Node) {
             println!("  b.eq then{}", count);
             println!("  b.ne else{}", count);
             println!("then{}:", count);
-            gen_stmt(*(node.then).unwrap());
+            gen_stmt(*(node.then).unwrap(), func_name);
             println!("  b end{}", count);
             println!("else{}:", count);
             if let Some(els) = node.els {
-                gen_stmt(*els);
+                gen_stmt(*els, func_name);
                 println!("  b end{}", count);
             }
             println!("end{}:", count);
@@ -148,14 +148,14 @@ fn gen_stmt(node: Node) {
         NodeKind::NdFor => {
             let count = unsafe { BCOUNT };
             if node.init.is_some() {
-                gen_stmt(*(node.init).unwrap()); // 間違えてgen_exprの時があった。
+                gen_stmt(*(node.init).unwrap(), func_name); // 間違えてgen_exprの時があった。
             }
             // 2回もnode.condがあるかどうかを確かめているのは良くない気がするけど、2回だしまあよしとしている部分
             if node.cond.is_some() {
                 println!("  b check_cond{}", count);
             }
             println!("start{}:", count);
-            gen_stmt(*(node.then).unwrap());
+            gen_stmt(*(node.then).unwrap(), func_name);
             if let Some(inc) = node.inc {
                 gen_expr(*inc);
             }
@@ -175,34 +175,45 @@ fn gen_stmt(node: Node) {
     }
 }
 
+// 関数
+// fn gen_func(f: Function) {
+//     // _関数名: というラベルを作成。ファイルの先頭に書いた方がよさそうではあるから、その場合はグローバルな関数名リストにも追加しておいた方が良いかもしれない
+//     // 関数の中に関数を定義することができるということも想定した方がよさそうだが、一旦は一つの関数のみのサポートとすることを考える
+//     println!("_{}", f.name);
+// }
+
 fn align_16(n: usize) -> usize {
     (n + 15) & !15
 }
 
-pub fn codegen(node: &mut Vec<Node>) {
-    let stack_size = unsafe { VARIABLES.len() * 8 }; // デバッグなど用のwzr, lp, fpは含めない、ローカル変数のみのスタックサイズ
-                                                     // 今はlongのみのサポートを想定しているから8バイトずつ確保している(つもり)
-    let prorogue_size = align_16(stack_size) + 16;
-    println!(".global _main");
-    println!("_main:");
-    // プロローグ
-    // 無駄が多くなるが動くのでよしとしている。関数呼び出しの有無、変数宣言の有無などによって変化する。
-    // subがなかったり、sturがなかったり、mov x29, spになっていたり。
-    println!("  stp x29, x30, [sp, -{}]!", prorogue_size);
-    println!("  mov x29, sp");
+// これが丸ごと、gen_funcの中になるみたいなイメージかもしれない
+pub fn codegen(funcs: &mut Vec<Function>) {
+    eprintln!("VARIALBES: {:?}", unsafe { VARIABLES.clone() });
+    for f in funcs {
+        let stack_size = unsafe { VARIABLES.len() * 8 }; // デバッグなど用のwzr, lp, fpは含めない、ローカル変数のみのスタックサイズ
+                                                         // 今はlongのみのサポートを想定しているから8バイトずつ確保している(つもり)
+        let prorogue_size = align_16(stack_size) + 16;
+        println!(".global _main");
+        println!("_{}:", f.name);
+        // プロローグ
+        // 無駄が多くなるが動くのでよしとしている。関数呼び出しの有無、変数宣言の有無などによって変化する。
+        // subがなかったり、sturがなかったり、mov x29, spになっていたり。
+        println!("  stp x29, x30, [sp, -{}]!", prorogue_size);
+        println!("  mov x29, sp");
 
-    while !node.is_empty() {
-        gen_stmt(node[0].clone()); // こうしないとnodeの所有権が移動してしまう。gen_exprを変えれば良いが一旦これで。
-        node.remove(0);
+        while !f.stmts.is_empty() {
+            gen_stmt(f.stmts[0].clone(), &f.name); // こうしないとnodeの所有権が移動してしまう。gen_exprを変えれば良いが一旦これで。
+            f.stmts.remove(0);
+        }
+        println!("  b end{}", f.name);
+
+        // ゼロ徐算の場合のエラー処理
+        // println!("div_error{}:", f.name);
+        // println!("  mov x0, 1");
+        // println!("  b end{}", f.name); // これじゃあただ正常に計算結果が1なのか、エラーが1なのかわからないのでは？まあ今は動くのでよしとする
+
+        println!("end{}:", f.name);
+        println!("  ldp x29, x30, [sp] ,{}", prorogue_size);
+        println!("  ret");
     }
-    println!("  b end");
-
-    // ゼロ徐算の場合のエラー処理
-    println!("div_error:");
-    println!("  mov x0, 1");
-    println!("  b end"); // これじゃあただ正常に計算結果が1なのか、エラーが1なのかわからないのでは？まあ今は動くのでよしとする
-
-    println!("end:");
-    println!("  ldp x29, x30, [sp] ,{}", prorogue_size);
-    println!("  ret");
 }

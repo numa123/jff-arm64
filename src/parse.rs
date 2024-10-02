@@ -1,5 +1,5 @@
 use crate::tokenize::{error_tok, skip};
-use crate::types::{Node, NodeKind, Token, TokenKind, Var};
+use crate::types::{Function, Node, NodeKind, Token, TokenKind, Var};
 
 pub static mut VARIABLES: Vec<Var> = Vec::new();
 
@@ -50,6 +50,23 @@ fn new_block(block_body: Vec<Node>) -> Node {
     let mut node = new_node(NodeKind::NdBlock);
     node.block_body = block_body;
     return node;
+}
+
+//
+// function
+//
+fn function(tokens: &mut Vec<Token>, input: &str) -> Function {
+    skip(tokens, "int", input);
+    let func = Function {
+        name: tokens[0].str.clone(),
+        stmts: Vec::new(),
+        // variables: Vec::new(), // あとで使うけど、今は一旦int main()だけ書けるようにするか
+    };
+    // let mut variables = Vec::new();
+    tokens.remove(0); // 名前を消費
+    skip(tokens, "(", input);
+    skip(tokens, ")", input);
+    return func;
 }
 
 //
@@ -351,10 +368,17 @@ fn primary(tokens: &mut Vec<Token>, input: &str) -> Node {
     }
 }
 
-pub fn parse(tokens: &mut Vec<Token>, input: &str) -> Vec<Node> {
-    let mut stmts = Vec::new();
+pub fn parse(tokens: &mut Vec<Token>, input: &str) -> Vec<Function> {
+    // 今はとにかく1つの関数のみのサポートに取り組む
+    // 2つ以上の関数のサポートのためにはVARIABLESを関数ごとに持つ必要がある
+    // if tokens[0].str == "int" {
+    let mut funcs = Vec::new();
     while !tokens.is_empty() {
-        stmts.push(stmt(tokens, input));
+        let mut func = function(tokens, input);
+        skip(tokens, "{", input); // compound-stmtのEBNF忘れてた
+        let block = compound_stmt(tokens, input);
+        func.stmts = block.block_body;
+        funcs.push(func);
     }
-    return stmts;
+    return funcs;
 }

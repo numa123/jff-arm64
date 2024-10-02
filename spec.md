@@ -17,6 +17,16 @@
 - 引数あり関数呼び出し(8個まで)
 - intから始まる変数定義
   - "int" を使えているというか、intを無視しているという形になっているのは良くない点かもしれない。
+  - int x, y; は未対応
+- 関数宣言
+  - 方針
+    - 今codegenのトップレベルはgen_stmtだけど、それをgen_funcみたいな感じにして、関数から始まるようにする。
+    - 関数の構造体の中に、ローカル変数のベクタ, bodyに、stmt*
+    - 単に、今までのブロックにint main() がついただけのものをコンパイルできるようにするか
+  - 今の実装
+    - 関数で使用される変数は、各関数で分けておらず、関数を跨いでVARIABLESに格納している関係上、スタックフレームを余計に確保している。
+    - 変数名の仕様が被らなければ、関数宣言ができるようになっている。
+      - 例えば`assert 32 'int ret32() { int a = 10; int b = 22; return a + b; } int main() { int b = ret32(); return a; } ' `はエラーになる
 
 ## 演算の優先順位(低い順)
 低
@@ -35,6 +45,7 @@
   - まだ実装してないけど別ブランチで呼べることを確認済み(引数なしに限っていて、引数ありは未確認)
 
 ## EBNF
+- function = "int" ident "(" ")" compound-stmt
 - declaration = "int" expr-stmt
 
 - stmt = expr-stmt | "return" expr ";" | "{" compound-stmt | "if" "(" expr ")" stmt ("else" stmt)? | "for" "(" expr_stmt expr? ";" expr? ")" stmt | "while" "(" expr ")" stmt
