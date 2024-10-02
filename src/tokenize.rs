@@ -1,31 +1,48 @@
 use crate::types::{Node, Token, TokenKind};
 use core::panic;
 
-pub fn skip(tokens: &mut Vec<Token>, op: &str, input: &str) -> bool {
+pub fn skip(tokens: &mut Vec<Token>, s: &str, input: &str) -> bool {
     if tokens.is_empty() {
         eprintln!("{}", input);
         eprintln!("{}^", " ".repeat(input.len()));
-        eprintln!("expected {}", op);
+        eprintln!("expected {}", s);
         panic!();
     }
-    if tokens[0].str != op {
-        error_tok(&tokens[0], format!("expected {}", op).as_str(), input); // as_str()は&strに変換するためのもので、to_string()はStringに変換するためのもの
+    if tokens[0].str != s {
+        let bold_white_text = "\x1b[1m\x1b[97m"; // エラーメッセージの装飾
+        let reset = "\x1b[0m";
+        error_tok(
+            &tokens[0],
+            format!("expected {}{}{}", bold_white_text, s, reset).as_str(),
+            input,
+        );
     }
     tokens.remove(0);
     return true;
 }
 
-fn parse_number(p: &mut &str) -> String {
+fn get_number(p: &mut &str) -> String {
     let num: String = p.chars().take_while(|c| c.is_digit(10)).collect();
-    *p = &p[num.len()..]; // これは関数の外に出した方が明示的に書きやすいかも？
+    *p = &p[num.len()..];
     return num;
 }
 
 // 嘘だけどNodeを返すと書いている
 pub fn error_tok(t: &Token, msg: &str, input: &str) -> Node {
-    eprintln!("{}", input);
-    eprintln!("{}^", " ".repeat(t.loc));
-    eprintln!("{}", msg);
+    // エラーメッセージの装飾
+    let purple_caret = "\x1b[91m^"; // 明るい紫の "^"
+    let red_text = "\x1b[91m"; // 赤色の開始
+    let error_header_text = "\x1b[91mjff_error:"; // 赤色の開始
+    let reset = "\x1b[0m"; // 色リセット
+
+    // t.loc文字目を赤くして表示
+    let before = &input[..t.loc]; // t.loc前の部分
+    let after = &input[t.loc + 1..]; // t.loc後の部分
+    let target_char = input.chars().nth(t.loc).unwrap(); // t.locの文字
+
+    eprintln!("{} {}{}", error_header_text, reset, msg);
+    eprintln!("{}{}{}{}{}", before, red_text, target_char, reset, after); // t.locの文字だけ赤く
+    eprintln!("{}{}{}", " ".repeat(t.loc), purple_caret, reset);
     panic!();
 }
 
@@ -34,16 +51,19 @@ pub fn error_tok(t: &Token, msg: &str, input: &str) -> Node {
 pub fn tokenize(r_input: &mut &str) -> Vec<Token> {
     let input_copy = *r_input;
     let mut tokens = Vec::new();
-    let mut index = 0;
+    let mut index = 0; // debugのlocation用
+
     while !r_input.is_empty() {
         let c = r_input.chars().next().unwrap();
+        // skip space
         if c == ' ' {
             *r_input = &r_input[1..];
             index += 1;
             continue;
         }
+        // 数値
         if c.is_digit(10) {
-            let num = parse_number(r_input);
+            let num = get_number(r_input); // 数値の終わりまで取得
             tokens.push(Token {
                 kind: TokenKind::TkNum,
                 val: num.parse().unwrap(),
@@ -53,6 +73,7 @@ pub fn tokenize(r_input: &mut &str) -> Vec<Token> {
             index += num.len();
             continue;
         }
+        // double character punctuator
         // ==, !=, <=, >= p.len() > 2 がないとindex out of boundsになる
         if r_input.len() > 2
             && (r_input[0..2].eq("==")
@@ -70,7 +91,7 @@ pub fn tokenize(r_input: &mut &str) -> Vec<Token> {
             index += 2;
             continue;
         }
-
+        // single character punctuator
         if c == '+'
             || c == '-'
             || c == '*'
@@ -96,21 +117,20 @@ pub fn tokenize(r_input: &mut &str) -> Vec<Token> {
             continue;
         }
 
-        // 1文字以上の変数名をサポート
+        // identifier
         if is_ident(c) {
             let mut ident = String::new();
             while !r_input.is_empty() && is_ident2(r_input.chars().next().unwrap()) {
                 ident.push(r_input.chars().next().unwrap());
                 *r_input = &r_input[1..];
-                index += 1;
             }
-
             tokens.push(Token {
                 kind: TokenKind::TkIdent,
                 val: 0,
-                str: ident,
+                str: ident.clone(),
                 loc: index,
             });
+            index += ident.len();
             continue;
         }
 

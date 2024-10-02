@@ -7,6 +7,7 @@ fn gen_addr(node: Node) {
     if node.kind == NodeKind::NdVar {
         let offset = (node.var.unwrap().offset + 2) * 8; // 例えば、str x0, [x29, -16]とすると、x29-16 ~ x29-24ではなく、x29-16 ~ x29-8になる。
                                                          // offset設定の際、現在は0から設定しているので、+1しないと、最初の変数がx29~x29+8になってしまって、lp(x30)と被ってしまう(と解釈している)
+                                                         // "+2"は、fp(x29)とlr(x30)の分を考慮している
         println!("  add x0, x29, {}", offset);
         return;
     }
@@ -14,7 +15,7 @@ fn gen_addr(node: Node) {
     panic!();
 }
 
-// x0に値を入れる処理(関数呼び出しの際はこの限りではないと予想している)
+// x0に値を入れる処理
 pub fn gen_expr(node: Node) {
     match node.kind {
         NodeKind::NdNum => {
@@ -36,14 +37,14 @@ pub fn gen_expr(node: Node) {
             println!("  str x0, [sp, -16]!"); // push  16で果たして良いのかは不明。ただ、ここでストアした値は後々消えるので、今は問題ない。
                                               // ただ、扱う値が16バイトを超える(16バイトでも起こるかもしれないが)場合は、もっと大きくしないといけないと予想している
             gen_expr(*(node.rhs).unwrap()); // rhsはx0に入るはずだから、panicしても良いためunwrap
-            println!("  ldr x1, [sp], 16"); // pop to x1 x1には左辺値のアドレスが入っているはず
+            println!("  ldr x1, [sp], 16"); // pop to x1 x1には左辺値のアドレスが入っているはず。
+                                            // ldrのポストインデックス。spから読み出した値をx0に格納し、spを16増やす
             println!("  str x0, [x1]"); // a=1;の場合、aのアドレスに1を入れる処理
             return;
         }
         _ => {}
     }
 
-    // node.lhs, node.rhsがあれば、それを再帰的に呼び出す
     if let Some(lhs) = node.lhs {
         gen_expr(*lhs);
         println!("  str x0, [sp, -16]!"); // push  上と同様
@@ -65,9 +66,7 @@ pub fn gen_expr(node: Node) {
             println!("  mul x0, x1, x0");
         }
         NodeKind::NdDiv => {
-            // x0が0だった場合は未定義になりそう？そのためにはcmpとか？一旦後で
-            // println!("  cbz x0, div_error"); // x0が0の場合はエラー処理に飛ぶ // 一旦ゼロ割り算を許容する
-            println!("  sdiv x0, x1, x0");
+            println!("  sdiv x0, x1, x0"); // sdivで0徐算をすると、0を返すようになっているっぽい
         }
         NodeKind::NdEq => {
             println!("  cmp x1, x0");
@@ -180,7 +179,7 @@ fn align_16(n: usize) -> usize {
 
 fn gen_args_prologue(args: &Vec<Node>) {
     for (i, arg) in args.iter().enumerate() {
-        // 他のアドレスを計算する際、x0を使うので、最初の引数のみ特別扱いして対比する
+        // 他のアドレスを計算する際、x0を使うので、最初の引数のみ特別扱いして退避する
         if i == 0 {
             println!("  mov x9, x0");
             gen_addr(arg.clone()); // x0にアドレスが入る
@@ -192,10 +191,8 @@ fn gen_args_prologue(args: &Vec<Node>) {
     }
 }
 
-// これが丸ごと、gen_funcの中になるみたいなイメージかもしれない
 pub fn codegen(funcs: &mut Vec<Function>) {
     for f in funcs {
-        // eprintln!("function args: {:#?}", f.args);
         let stack_size = f.variables.len() * 8; // デバッグなど用のwzr, lp, fpは含めない、ローカル変数のみのスタックサイズ
                                                 // 今はlongのみのサポートを想定しているから8バイトずつ確保している(つもり)
         let prorogue_size = align_16(stack_size) + 16;
@@ -214,12 +211,6 @@ pub fn codegen(funcs: &mut Vec<Function>) {
             gen_stmt(f.stmts[0].clone(), &f.name); // こうしないとnodeの所有権が移動してしまう。gen_exprを変えれば良いが一旦これで。
             f.stmts.remove(0);
         }
-        println!("  b end{}", f.name);
-
-        // ゼロ徐算の場合のエラー処理
-        // println!("div_error{}:", f.name);
-        // println!("  mov x0, 1");
-        // println!("  b end{}", f.name); // これじゃあただ正常に計算結果が1なのか、エラーが1なのかわからないのでは？まあ今は動くのでよしとする
 
         println!("end{}:", f.name);
         println!("  ldp x29, x30, [sp] ,{}", prorogue_size);

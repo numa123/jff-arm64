@@ -29,8 +29,8 @@ assert() {
 
 cargo build # 最初にビルド
 
-assert 0 'int main() { return 0; }'
 
+assert 0 'int main() { return 0; }'
 assert 42 'int main() { return 42; }'
 assert 21 'int main() { return 5+20-4; }'
 assert 41 'int main() { return  12 + 34 - 5 ; }'
@@ -105,5 +105,6 @@ assert 2 'int main() {return add1(1);} int add1(int x) {return x+1;}'
 assert 7 'int main() { return add2(3,4); } int add2(int x, int y) { return x+y; }'
 assert 1 'int main() { return sub2(4,3); } int sub2(int x, int y) { return x-y; }'
 assert 55 'int main() { return fib(9); } int fib(int x) { if (x<=1) return 1; return fib(x-1) + fib(x-2); }'
+assert 14 'int gcd(int a, int b) { if (a == b) return a; if (a > b) return gcd( a-b, b); return gcd(a, b - a);} int main() { return gcd(56, 98); }'
 
 echo OK
