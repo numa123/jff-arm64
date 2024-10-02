@@ -55,16 +55,54 @@ fn new_block(block_body: Vec<Node>) -> Node {
 //
 // function
 //
+// 今は、int main(1, 2) {} みたいな宣言も受け付けれてしまう。変数名のみにしたいところではある
 fn function(tokens: &mut Vec<Token>, input: &str) -> Function {
     skip(tokens, "int", input);
-    let func = Function {
+    let mut func = Function {
         name: tokens[0].str.clone(),
         stmts: Vec::new(),
         variables: Vec::new(), // あとで使うけど、今は一旦int main()だけ書けるようにするか
+        args: Vec::new(),
     };
     // let mut variables = Vec::new();
     tokens.remove(0); // 名前を消費
     skip(tokens, "(", input);
+
+    if tokens[0].str == ")" {
+        skip(tokens, ")", input);
+        return func;
+    }
+
+    skip(tokens, "int", input);
+    let var = Var {
+        name: tokens[0].str.clone(),
+        offset: func.variables.len(),
+        def_arg: true,
+    };
+    tokens.remove(0);
+    func.variables.push(var.clone());
+    func.args.push(new_var(var));
+
+    while tokens[0].str == "," {
+        tokens.remove(0);
+        skip(tokens, "int", input);
+        let var = Var {
+            name: tokens[0].str.clone(),
+            offset: func.variables.len(),
+            def_arg: true,
+        };
+        tokens.remove(0);
+        func.variables.push(var.clone());
+
+        let arg = new_var(var);
+        func.args.push(arg);
+    }
+
+    // func.variablesの中でdef_arg: trueのものの数が8個を超えたらエラーを出す
+    if func.variables.iter().filter(|v| v.def_arg == true).count() > 8 {
+        error_tok(&tokens[0], "too many arguments", input);
+    }
+
     skip(tokens, ")", input);
     return func;
 }
@@ -310,8 +348,8 @@ fn primary(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
             if tokens.len() >= 2 && tokens[1].str == "(" {
                 let mut node = new_node(NodeKind::NdFuncCall);
                 node.func_name = tokens[0].str.clone();
-                let mut args: Vec<Node> = Vec::new();
                 tokens.remove(0);
+                let mut args: Vec<Node> = Vec::new();
                 skip(tokens, "(", input);
 
                 // // exprなければnodeを返して終わり
@@ -354,6 +392,7 @@ fn primary(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
                 let nv = Var {
                     name: tokens[0].str.clone(),
                     offset: v.len(), // ここで変数のアドレスを一意に割り当てる
+                    def_arg: false,
                 };
                 v.push(nv.clone());
                 nv
@@ -374,11 +413,9 @@ pub fn parse(tokens: &mut Vec<Token>, input: &str) -> Vec<Function> {
     while !tokens.is_empty() {
         let mut func = function(tokens, input);
         skip(tokens, "{", input); // compound-stmtのEBNF忘れてた
-        let mut variables = Vec::new();
-        let block = compound_stmt(tokens, input, &mut variables);
+        let block = compound_stmt(tokens, input, &mut func.variables);
 
         func.stmts = block.block_body;
-        func.variables = variables;
 
         funcs.push(func);
     }

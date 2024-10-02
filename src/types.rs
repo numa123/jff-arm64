@@ -42,6 +42,7 @@ pub enum NodeKind {
 pub struct Var {
     pub name: String,
     pub offset: usize,
+    pub def_arg: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -68,4 +69,5 @@ pub struct Function {
     pub name: String,
     pub stmts: Vec<Node>, // stmts(?)
     pub variables: Vec<Var>,
+    pub args: Vec<Node>, // variablesの中でdef_argがtrueのもの
 }

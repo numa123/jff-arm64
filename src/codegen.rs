@@ -174,20 +174,28 @@ fn gen_stmt(node: Node, func_name: &str) {
     }
 }
 
-// 関数
-// fn gen_func(f: Function) {
-//     // _関数名: というラベルを作成。ファイルの先頭に書いた方がよさそうではあるから、その場合はグローバルな関数名リストにも追加しておいた方が良いかもしれない
-//     // 関数の中に関数を定義することができるということも想定した方がよさそうだが、一旦は一つの関数のみのサポートとすることを考える
-//     println!("_{}", f.name);
-// }
-
 fn align_16(n: usize) -> usize {
     (n + 15) & !15
+}
+
+fn gen_args_prologue(args: &Vec<Node>) {
+    for (i, arg) in args.iter().enumerate() {
+        // 他のアドレスを計算する際、x0を使うので、最初の引数のみ特別扱いして対比する
+        if i == 0 {
+            println!("  mov x9, x0");
+            gen_addr(arg.clone()); // x0にアドレスが入る
+            println!("  str x9, [x0]");
+            continue;
+        }
+        gen_addr(arg.clone()); // x0にアドレスが入る
+        println!("  str x{}, [x0]", i);
+    }
 }
 
 // これが丸ごと、gen_funcの中になるみたいなイメージかもしれない
 pub fn codegen(funcs: &mut Vec<Function>) {
     for f in funcs {
+        // eprintln!("function args: {:#?}", f.args);
         let stack_size = f.variables.len() * 8; // デバッグなど用のwzr, lp, fpは含めない、ローカル変数のみのスタックサイズ
                                                 // 今はlongのみのサポートを想定しているから8バイトずつ確保している(つもり)
         let prorogue_size = align_16(stack_size) + 16;
@@ -198,6 +206,9 @@ pub fn codegen(funcs: &mut Vec<Function>) {
         // subがなかったり、sturがなかったり、mov x29, spになっていたり。
         println!("  stp x29, x30, [sp, -{}]!", prorogue_size);
         println!("  mov x29, sp");
+
+        // 関数の引数をレジスターに詰めていく。普通の変数を設定するのと同じように
+        gen_args_prologue(&f.args);
 
         while !f.stmts.is_empty() {
             gen_stmt(f.stmts[0].clone(), &f.name); // こうしないとnodeの所有権が移動してしまう。gen_exprを変えれば良いが一旦これで。

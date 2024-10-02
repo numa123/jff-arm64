@@ -18,13 +18,8 @@
 - intから始まる変数定義
   - "int" を使えているというか、intを無視しているという形になっているのは良くない点かもしれない。
   - int x, y; は未対応
-- 関数宣言
-  - 方針
-    - 今codegenのトップレベルはgen_stmtだけど、それをgen_funcみたいな感じにして、関数から始まるようにする。
-    - 関数の構造体の中に、ローカル変数のベクタ, bodyに、stmt*
-    - 単に、今までのブロックにint main() がついただけのものをコンパイルできるようにするか
-  - 実装方針
-    - VARIABLESをf.variablesに変更。VARIABLESを残しておけばグローバル変数の定義に使えそうだけど、それはまたその時にするから今は消そう
+- 関数定義(引数なし)
+- 関数定義(引数あり)
 
 ## 演算の優先順位(低い順)
 低
@@ -38,13 +33,18 @@
 
 高
 
-## 大きな課題
-- ~~現在プロローグや、エピローグがなくても関数呼び出しがないからか、テストは通る。でも関数を呼び出していく中でsp, lp, fpはきちんとやらないといけない。~~
-  - まだ実装してないけど別ブランチで呼べることを確認済み(引数なしに限っていて、引数ありは未確認)
+## 修正したい点
+- コードが見づらくなってきた
+- 構造体にまとめたい
+- 今は全てが関数の中にないといけない
+- pushのアセンブリやらが、読みづらい。から、デバッグしづらい
+- intがあるけど、今は無視するだけになっている
+
 
 ## EBNF
-- function = "int" ident "(" ")" compound-stmt
+- function = "int" ident "(" func_arg? ")" compound-stmt
 - declaration = "int" expr-stmt
+- func_arg = ((ident ",")* ident)
 
 - stmt = expr-stmt | "return" expr ";" | "{" compound-stmt | "if" "(" expr ")" stmt ("else" stmt)? | "for" "(" expr_stmt expr? ";" expr? ")" stmt | "while" "(" expr ")" stmt
 - compound-stmt = (declaration | stmt)* "}" // "{" があるかどうかでexpr-stmtと区別している
