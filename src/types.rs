@@ -36,6 +36,8 @@ pub enum NodeKind {
     NdIf,       // if
     NdFor,      // for or while
     NdFuncCall, // function call
+    NdAddr,     // &
+    NdDeref,    // *
 }
 
 #[derive(Debug, Clone)]

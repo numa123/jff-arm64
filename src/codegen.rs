@@ -4,15 +4,23 @@ pub static mut BCOUNT: usize = 0; // branch count
 
 // 左辺値のアドレスをx0に入れる処理
 fn gen_addr(node: Node) {
-    if node.kind == NodeKind::NdVar {
-        let offset = (node.var.unwrap().offset + 2) * 8; // 例えば、str x0, [x29, -16]とすると、x29-16 ~ x29-24ではなく、x29-16 ~ x29-8になる。
-                                                         // offset設定の際、現在は0から設定しているので、+1しないと、最初の変数がx29~x29+8になってしまって、lp(x30)と被ってしまう(と解釈している)
-                                                         // "+2"は、fp(x29)とlr(x30)の分を考慮している
-        println!("  add x0, x29, {}", offset);
-        return;
+    match node.kind {
+        NodeKind::NdVar => {
+            let offset = (node.var.unwrap().offset + 2) * 8; // 例えば、str x0, [x29, -16]とすると、x29-16 ~ x29-24ではなく、x29-16 ~ x29-8になる。
+                                                             // offset設定の際、現在は0から設定しているので、+1しないと、最初の変数がx29~x29+8になってしまって、lp(x30)と被ってしまう(と解釈している)
+                                                             // "+2"は、fp(x29)とlr(x30)の分を考慮している
+            println!("  add x0, x29, {}", offset);
+            return;
+        }
+        NodeKind::NdDeref => {
+            gen_expr(*(node.lhs).unwrap());
+            return;
+        }
+        _ => {
+            eprintln!("not a lvalue");
+            panic!();
+        }
     }
-    eprintln!("not a lvalue");
-    panic!();
 }
 
 // x0に値を入れる処理
@@ -40,6 +48,15 @@ pub fn gen_expr(node: Node) {
             println!("  ldr x1, [sp], 16"); // pop to x1 x1には左辺値のアドレスが入っているはず。
                                             // ldrのポストインデックス。spから読み出した値をx0に格納し、spを16増やす
             println!("  str x0, [x1]"); // a=1;の場合、aのアドレスに1を入れる処理
+            return;
+        }
+        NodeKind::NdAddr => {
+            gen_addr(*(node.lhs).unwrap());
+            return;
+        }
+        NodeKind::NdDeref => {
+            gen_expr(*(node.lhs).unwrap());
+            println!("  ldr x0, [x0]");
             return;
         }
         _ => {}

@@ -20,6 +20,7 @@
   - int x, y; は未対応
 - 関数定義(引数なし)
 - 関数定義(引数あり)
+- 単項
 
 ## 演算の優先順位(低い順)
 低
@@ -28,7 +29,7 @@
 3. < <= > >=
 4. +, -
 5. *, /
-6. 単項+, 単項-
+6. 単項+, 単項-, 単項*, 単項&
 7. ()
 
 高
@@ -63,7 +64,7 @@
 - relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 - add = mul ("+" mul | "-" mul)*
 - mul = unary ( "\*" unary | "/" unary)*
-- unary = ("+" | "-")? primary
+- unary = ("+" | "-" | "*" | "&")? unary  
 - primary = num | ident args? | "(" expr ")"
 - args = "(" ((expr ",")* expr)? ")"
 

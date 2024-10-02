@@ -317,6 +317,14 @@ fn unary(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
         tokens.remove(0);
         return new_unary(NodeKind::NdNeg, unary(tokens, input, v));
     }
+    if t.str == "&" {
+        tokens.remove(0);
+        return new_unary(NodeKind::NdAddr, unary(tokens, input, v));
+    }
+    if t.str == "*" {
+        tokens.remove(0);
+        return new_unary(NodeKind::NdDeref, unary(tokens, input, v));
+    }
     return primary(tokens, input, v);
 }
 
