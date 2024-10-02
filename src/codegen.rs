@@ -6,9 +6,9 @@ pub static mut BCOUNT: usize = 0; // branch count
 // 左辺値のアドレスをx0に入れる処理
 fn gen_addr(node: Node) {
     if node.kind == NodeKind::NdVar {
-        let offset = (node.var.unwrap().offset + 1) * 8; // 例えば、str x0, [x29, -16]とすると、x29-16 ~ x29-24ではなく、x29-16 ~ x29-8になる。
+        let offset = (node.var.unwrap().offset + 2) * 8; // 例えば、str x0, [x29, -16]とすると、x29-16 ~ x29-24ではなく、x29-16 ~ x29-8になる。
                                                          // offset設定の際、現在は0から設定しているので、+1しないと、最初の変数がx29~x29+8になってしまって、lp(x30)と被ってしまう(と解釈している)
-        println!("  add x0, x29, -{}", offset);
+        println!("  add x0, x29, {}", offset);
         return;
     }
     eprintln!("not a lvalue");
@@ -176,13 +176,13 @@ fn gen_stmt(node: Node) {
 }
 
 fn align_16(n: usize) -> usize {
-    n / 16 * 16 + 16
+    (n + 15) & !15
 }
 
 pub fn codegen(node: &mut Vec<Node>) {
     let stack_size = unsafe { VARIABLES.len() * 8 }; // デバッグなど用のwzr, lp, fpは含めない、ローカル変数のみのスタックサイズ
                                                      // 今はlongのみのサポートを想定しているから8バイトずつ確保している(つもり)
-    let prorogue_size = align_16(stack_size + 4) + 16;
+    let prorogue_size = align_16(stack_size) + 16;
     println!(".global _main");
     println!("_main:");
     // プロローグ
@@ -203,6 +203,6 @@ pub fn codegen(node: &mut Vec<Node>) {
     println!("  b end"); // これじゃあただ正常に計算結果が1なのか、エラーが1なのかわからないのでは？まあ今は動くのでよしとする
 
     println!("end:");
-    println!("  ldp x29, x30, [sp],{}", prorogue_size);
+    println!("  ldp x29, x30, [sp] ,{}", prorogue_size);
     println!("  ret");
 }

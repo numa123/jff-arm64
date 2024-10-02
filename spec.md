@@ -16,6 +16,7 @@
 - 引数なし関数呼び出し
 - 引数あり関数呼び出し(8個まで)
 - intから始まる変数定義
+  - "int" を使えているというか、intを無視しているという形になっているのは良くない点かもしれない。
 
 ## 演算の優先順位(低い順)
 低
@@ -34,7 +35,7 @@
   - まだ実装してないけど別ブランチで呼べることを確認済み(引数なしに限っていて、引数ありは未確認)
 
 ## EBNF
-- declaration = "int" ident ";"
+- declaration = "int" expr-stmt
 
 - stmt = expr-stmt | "return" expr ";" | "{" compound-stmt | "if" "(" expr ")" stmt ("else" stmt)? | "for" "(" expr_stmt expr? ";" expr? ")" stmt | "while" "(" expr ")" stmt
 - compound-stmt = (declaration | stmt)* "}" // "{" があるかどうかでexpr-stmtと区別している

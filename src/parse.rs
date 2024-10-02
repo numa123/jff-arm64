@@ -56,15 +56,9 @@ fn new_block(block_body: Vec<Node>) -> Node {
 // nodenize functions
 //
 
-fn declaration(tokens: &mut Vec<Token>, input: &str) {
+fn declaration(tokens: &mut Vec<Token>, input: &str) -> Node {
     skip(tokens, "int", input);
-    let var = Var {
-        name: tokens[0].str.clone(),
-        offset: unsafe { VARIABLES.len() },
-    };
-    unsafe { VARIABLES.push(var) };
-    tokens.remove(0);
-    skip(tokens, ";", input);
+    return expr_stmt(tokens, input);
 }
 
 fn stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
@@ -143,12 +137,13 @@ fn stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
 fn compound_stmt(tokens: &mut Vec<Token>, input: &str) -> Node {
     let mut block_body = Vec::new();
     while !(tokens[0].str == "}") {
-        if tokens[0].str == "int" {
-            declaration(tokens, input);
+        // int declaration
+        let node = if tokens[0].str == "int" {
+            declaration(tokens, input)
         } else {
-            let node = stmt(tokens, input);
-            block_body.push(node);
-        }
+            stmt(tokens, input)
+        };
+        block_body.push(node);
         continue;
     }
     let node = new_block(block_body);

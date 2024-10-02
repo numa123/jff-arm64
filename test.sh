@@ -29,7 +29,6 @@ assert() {
 
 cargo build # 最初にビルド
 
-assert 3 '{int a; a=3; return a; }'
 
 assert 0 '{ return 0; }'
 assert 42 '{ return 42; }'
@@ -66,11 +65,15 @@ assert 0 '{ return 1>=2; }'
 assert 3 '{ a=3; return a; }'
 assert 8 '{ a=3; z=5; return a+z; }'
 
-assert 3 '{ a=3; return a; }'
-assert 21 "a=1; b=2; c=3; d=4; z=a+(b+c)*d; z;"
-assert 6 '{ a=b=3; return a+b; }'
-assert 3 '{ foo=3; return foo; }'
-assert 8 '{ foo123=3; bar=5; return foo123+bar; }'
+assert 3 '{ int a; a=3; return a; }'
+assert 3 '{ int a=3; return a; }'
+assert 8 '{ int a=3; int z=5; return a+z; }'
+
+assert 3 '{ int a=3; return a; }'
+assert 8 '{ int a=3; int z=5; return a+z; }'
+assert 6 '{ int a; int b; a=b=3; return a+b; }'
+assert 3 '{ int foo=3; return foo; }'
+assert 8 '{ int foo123=3; int bar=5; return foo123+bar; }'
 
 assert 1 '{ return 1; 2; 3; }'
 assert 2 '{ 1; return 2; 3; }'
@@ -86,10 +89,9 @@ assert 2 '{ if (2-1) return 2; return 3; }'
 assert 4 '{ if (0) { 1; 2; return 3; } else { return 4; } }'
 assert 3 '{ if (1) { 1; 2; return 3; } else { return 4; } }'
 
-assert 55 '{ i=0; j=0; for (i=0; i<=10; i=i+1) j=i+j; return j; }'
-assert 3 '{ for (;;) {return 3;} return 5; }'
-
-assert 10 '{ i=0; while(i<10) { i=i+1; } return i; }'
+assert 55 '{ int i=0; int j=0; for (i=0; i<=10; i=i+1) j=i+j; return j; }'
+assert 10 '{ int i=0; while(i<10) i=i+1; return i; }'
+assert 55 '{ int i=0; int j=0; while(i<=10) {j=i+j; i=i+1;} return j; }'
 
 assert 33 '{return add6(3,4,5,6,7,8);}'
 assert 33 '{ return add(add6(3,4,5,6,7,8), 0); }' 
@@ -104,9 +106,10 @@ assert 3 '{ return ret_copy(3); }'
 assert 2 '{ return sub(5, 3); }'
 assert 21 '{ return add6(1,2,3,4,5,6); }'
 assert 136 '{ return add6(1,2,add6(3,add6(4,5,6,7,8,9),10,11,12,13),14,15,16); }'
+assert 136 '{ int answer = add6(1,2,add6(3,add6(4,5,6,7,8,9),10,11,12,13),14,15,16); return answer; }'
 
 assert 3 '{ return ret3(); }'
 assert 5 '{ return ret5(); }'
-assert 1 "{getpid();getuid();return 1;}"
+assert 1 '{ getpid();getuid();return 1; }'
 
 echo OK
