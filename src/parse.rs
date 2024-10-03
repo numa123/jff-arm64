@@ -1,5 +1,10 @@
+use std::mem::swap;
+
 use crate::tokenize::{error_tok, skip};
-use crate::types::{Function, Node, NodeKind, Token, TokenKind, Var};
+use crate::types::{
+    add_type, is_integer, is_pointer, Function, Node, NodeKind, Token, TokenKind, Type, TypeKind,
+    Var,
+};
 
 fn new_node(kind: NodeKind) -> Node {
     Node {
@@ -16,6 +21,7 @@ fn new_node(kind: NodeKind) -> Node {
         inc: None,
         func_name: String::new(),
         args: Vec::new(),
+        ty: None,
     }
 }
 
@@ -188,6 +194,7 @@ fn compound_stmt(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node
         } else {
             stmt(tokens, input, v)
         };
+        // add_type(&mut node); // chibiccには書いてあるけど、なくても動くので一旦コメントアウト
         block_body.push(node);
         continue;
     }
@@ -269,18 +276,80 @@ fn relational(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
     return node;
 }
 
+//
+// pointer arithmetic
+//
+// 副作用すごそうだけど、動いてる。
+fn new_add(tokens: &mut Vec<Token>, input: &str, lhs: &mut Node, rhs: &mut Node) -> Node {
+    add_type(lhs);
+    add_type(rhs);
+    let lhs_ty = lhs.ty.as_ref().unwrap();
+    let rhs_ty = rhs.ty.as_ref().unwrap();
+    // num + num
+    if is_integer(lhs_ty) && is_integer(rhs_ty) {
+        return new_binary(NodeKind::NdAdd, lhs.clone(), rhs.clone());
+    }
+    // cannot add pointer and pointer
+    if is_pointer(lhs_ty) && is_pointer(rhs_ty) {
+        error_tok(
+            &tokens[0],
+            "invalid operands: both of operands are pointer", // これでよいのか？
+            input,
+        );
+    }
+    // normalize to ptr + num
+    if is_integer(lhs_ty) && is_pointer(rhs_ty) {
+        swap(lhs, rhs);
+    }
+    // pointer + num
+    let r = new_binary(NodeKind::NdMul, rhs.clone(), new_num(8)); // chibiccではrhsを変更している
+    return new_binary(NodeKind::NdAdd, lhs.clone(), r);
+}
+
+fn new_sub(tokens: &mut Vec<Token>, input: &str, lhs: &mut Node, rhs: &mut Node) -> Node {
+    add_type(lhs);
+    add_type(rhs);
+    let lhs_ty = lhs.ty.as_ref().unwrap();
+    let rhs_ty = rhs.ty.as_ref().unwrap();
+    // num - num
+    if is_integer(lhs_ty) && is_integer(rhs_ty) {
+        return new_binary(NodeKind::NdSub, lhs.clone(), rhs.clone());
+    }
+    // pointer - num
+    if is_pointer(lhs_ty) && is_integer(rhs_ty) {
+        let r = new_binary(NodeKind::NdMul, rhs.clone(), new_num(8));
+        let mut n = new_binary(NodeKind::NdSub, lhs.clone(), r);
+        n.ty = Some(lhs.ty.as_ref().unwrap().clone());
+        return n;
+    }
+    // pointer - pointer // もうわからないから写経しかすることない。泣きたい
+    if is_pointer(lhs_ty) && is_pointer(rhs_ty) {
+        let mut n = new_binary(NodeKind::NdSub, lhs.clone(), rhs.clone());
+        n.ty = Some(Type {
+            kind: TypeKind::TyInt,
+            ptr_to: None,
+        });
+        return new_binary(NodeKind::NdDiv, n, new_num(8));
+    }
+    error_tok(&tokens[0], "invalid operands", input)
+}
+//
+
+//
 fn add(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
     let mut node = mul(tokens, input, v);
     while !tokens.is_empty() {
         let t = &tokens[0];
         if t.str == "+" {
             tokens.remove(0);
-            node = new_binary(NodeKind::NdAdd, node.clone(), mul(tokens, input, v));
+            let mut m = mul(tokens, input, v);
+            node = new_add(tokens, input, &mut node, &mut m);
             continue;
         }
         if t.str == "-" {
             tokens.remove(0);
-            node = new_binary(NodeKind::NdSub, node.clone(), mul(tokens, input, v));
+            let mut m = mul(tokens, input, v);
+            node = new_sub(tokens, input, &mut node, &mut m);
             continue;
         }
         break;

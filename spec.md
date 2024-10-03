@@ -47,6 +47,7 @@
 - %演算子もサポートしたい
 - tokens.removeで進めるのはどうなのか。
 - 未定義変数への代入をエラーに(?)
+- 出力アセンブリのインデントを良い感じに変数で設定したい
 
 
 ## EBNF
@@ -125,3 +126,12 @@ The A64 load and store instructions always use the full 64-bit base register and
 ```
 
 ![alt text](general_register.png)
+
+
+## chibicc分析
+### ptr型の追加について
+- baseの意味
+
+
+pointer型の導入と演算わけわからんやばすぎ
+あとrust出引数を&mutにした途端わけわからんことになってる所有権周り。unwrapとか多すぎるし

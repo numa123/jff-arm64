@@ -10,11 +10,9 @@ fn gen_addr(node: Node) {
                                                              // offset設定の際、現在は0から設定しているので、+1しないと、最初の変数がx29~x29+8になってしまって、lp(x30)と被ってしまう(と解釈している)
                                                              // "+2"は、fp(x29)とlr(x30)の分を考慮している
             println!("  add x0, x29, {}", offset);
-            return;
         }
         NodeKind::NdDeref => {
             gen_expr(*(node.lhs).unwrap());
-            return;
         }
         _ => {
             eprintln!("not a lvalue");
@@ -232,5 +230,6 @@ pub fn codegen(funcs: &mut Vec<Function>) {
         println!("end{}:", f.name);
         println!("  ldp x29, x30, [sp] ,{}", prorogue_size);
         println!("  ret");
+        println!();
     }
 }
