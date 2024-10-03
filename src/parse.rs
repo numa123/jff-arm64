@@ -1,9 +1,9 @@
 use std::mem::swap;
 
-use crate::tokenize::{error_tok, skip};
+use crate::tokenize::{consume, error_tok, skip};
 use crate::types::{
-    add_type, is_integer, is_pointer, Function, Node, NodeKind, Token, TokenKind, Type, TypeKind,
-    Var,
+    add_type, is_integer, is_pointer, new_ptr_to, Function, Node, NodeKind, Token, TokenKind, Type,
+    TypeKind, Var,
 };
 
 fn new_node(kind: NodeKind) -> Node {
@@ -117,10 +117,66 @@ fn function(tokens: &mut Vec<Token>, input: &str) -> Function {
 //
 // node
 //
-fn declaration(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
+
+// declaration related
+// 型の宣言をパースする
+fn declaration_specifier(tokens: &mut Vec<Token>, input: &str) -> Type {
     skip(tokens, "int", input);
-    return expr_stmt(tokens, input, v);
+    return Type {
+        kind: TypeKind::TyInt,
+        ptr_to: None,
+    };
 }
+
+// int *xとか、int **xとかの宣言をパースする
+// 最後、*mut Typeを返しても良いけど、なんとなく関数間のインスタント性というか、状態を持たせない方がいいかなと思ってTypeを返している
+fn declarator(tokens: &mut Vec<Token>, input: &str, ty: Type) -> Type {
+    let mut ty = ty;
+    while consume(tokens, "*") {
+        ty = new_ptr_to(ty); // ここでtyのスコープ終わるのかな？
+    }
+
+    if !tokens[0].kind.eq(&TokenKind::TkIdent) {
+        error_tok(&tokens[0], "expected identifier", input);
+    }
+
+    // ty.name = Some(tokens[0].clone()); // このnameがなんのために存在するのかわかったら追加
+    tokens.remove(0);
+    return ty;
+}
+
+// declaration = declspec ident ("=" expr) ";"
+fn declaration(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
+    let _ = declaration_specifier(tokens, input);
+    // let ty = declarator(tokens, input, base_ty);
+    let mut body: Vec<Node> = Vec::new();
+
+    let var = find_or_create_var(v, tokens[0].str.as_str());
+    tokens.remove(0);
+
+    if tokens[0].str == "=" {
+        tokens.remove(0);
+        let lhs = new_binary(
+            NodeKind::NdAssign,
+            new_var(var.clone()),
+            assign(tokens, input, v),
+        );
+        let node = new_unary(NodeKind::NdExprStmt, lhs);
+        body.push(node);
+    }
+
+    skip(tokens, ";", input);
+
+    let mut node = new_node(NodeKind::NdBlock);
+    node.block_body = body;
+    return node;
+}
+
+// // 旧バージョン予定のdeclaration
+// fn declaration(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
+//     skip(tokens, "int", input);
+//     return expr_stmt(tokens, input, v);
+// }
 
 fn stmt(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
     // return
@@ -441,24 +497,28 @@ fn primary(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
             };
 
             // variable
-            let var: Var;
-            var = if let Some(v) = v.iter().find(|v| v.name == tokens[0].str) {
-                v.clone()
-            } else {
-                let nv = Var {
-                    name: tokens[0].str.clone(),
-                    offset: v.len(), // ここで変数のアドレスを一意に割り当てる
-                    def_arg: false,
-                };
-                v.push(nv.clone());
-                nv
-            };
-            let ident = new_var(var);
+            let ident = new_var(find_or_create_var(v, tokens[0].str.as_str()));
             tokens.remove(0);
             return ident;
         }
         _ => error_tok(&tokens[0], "expected number", input),
     }
+}
+
+// ok
+// 変数がすでに存在する場合、その変数を返す
+// そうでない場合、新しい変数を作成して、配列に追加し、その変数を返す
+fn find_or_create_var(v: &mut Vec<Var>, name: &str) -> Var {
+    if let Some(v) = v.iter().find(|v| v.name == name) {
+        return v.clone();
+    }
+    let nv = Var {
+        name: name.to_string(),
+        offset: v.len(),
+        def_arg: false,
+    };
+    v.push(nv.clone());
+    return nv;
 }
 
 pub fn parse(tokens: &mut Vec<Token>, input: &str) -> Vec<Function> {

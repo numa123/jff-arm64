@@ -52,7 +52,7 @@
 
 ## EBNF
 - function = "int" ident "(" func_arg? ")" compound-stmt
-- declaration = "int" expr-stmt
+- declaration = declspec ident ("=" expr) ";"
 - func_arg = ((ident ",")* ident)
 
 - stmt = expr-stmt | "return" expr ";" | "{" compound-stmt | "if" "(" expr ")" stmt ("else" stmt)? | "for" "(" expr_stmt expr? ";" expr? ")" stmt | "while" "(" expr ")" stmt

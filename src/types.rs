@@ -6,7 +6,7 @@ pub enum TokenKind {
     TkKeyword,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     pub kind: TokenKind,
     pub val: i32,
@@ -45,6 +45,7 @@ pub struct Var {
     pub name: String,
     pub offset: usize,
     pub def_arg: bool, // true if this variable is a function argument
+                       // pub ty: Type,
 }
 
 #[derive(Debug, Clone)]
@@ -86,6 +87,7 @@ pub enum TypeKind {
 pub struct Type {
     pub kind: TypeKind,
     pub ptr_to: Option<Box<Type>>,
+    // pub name: Option<Token>, // nameがTokenってどういうことだ。一意性を保証するためかな。nameは不適切では？ // declaration
 }
 
 //
@@ -109,6 +111,7 @@ pub fn new_ptr_to(ty: Type) -> Type {
     Type {
         kind: TypeKind::TyPtr,
         ptr_to: Some(Box::new(ty)),
+        // name: None,
     }
 }
 
@@ -167,6 +170,7 @@ pub fn add_type(node: &mut Node) {
             node.ty = Some(Type {
                 kind: TypeKind::TyInt,
                 ptr_to: None,
+                // name: None,
             });
         }
         NodeKind::NdAddr => {
@@ -179,6 +183,7 @@ pub fn add_type(node: &mut Node) {
                 node.ty = Some(Type {
                     kind: TypeKind::TyInt,
                     ptr_to: None,
+                    // name: None,
                 });
             } else {
                 node.ty = Some(new_ptr_to(
@@ -190,6 +195,7 @@ pub fn add_type(node: &mut Node) {
             node.ty = Some(Type {
                 kind: TypeKind::TyInt,
                 ptr_to: None,
+                // name: None,
             });
         }
         _ => {}
