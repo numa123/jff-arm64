@@ -52,8 +52,9 @@
 
 ## EBNF
 - function = "int" ident "(" func_arg? ")" compound-stmt
-- declaration = declspec ident ("=" expr) ";"
-- func_arg = ((ident ",")* ident)
+- declaration = declspec var_assign ("," var_assign)* ";"
+- var_assign = ident ("," ident)? ("=" expr)?
+- func_arg = (ident ("," ident)*)
 
 - stmt = expr-stmt | "return" expr ";" | "{" compound-stmt | "if" "(" expr ")" stmt ("else" stmt)? | "for" "(" expr_stmt expr? ";" expr? ")" stmt | "while" "(" expr ")" stmt
 - compound-stmt = (declaration | stmt)* "}" // "{" があるかどうかでexpr-stmtと区別している

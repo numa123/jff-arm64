@@ -130,7 +130,7 @@ fn declaration_specifier(tokens: &mut Vec<Token>, input: &str) -> Type {
 
 // int *xとか、int **xとかの宣言をパースする
 // 最後、*mut Typeを返しても良いけど、なんとなく関数間のインスタント性というか、状態を持たせない方がいいかなと思ってTypeを返している
-fn declarator(tokens: &mut Vec<Token>, input: &str, ty: Type) -> Type {
+fn _declarator(tokens: &mut Vec<Token>, input: &str, ty: Type) -> Type {
     let mut ty = ty;
     while consume(tokens, "*") {
         ty = new_ptr_to(ty); // ここでtyのスコープ終わるのかな？
@@ -145,28 +145,41 @@ fn declarator(tokens: &mut Vec<Token>, input: &str, ty: Type) -> Type {
     return ty;
 }
 
-// declaration = declspec ident ("=" expr) ";"
+// declaration = declspec var_assign ("," var_assign)* ";"
+// var_assign = ident ("," ident)? ("=" expr)?
 fn declaration(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
     let _ = declaration_specifier(tokens, input);
     // let ty = declarator(tokens, input, base_ty);
     let mut body: Vec<Node> = Vec::new();
 
-    let var = find_or_create_var(v, tokens[0].str.as_str());
-    tokens.remove(0);
-
-    if tokens[0].str == "=" {
+    // int a,b=3, c,d=10;という初期化もサポート
+    loop {
+        let mut vars: Vec<Var> = Vec::new();
+        vars.push(find_or_create_var(v, tokens[0].str.as_str()));
         tokens.remove(0);
-        let lhs = new_binary(
-            NodeKind::NdAssign,
-            new_var(var.clone()),
-            assign(tokens, input, v),
-        );
-        let node = new_unary(NodeKind::NdExprStmt, lhs);
-        body.push(node);
+        while consume(tokens, ",") {
+            vars.push(find_or_create_var(v, tokens[0].str.as_str()));
+            tokens.remove(0);
+        }
+
+        if tokens[0].str == "=" {
+            tokens.remove(0);
+            let assign = assign(tokens, input, v);
+            // int a, b = 3; というような初期化のサポート
+            for var in vars.iter() {
+                let lhs = new_binary(NodeKind::NdAssign, new_var(var.clone()), assign.clone());
+                let node = new_unary(NodeKind::NdExprStmt, lhs);
+                body.push(node);
+            }
+        };
+
+        if tokens[0].str == "," {
+            tokens.remove(0);
+            continue;
+        }
+        break; // ";"tokens[0]が";"の場合に限ると想定している
     }
-
     skip(tokens, ";", input);
-
     let mut node = new_node(NodeKind::NdBlock);
     node.block_body = body;
     return node;
@@ -501,7 +514,10 @@ fn primary(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
             tokens.remove(0);
             return ident;
         }
-        _ => error_tok(&tokens[0], "expected number", input),
+        _ => {
+            eprintln!("{:#?}", tokens);
+            error_tok(&tokens[0], "expected number", input)
+        }
     }
 }
 

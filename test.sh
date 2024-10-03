@@ -29,7 +29,7 @@ assert() {
 
 cargo build # 最初にビルド
 
-assert 3 'int main() { int a; a=3; return a; }'
+assert 7 'int main() { int a, b=3, c=1; return a+b+c; }'
 assert 3 'int main() { int a=3; return a; }'
 assert 8 'int main() { int a=3; int z=5; return a+z; }'
 
