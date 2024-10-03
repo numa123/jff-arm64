@@ -45,7 +45,8 @@ pub struct Var {
     pub name: String,
     pub offset: usize,
     pub def_arg: bool, // true if this variable is a function argument
-                       // pub ty: Type,
+    // pub ty: Type,
+    pub ty: Type,
 }
 
 #[derive(Debug, Clone)]
@@ -165,13 +166,14 @@ pub fn add_type(node: &mut Node) {
         | NodeKind::NdLe
         | NodeKind::NdGt
         | NodeKind::NdGe
-        | NodeKind::NdNum
-        | NodeKind::NdVar => {
+        | NodeKind::NdNum => {
             node.ty = Some(Type {
                 kind: TypeKind::TyInt,
                 ptr_to: None,
-                // name: None,
             });
+        }
+        NodeKind::NdVar => {
+            node.ty = Some(node.var.as_ref().unwrap().ty.clone());
         }
         NodeKind::NdAddr => {
             node.ty = Some(new_ptr_to(
@@ -179,17 +181,12 @@ pub fn add_type(node: &mut Node) {
             ));
         }
         NodeKind::NdDeref => {
-            if node.lhs.as_ref().unwrap().ty.as_ref().unwrap().kind == TypeKind::TyInt {
-                node.ty = Some(Type {
-                    kind: TypeKind::TyInt,
-                    ptr_to: None,
-                    // name: None,
-                });
-            } else {
-                node.ty = Some(new_ptr_to(
-                    node.lhs.as_ref().unwrap().ty.as_ref().unwrap().clone(),
-                ));
+            if node.lhs.as_ref().unwrap().ty.as_ref().unwrap().kind != TypeKind::TyPtr {
+                panic!("invalid pointer dereference");
             }
+            node.ty = Some(new_ptr_to(
+                node.lhs.as_ref().unwrap().ty.as_ref().unwrap().clone(),
+            ));
         }
         NodeKind::NdFuncCall => {
             node.ty = Some(Type {

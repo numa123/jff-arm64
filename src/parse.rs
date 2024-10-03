@@ -75,8 +75,8 @@ fn function(tokens: &mut Vec<Token>, input: &str) -> Function {
         return func;
     }
 
-    skip(tokens, "int", input);
-    // int add(int 1, int 2){}のような関数定義をエラーに
+    skip(tokens, "int", input); // これがintだからintをtyにする
+                                // int add(int 1, int 2){}のような関数定義をエラーに
     if !tokens[0].kind.eq(&TokenKind::TkIdent) {
         error_tok(&tokens[0], "expected identifier", input);
     }
@@ -84,6 +84,10 @@ fn function(tokens: &mut Vec<Token>, input: &str) -> Function {
         name: tokens[0].str.clone(),
         offset: func.variables.len(),
         def_arg: true,
+        ty: Type {
+            kind: TypeKind::TyInt,
+            ptr_to: None,
+        },
     };
     tokens.remove(0);
     func.variables.push(var.clone());
@@ -91,14 +95,19 @@ fn function(tokens: &mut Vec<Token>, input: &str) -> Function {
 
     while tokens[0].str == "," {
         tokens.remove(0);
-        skip(tokens, "int", input);
+        skip(tokens, "int", input); // これがintだからintをtyにする
         if !tokens[0].kind.eq(&TokenKind::TkIdent) {
             error_tok(&tokens[0], "expected identifier", input);
         }
+        // ここ冗長すぎ
         let var = Var {
             name: tokens[0].str.clone(),
             offset: func.variables.len(),
             def_arg: true,
+            ty: Type {
+                kind: TypeKind::TyInt,
+                ptr_to: None,
+            },
         };
         tokens.remove(0);
         func.variables.push(var.clone());
@@ -130,35 +139,31 @@ fn declaration_specifier(tokens: &mut Vec<Token>, input: &str) -> Type {
 
 // int *xとか、int **xとかの宣言をパースする
 // 最後、*mut Typeを返しても良いけど、なんとなく関数間のインスタント性というか、状態を持たせない方がいいかなと思ってTypeを返している
-fn _declarator(tokens: &mut Vec<Token>, input: &str, ty: Type) -> Type {
+fn declarator(tokens: &mut Vec<Token>, input: &str, ty: Type) -> Type {
     let mut ty = ty;
     while consume(tokens, "*") {
         ty = new_ptr_to(ty); // ここでtyのスコープ終わるのかな？
     }
-
     if !tokens[0].kind.eq(&TokenKind::TkIdent) {
         error_tok(&tokens[0], "expected identifier", input);
     }
-
     // ty.name = Some(tokens[0].clone()); // このnameがなんのために存在するのかわかったら追加
-    tokens.remove(0);
     return ty;
 }
 
-// declaration = declspec var_assign ("," var_assign)* ";"
-// var_assign = ident ("," ident)? ("=" expr)?
 fn declaration(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
-    let _ = declaration_specifier(tokens, input);
-    // let ty = declarator(tokens, input, base_ty);
+    let base_ty = declaration_specifier(tokens, input);
+    let ty = declarator(tokens, input, base_ty); // tyが確定。
     let mut body: Vec<Node> = Vec::new();
 
     // int a,b=3, c,d=10;という初期化もサポート
+    // 1つの文での初期化は、皆同じ型になるはずだから、tyを使い回す
     loop {
         let mut vars: Vec<Var> = Vec::new();
-        vars.push(find_or_create_var(v, tokens[0].str.as_str()));
+        vars.push(create_var(v, tokens[0].str.as_str(), ty.clone()));
         tokens.remove(0);
         while consume(tokens, ",") {
-            vars.push(find_or_create_var(v, tokens[0].str.as_str()));
+            vars.push(create_var(v, tokens[0].str.as_str(), ty.clone()));
             tokens.remove(0);
         }
 
@@ -184,12 +189,6 @@ fn declaration(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
     node.block_body = body;
     return node;
 }
-
-// // 旧バージョン予定のdeclaration
-// fn declaration(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
-//     skip(tokens, "int", input);
-//     return expr_stmt(tokens, input, v);
-// }
 
 fn stmt(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
     // return
@@ -510,7 +509,15 @@ fn primary(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
             };
 
             // variable
-            let ident = new_var(find_or_create_var(v, tokens[0].str.as_str()));
+            // ここでidentが見つからないはずはない。declarationで追加しているから。という想定
+            let var = if let Some(v) = find_var(v, tokens[0].str.as_str()) {
+                v
+            } else {
+                error_tok(&tokens[0], "undefined variable", input);
+                panic!();
+            };
+
+            let ident = new_var(var);
             tokens.remove(0);
             return ident;
         }
@@ -523,15 +530,16 @@ fn primary(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
 
 // ok
 // 変数がすでに存在する場合、その変数を返す
-// そうでない場合、新しい変数を作成して、配列に追加し、その変数を返す
-fn find_or_create_var(v: &mut Vec<Var>, name: &str) -> Var {
-    if let Some(v) = v.iter().find(|v| v.name == name) {
-        return v.clone();
-    }
+fn find_var(var: &Vec<Var>, name: &str) -> Option<Var> {
+    return var.iter().find(|v| v.name == name).cloned();
+}
+
+fn create_var(v: &mut Vec<Var>, name: &str, ty: Type) -> Var {
     let nv = Var {
         name: name.to_string(),
         offset: v.len(),
         def_arg: false,
+        ty: ty,
     };
     v.push(nv.clone());
     return nv;

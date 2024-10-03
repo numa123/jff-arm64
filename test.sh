@@ -29,20 +29,23 @@ assert() {
 
 cargo build # 最初にビルド
 
+assert 3 'int main() { int a=3; return a; }'
+assert 7 'int main() { int a, b=3, c=1; return a+b+c; }'
+assert 3 'int main() { int x=3; int *y=&x; int **z=&y; return **z; }'
 assert 7 'int main() { int a, b=3, c=1; return a+b+c; }'
 assert 3 'int main() { int a=3; return a; }'
 assert 8 'int main() { int a=3; int z=5; return a+z; }'
 
-assert 5 'int main() { x=3; y=5; return *(&x+1); }'
-assert 3 'int main() { x=3; y=5; return *(&y-1); }'
-assert 5 'int main() { x=3; y=5; return *(&x-(-1)); }'
-assert 7 'int main() { x=3; y=5; *(&x+1)=7; return y; }'
-assert 7 'int main() { x=3; y=5; *(&y-2+1)=7; return x; }'
-assert 5 'int main() { x=3; return (&x+2)-&x+3; }'
+assert 5 'int main() { int x=3; int y=5; return *(&x+1); }'
+assert 3 'int main() { int x=3; int y=5; return *(&y-1); }'
+assert 5 'int main() { int x=3; int y=5; return *(&x-(-1)); }'
+assert 7 'int main() { int x=3; int y=5; *(&x+1)=7; return y; }'
+assert 7 'int main() { int x=3; int y=5; *(&y-2+1)=7; return x; }'
+assert 5 'int main() { int x=3; return (&x+2)-&x+3; }'
 
-assert 3 'int main(){ x=3; return *&x; }'
-assert 3 'int main() { x=3; y=&x; z=&y; return **z; }'
-assert 5 'int main() { x=3; y=&x; *y=5; return x; }'
+assert 3 'int main(){ int x=3; return *&x; }'
+assert 3 'int main() { int x=3; int *y=&x; int *z=&y; return **z; }'
+assert 5 'int main() { int x=3; int *y=&x; *y=5; return x; }'
 
 assert 0 'int main() { return 0; }'
 assert 42 'int main() { return 42; }'

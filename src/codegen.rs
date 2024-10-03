@@ -215,7 +215,7 @@ pub fn codegen(funcs: &mut Vec<Function>) {
         println!("_{}:", f.name);
         // プロローグ
         // 無駄が多くなるが動くのでよしとしている。関数呼び出しの有無、変数宣言の有無などによって変化する。
-        // subがなかったり、sturがなかったり、mov x29, spになっていたり。
+        // subがなかったり
         println!("  stp x29, x30, [sp, -{}]!", prorogue_size);
         println!("  mov x29, sp");
 
