@@ -1,4 +1,4 @@
-use crate::types::{Function, Node, NodeKind};
+use crate::types::{Function, Node, NodeKind, Type, TypeKind};
 
 pub static mut BCOUNT: usize = 0; // branch count
 
@@ -21,6 +21,13 @@ fn gen_addr(node: Node) {
     }
 }
 
+fn load(ty: Type) {
+    if ty.kind == TypeKind::TyArray {
+        return;
+    }
+    println!("  ldr x0, [x0]");
+}
+
 // x0に値を入れる処理
 pub fn gen_expr(node: Node) {
     match node.kind {
@@ -34,8 +41,8 @@ pub fn gen_expr(node: Node) {
             return;
         }
         NodeKind::NdVar => {
-            gen_addr(node);
-            println!("  ldr x0, [x0]");
+            gen_addr(node.clone());
+            load(node.ty.unwrap());
             return;
         }
         NodeKind::NdAssign => {
@@ -54,7 +61,7 @@ pub fn gen_expr(node: Node) {
         }
         NodeKind::NdDeref => {
             gen_expr(*(node.lhs).unwrap());
-            println!("  ldr x0, [x0]");
+            load(node.ty.unwrap());
             return;
         }
         _ => {}

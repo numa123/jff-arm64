@@ -83,13 +83,16 @@ pub struct Function {
 pub enum TypeKind {
     TyInt,
     TyPtr,
+    TyArray,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Type {
     pub kind: TypeKind,
+    pub size: usize,
     pub ptr_to: Option<Box<Type>>,
     pub tok: Option<Token>,
+    pub array_len: Option<usize>,
 }
 
 //
@@ -112,16 +115,30 @@ pub fn is_pointer(ty: &Type) -> bool {
 pub fn new_ptr_to(ty: Type) -> Type {
     Type {
         kind: TypeKind::TyPtr,
+        size: 8,
         ptr_to: Some(Box::new(ty)),
         tok: None,
+        array_len: None,
     }
 }
 
 pub fn new_int() -> Type {
     Type {
         kind: TypeKind::TyInt,
+        size: 8,
         ptr_to: None,
         tok: None,
+        array_len: None,
+    }
+}
+
+pub fn new_array(ty: Type, len: usize) -> Type {
+    Type {
+        kind: TypeKind::TyArray,
+        size: 8 * len, // まだ要素がポインタか、8byteの整数のみしかないので、8byte固定
+        ptr_to: Some(Box::new(ty)),
+        tok: None,
+        array_len: Some(len),
     }
 }
 
@@ -187,7 +204,16 @@ pub fn add_type(node: &mut Node) {
             ));
         }
         NodeKind::NdDeref => {
-            if node.lhs.as_ref().unwrap().ty.as_ref().unwrap().kind != TypeKind::TyPtr {
+            if node
+                .lhs
+                .as_ref()
+                .unwrap()
+                .ty
+                .as_ref()
+                .unwrap()
+                .ptr_to
+                .is_none()
+            {
                 panic!("invalid pointer dereference");
             }
             node.ty = Some(new_ptr_to(

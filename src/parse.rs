@@ -2,8 +2,8 @@ use std::mem::swap;
 
 use crate::tokenize::{consume, error_tok, skip};
 use crate::types::{
-    add_type, is_integer, is_pointer, new_int, new_ptr_to, Function, Node, NodeKind, Token,
-    TokenKind, Type, Var,
+    add_type, is_integer, is_pointer, new_array, new_int, new_ptr_to, Function, Node, NodeKind,
+    Token, TokenKind, Type, Var,
 };
 
 fn new_node(kind: NodeKind) -> Node {
@@ -88,12 +88,21 @@ fn declaration(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
     let mut body: Vec<Node> = Vec::new();
 
     while tokens[0].str != ";" {
-        let ty = type_chain(tokens, input, base_ty.clone());
+        let mut ty = type_chain(tokens, input, base_ty.clone());
         if !tokens[0].kind.eq(&TokenKind::TkIdent) {
             error_tok(&tokens[0], "expected identifier", input);
         }
-        let var = create_var(v, tokens[0].str.as_str(), ty, false);
+        let name = tokens[0].str.clone();
         tokens.remove(0);
+        // array
+        if tokens[0].str == "[" {
+            tokens.remove(0);
+            let num = tokens[0].val;
+            tokens.remove(0);
+            skip(tokens, "]", input);
+            ty = new_array(ty, num as usize);
+        }
+        let var = create_var(v, name.as_str(), ty, false);
 
         if tokens[0].str == "=" {
             tokens.remove(0);
@@ -119,25 +128,7 @@ fn declaration(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
 //
 // function
 //
-fn function(tokens: &mut Vec<Token>, input: &str) -> Function {
-    let base_ty = declaration_specifier(tokens, input); // int
-    let ty = type_chain(tokens, input, base_ty);
-
-    let mut func = Function {
-        name: tokens[0].str.clone(),
-        stmts: Vec::new(),
-        variables: Vec::new(), // あとで使うけど、今は一旦int main()だけ書けるようにするか
-        args: Vec::new(),
-        ty: ty,
-    };
-    tokens.remove(0);
-
-    skip(tokens, "(", input);
-    if tokens[0].str == ")" {
-        skip(tokens, ")", input);
-        return func;
-    }
-
+fn func_param(tokens: &mut Vec<Token>, input: &str, func: &mut Function) {
     let base_ty = declaration_specifier(tokens, input);
     let ty = type_chain(tokens, input, base_ty);
     // int add(int 1, int 2){}のような関数定義をエラーに
@@ -161,6 +152,28 @@ fn function(tokens: &mut Vec<Token>, input: &str) -> Function {
         func.variables.push(var.clone());
         func.args.push(new_var_node(var));
     }
+}
+
+fn function_declaration(tokens: &mut Vec<Token>, input: &str) -> Function {
+    let base_ty = declaration_specifier(tokens, input); // int
+    let ty = type_chain(tokens, input, base_ty);
+
+    let mut func = Function {
+        name: tokens[0].str.clone(),
+        stmts: Vec::new(),
+        variables: Vec::new(), // あとで使うけど、今は一旦int main()だけ書けるようにするか
+        args: Vec::new(),
+        ty: ty,
+    };
+    tokens.remove(0);
+
+    skip(tokens, "(", input);
+    if tokens[0].str == ")" {
+        skip(tokens, ")", input);
+        return func;
+    }
+
+    func_param(tokens, input, &mut func);
 
     // func.variablesの中でdef_arg: trueのものの数が8個を超えたらエラーを出す
     if func.variables.iter().filter(|v| v.def_arg == true).count() > 8 {
@@ -349,12 +362,16 @@ fn new_add(tokens: &mut Vec<Token>, input: &str, lhs: &mut Node, rhs: &mut Node)
             input,
         );
     }
-    // normalize to ptr + num
+    // normalize num + ptr to ptr + num
     if is_integer(lhs_ty) && is_pointer(rhs_ty) {
         swap(lhs, rhs);
     }
     // pointer + num
-    let r = new_binary(NodeKind::NdMul, rhs.clone(), new_num(8)); // chibiccではrhsを変更している
+    let r = new_binary(
+        NodeKind::NdMul,
+        rhs.clone(),
+        new_num(lhs.clone().ty.unwrap().ptr_to.unwrap().size as i32), // またcloneしている
+    ); // chibiccではrhsを変更している
     return new_binary(NodeKind::NdAdd, lhs.clone(), r);
 }
 
@@ -378,7 +395,11 @@ fn new_sub(tokens: &mut Vec<Token>, input: &str, lhs: &mut Node, rhs: &mut Node)
     if is_pointer(lhs_ty) && is_pointer(rhs_ty) {
         let mut n = new_binary(NodeKind::NdSub, lhs.clone(), rhs.clone());
         n.ty = Some(new_int()); // ???
-        return new_binary(NodeKind::NdDiv, n, new_num(8));
+        return new_binary(
+            NodeKind::NdDiv,
+            n,
+            new_num(lhs.clone().ty.unwrap().ptr_to.unwrap().size as i32),
+        );
     }
     error_tok(&tokens[0], "invalid operands", input)
 }
@@ -523,7 +544,7 @@ fn create_var(v: &mut Vec<Var>, name: &str, ty: Type, is_arg_def: bool) -> Var {
 pub fn parse(tokens: &mut Vec<Token>, input: &str) -> Vec<Function> {
     let mut funcs = Vec::new();
     while !tokens.is_empty() {
-        let mut func = function(tokens, input);
+        let mut func = function_declaration(tokens, input);
         skip(tokens, "{", input); // compound-stmtのEBNF忘れてた
         let block = compound_stmt(tokens, input, &mut func.variables);
         func.stmts = block.block_body;
