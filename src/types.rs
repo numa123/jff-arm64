@@ -52,6 +52,7 @@ pub struct Var {
 #[derive(Debug, Clone)]
 pub struct Node {
     pub kind: NodeKind,
+    pub ty: Option<Type>,
     pub lhs: Option<Box<Node>>,
     pub rhs: Option<Box<Node>>,
     pub val: i32,
@@ -67,12 +68,12 @@ pub struct Node {
     pub inc: Option<Box<Node>>,
     pub func_name: String,
     pub args: Vec<Node>,
-    pub ty: Option<Type>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
+    pub ty: Type,
     pub stmts: Vec<Node>,    // stmts(?)
     pub variables: Vec<Var>, // variables including function arguments
     pub args: Vec<Node>,     // only function arguments

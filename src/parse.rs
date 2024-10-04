@@ -56,61 +56,53 @@ fn new_block(block_body: Vec<Node>) -> Node {
     return node;
 }
 
+fn new_func(name: String, ty: Type) -> Function {
+    Function {
+        name: name,
+        stmts: Vec::new(),
+        variables: Vec::new(),
+        args: Vec::new(),
+        ty: ty,
+    }
+}
+
 //
-// function
+// function definitionの予定
 //
 fn function(tokens: &mut Vec<Token>, input: &str) -> Function {
-    skip(tokens, "int", input);
-    let mut func = Function {
-        name: tokens[0].str.clone(),
-        stmts: Vec::new(),
-        variables: Vec::new(), // あとで使うけど、今は一旦int main()だけ書けるようにするか
-        args: Vec::new(),
-    };
-    tokens.remove(0);
-    skip(tokens, "(", input);
+    let base_ty = declaration_specifier(tokens, input);
+    let ty = declarator(tokens, input, base_ty);
 
+    let mut func = new_func(tokens[0].str.clone(), ty);
+    tokens.remove(0); // 関数名トークンを削除
+
+    skip(tokens, "(", input);
     if tokens[0].str == ")" {
         skip(tokens, ")", input);
         return func;
     }
 
-    skip(tokens, "int", input); // これがintだからintをtyにする
-                                // int add(int 1, int 2){}のような関数定義をエラーに
+    // 引数のパース
+    let base_ty = declaration_specifier(tokens, input);
+    let ty = declarator(tokens, input, base_ty);
+    // int add(int 1, int 2){}のような関数定義をエラーに
     if !tokens[0].kind.eq(&TokenKind::TkIdent) {
         error_tok(&tokens[0], "expected identifier", input);
     }
-    let var = Var {
-        name: tokens[0].str.clone(),
-        offset: func.variables.len(),
-        def_arg: true,
-        ty: Type {
-            kind: TypeKind::TyInt,
-            ptr_to: None,
-        },
-    };
-    tokens.remove(0);
-    func.variables.push(var.clone());
+    let var = create_var(&mut func.variables, tokens[0].str.as_str(), ty.clone());
+    tokens.remove(0); // 関数のシグネチャの引数名を削除
+                      // func.variables.push(var.clone()); すでに入っている
     func.args.push(new_var(var));
 
     while tokens[0].str == "," {
         tokens.remove(0);
-        skip(tokens, "int", input); // これがintだからintをtyにする
+        let base_ty = declaration_specifier(tokens, input);
+        let ty = declarator(tokens, input, base_ty);
         if !tokens[0].kind.eq(&TokenKind::TkIdent) {
             error_tok(&tokens[0], "expected identifier", input);
         }
-        // ここ冗長すぎ
-        let var = Var {
-            name: tokens[0].str.clone(),
-            offset: func.variables.len(),
-            def_arg: true,
-            ty: Type {
-                kind: TypeKind::TyInt,
-                ptr_to: None,
-            },
-        };
+        let var = create_var(&mut func.variables, tokens[0].str.as_str(), ty.clone());
         tokens.remove(0);
-        func.variables.push(var.clone());
         func.args.push(new_var(var));
     }
 
@@ -528,7 +520,6 @@ fn primary(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
     }
 }
 
-// ok
 // 変数がすでに存在する場合、その変数を返す
 fn find_var(var: &Vec<Var>, name: &str) -> Option<Var> {
     return var.iter().find(|v| v.name == name).cloned();

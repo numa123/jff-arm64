@@ -125,3 +125,5 @@ assert 55 'int main() { return fib(9); } int fib(int x) { if (x<=1) return 1; re
 assert 14 'int gcd(int a, int b) { if (a == b) return a; if (a > b) return gcd( a-b, b); return gcd(a, b - a);} int main() { return gcd(56, 98); }'
 
 echo OK
+
+# assert 8 'int *foo() { int x=3; return &x; } int main() { int *y = foo(); int z=5; return *y+z; }' # これ、segmentation faultにならないといけないやつ

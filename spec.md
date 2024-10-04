@@ -20,7 +20,8 @@
   - int x, y; は未対応
 - 関数定義(引数なし)
 - 関数定義(引数あり)
-- 単項
+- 単項*, 単項&
+- intの初期化(まだintが8byteになっている点に注意)
 
 ## 演算の優先順位(低い順)
 低
@@ -48,14 +49,15 @@
 - tokens.removeで進めるのはどうなのか。
 - 未定義変数への代入をエラーに(?)
 - 出力アセンブリのインデントを良い感じに変数で設定したい
-- panic!で処理しているところ、自分のエラー関数で処理したい
+- panic!で処理しているところ、自分のエラー関数で処理したい(そんなに該当箇所ないかも。undefined variableくらい？)
 
 
 ## EBNF
-- function = "int" ident "(" func_arg? ")" compound-stmt
-- declaration = declspec var_assign ("," var_assign)* ";"
+- function = declspec declarator ident "(" func_arg? ")" compound-stmt
+- declaration = declspec declarator var_assign ("," declspec declarator var_assign)* ";"
+- declspec = "int"
 - var_assign = ident ("," ident)? ("=" expr)?
-- func_arg = (ident ("," ident)*)
+- func_arg = (declspec declarator ident ("," declspec decralator ident)*)
 
 - stmt = expr-stmt | "return" expr ";" | "{" compound-stmt | "if" "(" expr ")" stmt ("else" stmt)? | "for" "(" expr_stmt expr? ";" expr? ")" stmt | "while" "(" expr ")" stmt
 - compound-stmt = (declaration | stmt)* "}" // "{" があるかどうかでexpr-stmtと区別している

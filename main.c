@@ -25,8 +25,14 @@
 
 // int main() {
 //   return gcd(56, 98); // 例として56と98の最大公約数を計算
-// }
+#include <stdio.h>
+
+int *foo() {
+  int x = 3;
+  return &x;
+}
 int main() {
-  int a, b = 3, c = 1;
-  return a + b + c;
+  int *y = foo();
+  int z = 5;
+  printf("%d\n", *y + z);
 }
