@@ -48,6 +48,7 @@
 - tokens.removeで進めるのはどうなのか。
 - 未定義変数への代入をエラーに(?)
 - 出力アセンブリのインデントを良い感じに変数で設定したい
+- stack_sizeの計算がやばい。配列は、もうそれだけで8bitを超えちゃう。
 
 
 ## EBNF
@@ -68,8 +69,9 @@
 - relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 - add = mul ("+" mul | "-" mul)*
 - mul = unary ( "\*" unary | "/" unary)*
-- unary = ("+" | "-" | "*" | "&")? unary  
-- primary = num | ident args? | "(" expr ")"
+- unary = ("+" | "-" | "*" | "&")? unary | postfix
+- postfix = primary ("[" expr "]")?
+- primary = num | ident args? | "(" expr ")" | "sizeof" unary
 - args = "(" ((expr ",")* expr)? ")"
 
 ## 課題

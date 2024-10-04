@@ -485,6 +485,12 @@ fn primary(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
         skip(tokens, ")", input);
         return node;
     }
+    if tokens[0].str == "sizeof" {
+        tokens.remove(0);
+        let mut node = unary(tokens, input, v);
+        add_type(&mut node);
+        return new_num(node.ty.unwrap().size as i32);
+    }
     match tokens[0].kind {
         TokenKind::TkNum => {
             let num = new_num(tokens[0].val);
