@@ -1,9 +1,9 @@
 use std::mem::swap;
 
-use crate::tokenize::{error_tok, skip};
+use crate::tokenize::{consume, error_tok, skip};
 use crate::types::{
-    add_type, is_integer, is_pointer, Function, Node, NodeKind, Token, TokenKind, Type, TypeKind,
-    Var,
+    add_type, is_integer, is_pointer, new_int, new_ptr_to, Function, Node, NodeKind, Token,
+    TokenKind, Type, Var,
 };
 
 fn new_node(kind: NodeKind) -> Node {
@@ -44,7 +44,7 @@ fn new_num(val: i32) -> Node {
     return node;
 }
 
-fn new_var(var: Var) -> Node {
+fn new_var_node(var: Var) -> Node {
     let mut node = new_node(NodeKind::NdVar);
     node.var = Some(Box::new(var));
     return node;
@@ -56,53 +56,110 @@ fn new_block(block_body: Vec<Node>) -> Node {
     return node;
 }
 
+fn new_var(v: &mut Vec<Var>, name: &str, ty: Type, is_arg_def: bool) -> Var {
+    let var = Var {
+        name: name.to_string(),
+        offset: v.len(),
+        def_arg: is_arg_def,
+        ty: ty,
+    };
+    v.push(var.clone());
+    return var;
+}
+
+fn declaration_specifier(tokens: &mut Vec<Token>, input: &str) -> Type {
+    skip(tokens, "int", input);
+    return new_int();
+}
+
+fn type_chain(tokens: &mut Vec<Token>, input: &str, ty: Type) -> Type {
+    let mut ty = ty;
+    while consume(tokens, "*") {
+        ty = new_ptr_to(ty);
+    }
+    if tokens[0].kind != TokenKind::TkIdent {
+        error_tok(&tokens[0], "expected identifier", input);
+    }
+    return ty;
+}
+
+fn declaration(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
+    let base_ty = declaration_specifier(tokens, input);
+    let mut body: Vec<Node> = Vec::new();
+
+    while tokens[0].str != ";" {
+        let ty = type_chain(tokens, input, base_ty.clone());
+        if !tokens[0].kind.eq(&TokenKind::TkIdent) {
+            error_tok(&tokens[0], "expected identifier", input);
+        }
+        let var = create_var(v, tokens[0].str.as_str(), ty, false);
+        tokens.remove(0);
+
+        if tokens[0].str == "=" {
+            tokens.remove(0);
+            let node = new_binary(
+                NodeKind::NdAssign,
+                new_var_node(var.clone()),
+                expr(tokens, input, v),
+            );
+            body.push(new_unary(NodeKind::NdExprStmt, node));
+        }
+
+        if tokens[0].str == "," {
+            tokens.remove(0);
+        }
+    }
+
+    let mut node = new_node(NodeKind::NdBlock);
+    node.block_body = body;
+    skip(tokens, ";", input);
+    return node;
+}
+
 //
 // function
 //
 fn function(tokens: &mut Vec<Token>, input: &str) -> Function {
-    skip(tokens, "int", input);
+    let base_ty = declaration_specifier(tokens, input); // int
+    let ty = type_chain(tokens, input, base_ty);
+
     let mut func = Function {
         name: tokens[0].str.clone(),
         stmts: Vec::new(),
         variables: Vec::new(), // あとで使うけど、今は一旦int main()だけ書けるようにするか
         args: Vec::new(),
+        ty: ty,
     };
     tokens.remove(0);
-    skip(tokens, "(", input);
 
+    skip(tokens, "(", input);
     if tokens[0].str == ")" {
         skip(tokens, ")", input);
         return func;
     }
 
-    skip(tokens, "int", input);
+    let base_ty = declaration_specifier(tokens, input);
+    let ty = type_chain(tokens, input, base_ty);
     // int add(int 1, int 2){}のような関数定義をエラーに
     if !tokens[0].kind.eq(&TokenKind::TkIdent) {
         error_tok(&tokens[0], "expected identifier", input);
     }
-    let var = Var {
-        name: tokens[0].str.clone(),
-        offset: func.variables.len(),
-        def_arg: true,
-    };
+    let var = new_var(&mut func.variables, tokens[0].str.as_str(), ty, true);
     tokens.remove(0);
     func.variables.push(var.clone());
-    func.args.push(new_var(var));
+    func.args.push(new_var_node(var));
 
     while tokens[0].str == "," {
         tokens.remove(0);
-        skip(tokens, "int", input);
+        let base_ty = declaration_specifier(tokens, input);
+        let ty = type_chain(tokens, input, base_ty);
         if !tokens[0].kind.eq(&TokenKind::TkIdent) {
             error_tok(&tokens[0], "expected identifier", input);
         }
-        let var = Var {
-            name: tokens[0].str.clone(),
-            offset: func.variables.len(),
-            def_arg: true,
-        };
+        let var = new_var(&mut func.variables, tokens[0].str.as_str(), ty, true);
         tokens.remove(0);
         func.variables.push(var.clone());
-        func.args.push(new_var(var));
+        func.args.push(new_var_node(var));
     }
 
     // func.variablesの中でdef_arg: trueのものの数が8個を超えたらエラーを出す
@@ -117,10 +174,6 @@ fn function(tokens: &mut Vec<Token>, input: &str) -> Function {
 //
 // node
 //
-fn declaration(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
-    skip(tokens, "int", input);
-    return expr_stmt(tokens, input, v);
-}
 
 fn stmt(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
     // return
@@ -189,12 +242,12 @@ fn compound_stmt(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node
     let mut block_body = Vec::new();
     while !(tokens[0].str == "}") {
         // int declaration
-        let node = if tokens[0].str == "int" {
+        let mut node = if tokens[0].str == "int" {
             declaration(tokens, input, v)
         } else {
             stmt(tokens, input, v)
         };
-        // add_type(&mut node); // chibiccには書いてあるけど、なくても動くので一旦コメントアウト
+        add_type(&mut node);
         block_body.push(node);
         continue;
     }
@@ -279,7 +332,6 @@ fn relational(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
 //
 // pointer arithmetic
 //
-// 副作用すごそうだけど、動いてる。
 fn new_add(tokens: &mut Vec<Token>, input: &str, lhs: &mut Node, rhs: &mut Node) -> Node {
     add_type(lhs);
     add_type(rhs);
@@ -325,15 +377,11 @@ fn new_sub(tokens: &mut Vec<Token>, input: &str, lhs: &mut Node, rhs: &mut Node)
     // pointer - pointer // もうわからないから写経しかすることない。泣きたい
     if is_pointer(lhs_ty) && is_pointer(rhs_ty) {
         let mut n = new_binary(NodeKind::NdSub, lhs.clone(), rhs.clone());
-        n.ty = Some(Type {
-            kind: TypeKind::TyInt,
-            ptr_to: None,
-        });
+        n.ty = Some(new_int()); // ???
         return new_binary(NodeKind::NdDiv, n, new_num(8));
     }
     error_tok(&tokens[0], "invalid operands", input)
 }
-//
 
 //
 fn add(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
@@ -416,9 +464,9 @@ fn primary(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
                 let mut node = new_node(NodeKind::NdFuncCall);
                 node.func_name = tokens[0].str.clone();
                 tokens.remove(0);
-                let mut args: Vec<Node> = Vec::new();
-                skip(tokens, "(", input);
 
+                let mut args: Vec<Node> = Vec::new(); // 引数のノードを格納する
+                skip(tokens, "(", input);
                 // 引数なしのパターン
                 if tokens[0].str == ")" {
                     skip(tokens, ")", input);
@@ -441,24 +489,35 @@ fn primary(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
             };
 
             // variable
-            let var: Var;
-            var = if let Some(v) = v.iter().find(|v| v.name == tokens[0].str) {
-                v.clone()
+            // ここでidentが見つからないはずはない。declarationで追加しているから。という想定
+            let var = if let Some(v) = find_var(v, tokens[0].str.as_str()) {
+                v
             } else {
-                let nv = Var {
-                    name: tokens[0].str.clone(),
-                    offset: v.len(), // ここで変数のアドレスを一意に割り当てる
-                    def_arg: false,
-                };
-                v.push(nv.clone());
-                nv
+                error_tok(&tokens[0], "undefined variable", input);
+                panic!();
             };
-            let ident = new_var(var);
+            let ident = new_var_node(var);
             tokens.remove(0);
             return ident;
         }
         _ => error_tok(&tokens[0], "expected number", input),
     }
+}
+
+// 変数がすでに存在する場合、その変数を返す
+fn find_var(var: &Vec<Var>, name: &str) -> Option<Var> {
+    return var.iter().find(|v| v.name == name).cloned();
+}
+
+fn create_var(v: &mut Vec<Var>, name: &str, ty: Type, is_arg_def: bool) -> Var {
+    let nv = Var {
+        name: name.to_string(),
+        offset: v.len(),
+        def_arg: is_arg_def,
+        ty: ty,
+    };
+    v.push(nv.clone());
+    return nv;
 }
 
 pub fn parse(tokens: &mut Vec<Token>, input: &str) -> Vec<Function> {

@@ -24,13 +24,13 @@
 
 ## 演算の優先順位(低い順)
 低
-1. =
-2. ==, !=
-3. < <= > >=
-4. +, -
-5. *, /
-6. 単項+, 単項-, 単項*, 単項&
-7. ()
+                  1. =
+1. ==, !=
+2. < <= > >=
+3. +, -
+4. *, /
+5. 単項+, 単項-, 単項*, 単項&
+6. ()
 
 高
 
@@ -51,8 +51,11 @@
 
 
 ## EBNF
-- function = "int" ident "(" func_arg? ")" compound-stmt
-- declaration = "int" expr-stmt
+- declspec = "int"
+- declarator(type_chain) = "*"* 
+  - chibiccは"*"* identだけど、俺は"*"*で良いと思う。
+- declaration = declspec (declarator ident ("=" expr)? ("," declarator ident ("=" expr)? )* )? ";" 
+- function = declspec declarator ident "(" func_arg? ")" compound-stmt
 - func_arg = ((ident ",")* ident)
 
 - stmt = expr-stmt | "return" expr ";" | "{" compound-stmt | "if" "(" expr ")" stmt ("else" stmt)? | "for" "(" expr_stmt expr? ";" expr? ")" stmt | "while" "(" expr ")" stmt

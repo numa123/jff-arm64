@@ -26,4 +26,4 @@
 // int main() {
 //   return gcd(56, 98); // 例として56と98の最大公約数を計算
 // }
-int main() { int a = 1; }
+int main() { int; }

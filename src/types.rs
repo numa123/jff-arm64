@@ -6,7 +6,7 @@ pub enum TokenKind {
     TkKeyword,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     pub kind: TokenKind,
     pub val: i32,
@@ -45,6 +45,7 @@ pub struct Var {
     pub name: String,
     pub offset: usize,
     pub def_arg: bool, // true if this variable is a function argument
+    pub ty: Type,
 }
 
 #[derive(Debug, Clone)]
@@ -66,6 +67,7 @@ pub struct Node {
     pub func_name: String,
     pub args: Vec<Node>,
     pub ty: Option<Type>,
+    // tokをつけて、error_tokを使いたい
 }
 
 #[derive(Debug, Clone)]
@@ -74,6 +76,7 @@ pub struct Function {
     pub stmts: Vec<Node>,    // stmts(?)
     pub variables: Vec<Var>, // variables including function arguments
     pub args: Vec<Node>,     // only function arguments
+    pub ty: Type,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -86,6 +89,7 @@ pub enum TypeKind {
 pub struct Type {
     pub kind: TypeKind,
     pub ptr_to: Option<Box<Type>>,
+    pub tok: Option<Token>,
 }
 
 //
@@ -109,6 +113,15 @@ pub fn new_ptr_to(ty: Type) -> Type {
     Type {
         kind: TypeKind::TyPtr,
         ptr_to: Some(Box::new(ty)),
+        tok: None,
+    }
+}
+
+pub fn new_int() -> Type {
+    Type {
+        kind: TypeKind::TyInt,
+        ptr_to: None,
+        tok: None,
     }
 }
 
@@ -162,12 +175,11 @@ pub fn add_type(node: &mut Node) {
         | NodeKind::NdLe
         | NodeKind::NdGt
         | NodeKind::NdGe
-        | NodeKind::NdNum
-        | NodeKind::NdVar => {
-            node.ty = Some(Type {
-                kind: TypeKind::TyInt,
-                ptr_to: None,
-            });
+        | NodeKind::NdNum => {
+            node.ty = Some(new_int());
+        }
+        NodeKind::NdVar => {
+            node.ty = Some(node.var.as_ref().unwrap().ty.clone()); // この辺わからん、as_refとか
         }
         NodeKind::NdAddr => {
             node.ty = Some(new_ptr_to(
@@ -175,22 +187,15 @@ pub fn add_type(node: &mut Node) {
             ));
         }
         NodeKind::NdDeref => {
-            if node.lhs.as_ref().unwrap().ty.as_ref().unwrap().kind == TypeKind::TyInt {
-                node.ty = Some(Type {
-                    kind: TypeKind::TyInt,
-                    ptr_to: None,
-                });
-            } else {
-                node.ty = Some(new_ptr_to(
-                    node.lhs.as_ref().unwrap().ty.as_ref().unwrap().clone(),
-                ));
+            if node.lhs.as_ref().unwrap().ty.as_ref().unwrap().kind != TypeKind::TyPtr {
+                panic!("invalid pointer dereference");
             }
+            node.ty = Some(new_ptr_to(
+                node.lhs.as_ref().unwrap().ty.as_ref().unwrap().clone(),
+            ));
         }
         NodeKind::NdFuncCall => {
-            node.ty = Some(Type {
-                kind: TypeKind::TyInt,
-                ptr_to: None,
-            });
+            node.ty = Some(new_int()); // int以外の場合もあるでしょ、いや、いいのか？それは受け止める側がやればよいのか
         }
         _ => {}
     }

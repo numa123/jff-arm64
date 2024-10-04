@@ -21,6 +21,17 @@ pub fn skip(tokens: &mut Vec<Token>, s: &str, input: &str) -> bool {
     return true;
 }
 
+pub fn consume(tokens: &mut Vec<Token>, s: &str) -> bool {
+    if tokens.is_empty() {
+        return false;
+    }
+    if tokens[0].str != s {
+        return false;
+    }
+    tokens.remove(0);
+    return true;
+}
+
 fn get_number(p: &mut &str) -> String {
     let num: String = p.chars().take_while(|c| c.is_digit(10)).collect();
     *p = &p[num.len()..];
