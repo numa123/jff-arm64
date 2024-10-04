@@ -83,12 +83,15 @@ pub struct Function {
 pub enum TypeKind {
     TyInt,
     TyPtr,
+    TyArray,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Type {
     pub kind: TypeKind,
+    pub size: usize,
     pub ptr_to: Option<Box<Type>>,
+    pub array_len: Option<i32>,
     // pub name: Option<Token>, // nameがTokenってどういうことだ。一意性を保証するためかな。nameは不適切では？ // declaration
 }
 
@@ -112,7 +115,9 @@ pub fn is_pointer(ty: &Type) -> bool {
 pub fn new_ptr_to(ty: Type) -> Type {
     Type {
         kind: TypeKind::TyPtr,
+        size: 8,
         ptr_to: Some(Box::new(ty)),
+        array_len: None,
         // name: None,
     }
 }
@@ -170,30 +175,53 @@ pub fn add_type(node: &mut Node) {
         | NodeKind::NdNum => {
             node.ty = Some(Type {
                 kind: TypeKind::TyInt,
+                size: 8, // まだlong型だけだから8バイト
                 ptr_to: None,
+                array_len: None,
             });
         }
         NodeKind::NdVar => {
             node.ty = Some(node.var.as_ref().unwrap().ty.clone());
         }
         NodeKind::NdAddr => {
-            node.ty = Some(new_ptr_to(
-                node.lhs.as_ref().unwrap().ty.as_ref().unwrap().clone(),
-            ));
-        }
-        NodeKind::NdDeref => {
-            if node.lhs.as_ref().unwrap().ty.as_ref().unwrap().kind != TypeKind::TyPtr {
-                panic!("invalid pointer dereference");
+            if let Some(lhs_ty) = node.lhs.as_ref().unwrap().ty.as_ref() {
+                if lhs_ty.kind == TypeKind::TyArray {
+                    if let Some(ptr_to) = &lhs_ty.ptr_to {
+                        node.ty = Some(new_ptr_to(ptr_to.as_ref().clone()));
+                    } else {
+                        // ptr_toがNoneの場合のエラーハンドリングや代替処理をここに書く
+                    }
+                }
             }
             node.ty = Some(new_ptr_to(
                 node.lhs.as_ref().unwrap().ty.as_ref().unwrap().clone(),
             ));
         }
+        NodeKind::NdDeref => {
+            // 安全に lhs とその型情報を取得
+            // eprintln!("{:#?}", node);
+            if let Some(lhs) = &node.lhs {
+                if let Some(lhs_ty) = &lhs.ty {
+                    // ptr_to が None でないかチェック
+                    if lhs_ty.ptr_to.is_none() {
+                        panic!("invalid pointer dereference");
+                    }
+
+                    // 型情報を更新
+                    node.ty = Some(new_ptr_to(lhs_ty.clone()));
+                } else {
+                    panic!("lhs has no type");
+                }
+            } else {
+                panic!("lhs is None");
+            }
+        }
         NodeKind::NdFuncCall => {
             node.ty = Some(Type {
                 kind: TypeKind::TyInt,
+                size: 8,
                 ptr_to: None,
-                // name: None,
+                array_len: None, // これで良いのかは怪しい。というかそもそも、NdFuncCallの返り値がintだけじゃなくてpointerも返せるようにしなければない
             });
         }
         _ => {}

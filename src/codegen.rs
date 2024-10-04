@@ -1,4 +1,4 @@
-use crate::types::{Function, Node, NodeKind};
+use crate::types::{Function, Node, NodeKind, Type, TypeKind};
 
 pub static mut BCOUNT: usize = 0; // branch count
 
@@ -21,6 +21,17 @@ fn gen_addr(node: Node) {
     }
 }
 
+fn load(ty: Type) {
+    if ty.kind == TypeKind::TyArray {
+        return;
+    }
+    println!("  ldr x0, [x0]");
+}
+
+// fn store(node: Node) {
+
+// }
+
 // x0に値を入れる処理
 pub fn gen_expr(node: Node) {
     match node.kind {
@@ -34,8 +45,8 @@ pub fn gen_expr(node: Node) {
             return;
         }
         NodeKind::NdVar => {
-            gen_addr(node);
-            println!("  ldr x0, [x0]");
+            gen_addr(node.clone());
+            load(node.ty.unwrap()); // unwrapいるかは不明、多分いる
             return;
         }
         NodeKind::NdAssign => {
@@ -54,8 +65,9 @@ pub fn gen_expr(node: Node) {
             return;
         }
         NodeKind::NdDeref => {
+            // eprintln!("{:#?}", node);
             gen_expr(*(node.lhs).unwrap());
-            println!("  ldr x0, [x0]");
+            load(node.ty.unwrap()); // unwrapいるかは不明、多分いる // unwrap
             return;
         }
         _ => {}
@@ -209,6 +221,7 @@ fn gen_args_prologue(args: &Vec<Node>) {
 
 pub fn codegen(funcs: &mut Vec<Function>) {
     for f in funcs {
+        // eprintln!("{:#?}", f.variables);
         let stack_size = f.variables.len() * 8; // デバッグなど用のwzr, lp, fpは含めない、ローカル変数のみのスタックサイズ
                                                 // 今はlongのみのサポートを想定しているから8バイトずつ確保している(つもり)
         let prorogue_size = align_16(stack_size) + 16;

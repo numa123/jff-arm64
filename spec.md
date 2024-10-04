@@ -22,6 +22,7 @@
 - 関数定義(引数あり)
 - 単項*, 単項&
 - intの初期化(まだintが8byteになっている点に注意)
+- 1次元配列
 
 ## 演算の優先順位(低い順)
 低
@@ -50,14 +51,19 @@
 - 未定義変数への代入をエラーに(?)
 - 出力アセンブリのインデントを良い感じに変数で設定したい
 - panic!で処理しているところ、自分のエラー関数で処理したい(そんなに該当箇所ないかも。undefined variableくらい？)
+- int x[5]; みたいな感じの変数宣言
+- funccallの返り値をpointerに対応させる?
 
 
 ## EBNF
-- function = declspec declarator ident "(" func_arg? ")" compound-stmt
+- function(definition) = declspec declarator ident "(" func_args? ")" compound-stmt
 - declaration = declspec declarator var_assign ("," declspec declarator var_assign)* ";"
 - declspec = "int"
+- declarator = "*"*
 - var_assign = ident ("," ident)? ("=" expr)?
-- func_arg = (declspec declarator ident ("," declspec decralator ident)*)
+- func_args = (var_def ("," declspec decralator var_def)*)
+- var_def = declspec declarator ident ("[" num "]" )?
+<!-- - type_suffix = "(" func-params | "[" num "]" | ε -->
 
 - stmt = expr-stmt | "return" expr ";" | "{" compound-stmt | "if" "(" expr ")" stmt ("else" stmt)? | "for" "(" expr_stmt expr? ";" expr? ")" stmt | "while" "(" expr ")" stmt
 - compound-stmt = (declaration | stmt)* "}" // "{" があるかどうかでexpr-stmtと区別している

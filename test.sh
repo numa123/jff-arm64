@@ -29,9 +29,16 @@ assert() {
 
 cargo build # 最初にビルド
 
+assert 3 'int main() { int x[2]; int *y=&x; *y=3; return *x; }'
+assert 3 'int main() { int x[3]; *x=3; *(x+1)=4; *(x+2)=5; return *x; }'
+assert 4 'int main() { int x[3]; *x=3; *(x+1)=4; *(x+2)=5; return *(x+1); }'
+assert 5 'int main() { int x[3]; *x=3; *(x+1)=4; *(x+2)=5; return *(x+2); }'
+
+assert 3 'int main() { int x=3; int *y=&x; int **z=&y; return **z; }'
+assert 1 'int main() {int x[3]; return 1;}'
+assert 1 'int main() {int x[3], y[10]; return 1;}'
 assert 3 'int main() { int a=3; return a; }'
 assert 7 'int main() { int a, b=3, c=1; return a+b+c; }'
-assert 3 'int main() { int x=3; int *y=&x; int **z=&y; return **z; }'
 assert 7 'int main() { int a, b=3, c=1; return a+b+c; }'
 assert 3 'int main() { int a=3; return a; }'
 assert 8 'int main() { int a=3; int z=5; return a+z; }'

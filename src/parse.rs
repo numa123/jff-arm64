@@ -125,7 +125,9 @@ fn declaration_specifier(tokens: &mut Vec<Token>, input: &str) -> Type {
     skip(tokens, "int", input);
     return Type {
         kind: TypeKind::TyInt,
+        size: 8,
         ptr_to: None,
+        array_len: None,
     };
 }
 
@@ -150,15 +152,58 @@ fn declaration(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
 
     // int a,b=3, c,d=10;という初期化もサポート
     // 1つの文での初期化は、皆同じ型になるはずだから、tyを使い回す
+    // int a[3];という配列の初期化もサポート
     loop {
         let mut vars: Vec<Var> = Vec::new();
-        vars.push(create_var(v, tokens[0].str.as_str(), ty.clone()));
+        let name = tokens[0].clone().str;
         tokens.remove(0);
-        while consume(tokens, ",") {
-            vars.push(create_var(v, tokens[0].str.as_str(), ty.clone()));
+        let var: Var;
+
+        // 配列の場合のハードコード、関数に切り分けてdeclaratorとかに統合しないと訳わかんなくなるけど一回頑張る
+        // とりあえずint x[3];はパースできた。あとは代入をするload, storeをcodegenで実装する
+        // この辺コードやばすぎ
+        if consume(tokens, "[") {
+            let mut ty = ty.clone(); // int x[3], y; という場合に対応できるようにしている
+            ty.ptr_to = Some(Box::new(ty.clone())); // なんかこれでいけそう
+            ty.kind = TypeKind::TyArray;
+            let len = tokens[0].val;
+            ty.array_len = Some(len);
+            ty.size = 8 * len as usize;
             tokens.remove(0);
+            skip(tokens, "]", input);
+
+            var = create_var(v, name.as_str(), ty.clone());
+        } else {
+            var = create_var(v, name.as_str(), ty.clone());
+        }
+        vars.push(var.clone());
+
+        //
+        while consume(tokens, ",") {
+            let name = tokens[0].clone().str;
+            tokens.remove(0);
+            let var: Var;
+
+            // 配列の場合のハードコード、関数に切り分けてdeclaratorとかに統合しないと訳わかんなくなるけど一回頑張る
+            // とりあえずint x[3];はパースできた。あとは代入をするload, storeをcodegenで実装する
+            // この辺コードやばすぎ
+            if consume(tokens, "[") {
+                let mut ty = ty.clone(); // int x[3], y; という場合に対応できるようにしている
+                ty.kind = TypeKind::TyArray;
+                let len = tokens[0].val;
+                ty.array_len = Some(len);
+                ty.size = 8 * len as usize;
+                tokens.remove(0);
+                skip(tokens, "]", input);
+
+                var = create_var(v, name.as_str(), ty.clone());
+            } else {
+                var = create_var(v, name.as_str(), ty.clone());
+            }
+            vars.push(var.clone());
         }
 
+        // 配列の初期化はまだにしよう
         if tokens[0].str == "=" {
             tokens.remove(0);
             let assign = assign(tokens, input, v);
@@ -177,7 +222,7 @@ fn declaration(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
         break; // ";"tokens[0]が";"の場合に限ると想定している
     }
     skip(tokens, ";", input);
-    let mut node = new_node(NodeKind::NdBlock);
+    let mut node = new_node(NodeKind::NdBlock); // 引数用？
     node.block_body = body;
     return node;
 }
@@ -249,11 +294,12 @@ fn compound_stmt(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node
     let mut block_body = Vec::new();
     while !(tokens[0].str == "}") {
         // int declaration
-        let node = if tokens[0].str == "int" {
+        let mut node = if tokens[0].str == "int" {
             declaration(tokens, input, v)
         } else {
             stmt(tokens, input, v)
         };
+        add_type(&mut node);
         // add_type(&mut node); // chibiccには書いてあるけど、なくても動くので一旦コメントアウト
         block_body.push(node);
         continue;
@@ -387,7 +433,9 @@ fn new_sub(tokens: &mut Vec<Token>, input: &str, lhs: &mut Node, rhs: &mut Node)
         let mut n = new_binary(NodeKind::NdSub, lhs.clone(), rhs.clone());
         n.ty = Some(Type {
             kind: TypeKind::TyInt,
+            size: 8,
             ptr_to: None,
+            array_len: None,
         });
         return new_binary(NodeKind::NdDiv, n, new_num(8));
     }
