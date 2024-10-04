@@ -1,4 +1,4 @@
-use crate::types::{Function, Node, NodeKind, Type, TypeKind};
+use crate::types::{add_type, Function, Node, NodeKind, Type, TypeKind};
 
 pub static mut BCOUNT: usize = 0; // branch count
 

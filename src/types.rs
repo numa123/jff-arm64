@@ -199,11 +199,11 @@ pub fn add_type(node: &mut Node) {
         }
         NodeKind::NdDeref => {
             // 安全に lhs とその型情報を取得
-            // eprintln!("{:#?}", node);
             if let Some(lhs) = &node.lhs {
                 if let Some(lhs_ty) = &lhs.ty {
                     // ptr_to が None でないかチェック
                     if lhs_ty.ptr_to.is_none() {
+                        eprintln!("{:#?}", node);
                         panic!("invalid pointer dereference");
                     }
 
