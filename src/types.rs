@@ -203,7 +203,6 @@ pub fn add_type(node: &mut Node) {
                 if let Some(lhs_ty) = &lhs.ty {
                     // ptr_to が None でないかチェック
                     if lhs_ty.ptr_to.is_none() {
-                        eprintln!("{:#?}", node);
                         panic!("invalid pointer dereference");
                     }
 
