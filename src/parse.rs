@@ -463,7 +463,19 @@ fn unary(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
         tokens.remove(0);
         return new_unary(NodeKind::NdDeref, unary(tokens, input, v));
     }
-    return primary(tokens, input, v);
+    return postfix(tokens, input, v);
+}
+
+fn postfix(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
+    let mut node = primary(tokens, input, v);
+    if tokens[0].str == "[" {
+        tokens.remove(0);
+        let mut idx = expr(tokens, input, v);
+        skip(tokens, "]", input);
+        node = new_add(tokens, input, &mut node, &mut idx);
+        node = new_unary(NodeKind::NdDeref, node);
+    }
+    return node;
 }
 
 fn primary(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {

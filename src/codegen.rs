@@ -1,4 +1,4 @@
-use crate::types::{Function, Node, NodeKind, Type, TypeKind};
+use crate::types::{Function, Node, NodeKind, Type, TypeKind, Var};
 
 pub static mut BCOUNT: usize = 0; // branch count
 
@@ -25,6 +25,7 @@ fn load(ty: Type) {
     if ty.kind == TypeKind::TyArray {
         return;
     }
+    // eprintln!("{:#?}", ty);
     println!("  ldr x0, [x0]");
 }
 
@@ -47,11 +48,11 @@ pub fn gen_expr(node: Node) {
         }
         NodeKind::NdAssign => {
             gen_addr(*(node.lhs).unwrap());
-            println!("  str x0, [sp, -16]!"); // push  16で果たして良いのかは不明。ただ、ここでストアした値は後々消えるので、今は問題ない。
-                                              // ただ、扱う値が16バイトを超える(16バイトでも起こるかもしれないが)場合は、もっと大きくしないといけないと予想している
+            println!("  str x0, [sp, -16]!    // push"); // push  16で果たして良いのかは不明。ただ、ここでストアした値は後々消えるので、今は問題ない。
+                                                         // ただ、扱う値が16バイトを超える(16バイトでも起こるかもしれないが)場合は、もっと大きくしないといけないと予想している
             gen_expr(*(node.rhs).unwrap()); // rhsはx0に入るはずだから、panicしても良いためunwrap
-            println!("  ldr x1, [sp], 16"); // pop to x1 x1には左辺値のアドレスが入っているはず。
-                                            // ldrのポストインデックス。spから読み出した値をx0に格納し、spを16増やす
+            println!("  ldr x1, [sp], 16    // pop"); // pop to x1 x1には左辺値のアドレスが入っているはず。
+                                                      // ldrのポストインデックス。spから読み出した値をx0に格納し、spを16増やす
             println!("  str x0, [x1]"); // a=1;の場合、aのアドレスに1を入れる処理
             return;
         }
@@ -213,10 +214,21 @@ fn gen_args_prologue(args: &Vec<Node>) {
     }
 }
 
+fn calc_stack_size(vars: &Vec<Var>) -> usize {
+    let mut size = 0;
+    for v in vars {
+        size += v.ty.size;
+    }
+    size
+}
+
 pub fn codegen(funcs: &mut Vec<Function>) {
     for f in funcs {
-        let stack_size = f.variables.len() * 8; // デバッグなど用のwzr, lp, fpは含めない、ローカル変数のみのスタックサイズ
-                                                // 今はlongのみのサポートを想定しているから8バイトずつ確保している(つもり)
+        // eprintln!("{:#?}", f.variables);
+        // eprintln!("{}", calc_stack_size(&f.variables));
+        // let stack_size = f.variables.len() * 8; // デバッグなど用のwzr, lp, fpは含めない、ローカル変数のみのスタックサイズ
+        // 今はlongのみのサポートを想定しているから8バイトずつ確保している(つもり)
+        let stack_size = calc_stack_size(&f.variables);
         let prorogue_size = align_16(stack_size) + 16;
         println!(".global _main");
         println!("_{}:", f.name);

@@ -51,6 +51,7 @@ pub struct Var {
 #[derive(Debug, Clone)]
 pub struct Node {
     pub kind: NodeKind,
+    pub ty: Option<Type>,
     pub lhs: Option<Box<Node>>,
     pub rhs: Option<Box<Node>>,
     pub val: i32,
@@ -66,17 +67,16 @@ pub struct Node {
     pub inc: Option<Box<Node>>,
     pub func_name: String,
     pub args: Vec<Node>,
-    pub ty: Option<Type>,
     // tokをつけて、error_tokを使いたい
 }
 
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
+    pub ty: Type,
     pub stmts: Vec<Node>,    // stmts(?)
     pub variables: Vec<Var>, // variables including function arguments
     pub args: Vec<Node>,     // only function arguments
-    pub ty: Type,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -135,7 +135,7 @@ pub fn new_int() -> Type {
 pub fn new_array(ty: Type, len: usize) -> Type {
     Type {
         kind: TypeKind::TyArray,
-        size: 8 * len, // まだ要素がポインタか、8byteの整数のみしかないので、8byte固定
+        size: ty.size * len, // まだ要素がポインタか、8byteの整数のみしかないので、8byte固定
         ptr_to: Some(Box::new(ty)),
         tok: None,
         array_len: Some(len),
@@ -178,12 +178,13 @@ pub fn add_type(node: &mut Node) {
     }
 
     match node.kind {
-        NodeKind::NdAdd
-        | NodeKind::NdSub
-        | NodeKind::NdMul
-        | NodeKind::NdDiv
-        | NodeKind::NdNeg
-        | NodeKind::NdAssign => {
+        NodeKind::NdAdd | NodeKind::NdSub | NodeKind::NdMul | NodeKind::NdDiv | NodeKind::NdNeg => {
+            node.ty = Some(node.lhs.as_ref().unwrap().ty.as_ref().unwrap().clone());
+        }
+        NodeKind::NdAssign => {
+            if node.lhs.as_ref().unwrap().clone().ty.unwrap().kind == TypeKind::TyArray {
+                panic!("add_type: not an lvalue");
+            }
             node.ty = Some(node.lhs.as_ref().unwrap().ty.as_ref().unwrap().clone());
         }
         NodeKind::NdEq

@@ -24,6 +24,18 @@
 // }
 
 // int main() {
-//   return gcd(56, 98); // 例として56と98の最大公約数を計算
 // }
-int main() { int; }
+//   return gcd(56, 98); // 例として56と98の最大公約数を計算
+// int main() {
+//   int x[2][3];
+//   int *y = x;
+//   *y = 0;
+//   return **x;
+// }
+
+int main() {
+  int x = 3;
+  int *y = &x;
+  int **z = &y;
+  return **z;
+}
