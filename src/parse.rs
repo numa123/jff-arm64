@@ -1,6 +1,18 @@
 use crate::types::*;
 
 impl Ctx<'_> {
+    fn stmt(&mut self) -> Node {
+        return self.expr_stmt();
+    }
+    fn expr_stmt(&mut self) -> Node {
+        let node = Node {
+            kind: NodeKind::NdExprStmt {
+                lhs: Box::new(self.expr()),
+            },
+        };
+        self.skip(";");
+        return node;
+    }
     fn expr(&mut self) -> Node {
         return self.equality();
     }
@@ -169,8 +181,12 @@ impl Ctx<'_> {
         }
     }
 
-    pub fn parse(&mut self) -> Node {
+    pub fn parse(&mut self) -> Vec<Node> {
+        let mut program = Vec::new();
         self.tokens = self.tokenize();
-        self.expr()
+        while !self.tokens.is_empty() {
+            program.push(self.stmt());
+        }
+        return program;
     }
 }

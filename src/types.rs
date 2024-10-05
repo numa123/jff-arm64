@@ -31,6 +31,7 @@ pub enum NodeKind {
     NdLe { lhs: Box<Node>, rhs: Box<Node> },
     NdGt { lhs: Box<Node>, rhs: Box<Node> },
     NdGe { lhs: Box<Node>, rhs: Box<Node> },
+    NdExprStmt { lhs: Box<Node> },
     NdNum { val: isize },
 }
 

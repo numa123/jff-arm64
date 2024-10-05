@@ -115,9 +115,19 @@ fn gen_expr(node: Node) {
     }
 }
 
-pub fn codegen(node: Node) {
+fn gen_stmt(node: Node) {
+    if let NodeKind::NdExprStmt { lhs } = node.kind {
+        gen_expr(*lhs);
+        return;
+    }
+}
+
+pub fn codegen(program: Vec<Node>) {
     println!(".global _main");
     println!("_main:");
-    gen_expr(node);
+
+    for stmt in program {
+        gen_stmt(stmt);
+    }
     println!("      ret");
 }
