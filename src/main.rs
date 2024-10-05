@@ -94,6 +94,10 @@ enum NodeKind {
     NdNeg { lhs: Box<Node> },
     NdEq { lhs: Box<Node>, rhs: Box<Node> },
     NdNe { lhs: Box<Node>, rhs: Box<Node> },
+    NdLt { lhs: Box<Node>, rhs: Box<Node> },
+    NdLe { lhs: Box<Node>, rhs: Box<Node> },
+    NdGt { lhs: Box<Node>, rhs: Box<Node> },
+    NdGe { lhs: Box<Node>, rhs: Box<Node> },
     NdNum { val: isize },
 }
 
@@ -102,19 +106,13 @@ struct Node {
     kind: NodeKind,
 }
 
-// fn new_num(val: isize) -> Node {
-//     Node {
-//         kind: NodeKind::NdNum { val: val },
-//     }
-// }
-
 // nodenizer
 impl Ctx<'_> {
     fn expr(&mut self) -> Node {
         return self.equality();
     }
     fn equality(&mut self) -> Node {
-        let mut node = self.add();
+        let mut node = self.relational();
         while !self.tokens.is_empty() {
             match &self.tokens[0].kind {
                 TokenKind::TkPunct { str } if str == "==" => {
@@ -122,7 +120,7 @@ impl Ctx<'_> {
                     node = Node {
                         kind: NodeKind::NdEq {
                             lhs: Box::new(node),
-                            rhs: Box::new(self.add()),
+                            rhs: Box::new(self.relational()),
                         },
                     };
                 }
@@ -130,6 +128,52 @@ impl Ctx<'_> {
                     self.advance_tok(1);
                     node = Node {
                         kind: NodeKind::NdNe {
+                            lhs: Box::new(node),
+                            rhs: Box::new(self.relational()),
+                        },
+                    };
+                }
+                _ => break,
+            }
+        }
+        return node;
+    }
+
+    fn relational(&mut self) -> Node {
+        let mut node = self.add();
+        while !self.tokens.is_empty() {
+            match &self.tokens[0].kind {
+                TokenKind::TkPunct { str } if str == "<" => {
+                    self.advance_tok(1);
+                    node = Node {
+                        kind: NodeKind::NdLt {
+                            lhs: Box::new(node),
+                            rhs: Box::new(self.add()),
+                        },
+                    };
+                }
+                TokenKind::TkPunct { str } if str == "<=" => {
+                    self.advance_tok(1);
+                    node = Node {
+                        kind: NodeKind::NdLe {
+                            lhs: Box::new(node),
+                            rhs: Box::new(self.add()),
+                        },
+                    };
+                }
+                TokenKind::TkPunct { str } if str == ">" => {
+                    self.advance_tok(1);
+                    node = Node {
+                        kind: NodeKind::NdGt {
+                            lhs: Box::new(node),
+                            rhs: Box::new(self.add()),
+                        },
+                    };
+                }
+                TokenKind::TkPunct { str } if str == ">=" => {
+                    self.advance_tok(1);
+                    node = Node {
+                        kind: NodeKind::NdGe {
                             lhs: Box::new(node),
                             rhs: Box::new(self.add()),
                         },
@@ -303,12 +347,52 @@ fn gen_expr(node: Node) {
         println!("      cset x0, ne");
         return;
     }
+
+    if let NodeKind::NdLt { lhs, rhs } = node.kind {
+        gen_expr(*lhs);
+        push16();
+        gen_expr(*rhs);
+        pop16();
+        println!("      cmp x1, x0");
+        println!("      cset x0, lt");
+        return;
+    }
+
+    if let NodeKind::NdLe { lhs, rhs } = node.kind {
+        gen_expr(*lhs);
+        push16();
+        gen_expr(*rhs);
+        pop16();
+        println!("      cmp x1, x0");
+        println!("      cset x0, le");
+        return;
+    }
+
+    if let NodeKind::NdGt { lhs, rhs } = node.kind {
+        gen_expr(*lhs);
+        push16();
+        gen_expr(*rhs);
+        pop16();
+        println!("      cmp x1, x0");
+        println!("      cset x0, gt");
+        return;
+    }
+
+    if let NodeKind::NdGe { lhs, rhs } = node.kind {
+        gen_expr(*lhs);
+        push16();
+        gen_expr(*rhs);
+        pop16();
+        println!("      cmp x1, x0");
+        println!("      cset x0, ge");
+        return;
+    }
 }
 
+// push, popすると、lhsがx1, rhsがx0に入る点に注意
 fn push16() {
     println!("      str x0, [sp, -16]!  // push"); // 16はハードコードだが、スタックのサイズを計算して動的にするべき
 }
-
 fn pop16() {
     println!("      ldr x1, [sp], 16");
 }
@@ -335,7 +419,11 @@ impl Ctx<'_> {
                 });
                 continue;
             }
-            if self.input.starts_with("==") || self.input.starts_with("!=") {
+            if self.input.starts_with("==")
+                || self.input.starts_with("!=")
+                || self.input.starts_with(">=")
+                || self.input.starts_with("<=")
+            {
                 tokens.push(Token {
                     kind: TokenKind::TkPunct {
                         str: self.input[0..2].to_string(),
@@ -346,7 +434,15 @@ impl Ctx<'_> {
                 self.advance_input(2);
                 continue;
             }
-            if c == '+' || c == '-' || c == '*' || c == '/' || c == '(' || c == ')' {
+            if c == '+'
+                || c == '-'
+                || c == '*'
+                || c == '/'
+                || c == '('
+                || c == ')'
+                || c == '>'
+                || c == '<'
+            {
                 tokens.push(Token {
                     kind: TokenKind::TkPunct { str: c.to_string() },
                     start: self.current_input_position(),
