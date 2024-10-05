@@ -73,6 +73,23 @@ pub fn tokenize(r_input: &mut &str) -> Vec<Token> {
             index += 1;
             continue;
         }
+        // 行コメント
+        if r_input.len() > 1 && r_input[0..2].eq("//") {
+            *r_input = &r_input[2..];
+            while !r_input.is_empty() && r_input.chars().next().unwrap() != '\n' {
+                *r_input = &r_input[1..];
+            }
+            continue;
+        }
+        // ブロックコメント
+        if r_input.len() > 1 && r_input[0..2].eq("/*") {
+            *r_input = &r_input[2..];
+            while !r_input.is_empty() && !r_input[0..2].eq("*/") {
+                *r_input = &r_input[1..];
+            }
+            *r_input = &r_input[2..];
+            continue;
+        }
         // 数値
         if c.is_digit(10) {
             let num = get_number(r_input); // 数値の終わりまで取得
@@ -168,6 +185,12 @@ pub fn tokenize(r_input: &mut &str) -> Vec<Token> {
                 loc: index,
             });
             index += ident.len();
+            continue;
+        }
+
+        if c == '\n' {
+            *r_input = &r_input[1..];
+            index += 1;
             continue;
         }
 

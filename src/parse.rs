@@ -1,4 +1,3 @@
-use std::fmt::format;
 use std::mem::swap;
 
 use crate::tokenize::{consume, error_tok, skip};
@@ -222,7 +221,7 @@ fn function_or_variable_declaration(tokens: &mut Vec<Token>, input: &str) -> Var
     }
 
     // varって、valとかないのか
-    let mut node = new_node(NodeKind::NdBlock);
+    let node = new_node(NodeKind::NdBlock);
     if tokens[0].str == "=" {
         tokens.remove(0);
         var.gval = Some(tokens[0].val);

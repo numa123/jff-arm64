@@ -39,23 +39,29 @@
 高
 
 ## 修正したい点
+- offsetの設計が非常に良くない。 
+  - 今はただ一意となる数値をoffsetに割り当てて、gen_addrの際に、全てが8byteであるものだと仮定して、計算している。全然そうじゃないやつもあるから悩みどころ。
+  - chibiccではsizeで良い感じにして、alignして、をやっていたけど。
+  - 本質的に悪いから、そこはよく考えてやり直そう。
 - コードが見づらくなってきた
 - rustもアセンブリも冗長なコードが多い
-- 構造体にまとめたい
-- 今は全てが関数の中にないといけない
-- pushのアセンブリやらが、読みづらい。から、デバッグしづらい
-- intがあるけど、今は無視するだけになっている
-- ポインタ演算まだ
-- 型もない
-- 0割り算を許容してしまっているんだった
-- %演算子もサポートしたい
+- 構造体にまとめたい 
+- 今は全てが関数の中にないといけない -> 大丈夫になった
+- pushのアセンブリやらが、読みづらい。から、デバッグしづらい -> コメントで // pushってやるようにした
+- intがあるけど、今は無視するだけになっている -> 肩に当てはめるようになった
+- ポインタ演算まだ -> した
+- 型もない -> 一応足した
+- 0割り算を許容してしまっているんだった。-> armは0割り算は0を返すと決まっているらしい
+- %演算子もサポートしたい -> した。&&もした。
 - tokens.removeで進めるのはどうなのか。
-- 未定義変数への代入をエラーに(?)
+- 未定義変数への代入をエラーに(?) -> primaryを返す際に配列を走査してなければエラーにすることでいける
 - 出力アセンブリのインデントを良い感じに変数で設定したい
 - stack_sizeの計算がやばい。配列は、もうそれだけで8bitを超えちゃう。
 - forの一個目でint i=0;ってできてない。
 - printfの引数はレジスタじゃなくてスタックに渡さないといけない。printfは引数をたくさん受け取るからだ。今は8個までしか渡せないから、それ以上渡すということに対応するためには、また異なるアプローチをしないといけない。
 - printfの\nとかは、アセンブラが頑張ってくれている気がする。アセンブラに頑張らせてしまうと色々サボれちゃうから、後で\nはasciiコードに修正する
+- 正直、オフセットとか、ちゃんとやってないのに、ある程度動いているのはなんでかわからない。オフセットをちゃんと計算して行うようにするべき
+- as_refとか、どこを&mutにすべきかみたいなのがよくわからなくなった。
 
 
 ## EBNF
@@ -147,3 +153,43 @@ The A64 load and store instructions always use the full 64-bit base register and
 
 pointer型の導入と演算わけわからんやばすぎ
 あとrust出引数を&mutにした途端わけわからんことになってる所有権周り。unwrapとか多すぎるし
+
+# ファイルを読み込む形式にするやつ
+```
+mod codegen;
+use codegen::codegen;
+mod parse;
+use parse::{parse, GLOBALS};
+mod tokenize;
+use tokenize::{convert_keywords, tokenize};
+mod types;
+
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() < 2 {
+        eprintln!("{}: invalid number of arguments", args[0]);
+        panic!();
+    }
+
+    let input_from_arg = &args[1][..];
+    // 入力が、.cで終わる場合は、そのファイルを開いて&strにしてinputに代入する
+    let input = std::fs::read_to_string(&input_from_arg).unwrap();
+    // eprintln!("input: {}", input);
+    let input_copy = input.as_str(); // デバッグ用。他にやりようがありそう -> 構造体のメンバに入れるのがよさそうかな
+    let mut tokens = tokenize(&mut input.as_str());
+    convert_keywords(&mut tokens);
+    let mut vars = parse(&mut tokens, input_copy);
+    codegen(&mut vars);
+}
+
+// プログラム全体の構造体
+// 入力プログラム
+// (トークン列のコピー)
+// 処理中のトークン列
+// プログラムを構成する関数のリスト
+// ブランチカウントBCOUNT
+
+// こんな感じの構造体によって、関数へのtokens, input, vを引数で渡したり、b end用の関数名も渡さずに済むようになる
+// ただ、もっと複雑なプログラムをコンパイルできて軌道に乗ってきてからやる方が良いのではないかと考えている
+
+```
