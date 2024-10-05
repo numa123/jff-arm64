@@ -4,10 +4,22 @@
 - 変数のオフセット計算をしっかりして、多次元配列もきちんと実装する
 - intの方が良い気がしなくもないけど一旦longのままでやる
 ## EBNF
-- expr = mul ("+" mul | "-" mul)*
+- expr = equality
+- equality = add ("==" add)*
+- add = mul ("+" mul | "-" mul)*
 - mul = unary ("*" unary | "/" unary)*
 - unary = ("+" | "-") unary | primary
 - primary = num | "(" expr ")"
 
-## メモ
+## 現在サポート中の演算子の優先順位
+低
+1. ==
+3. +, -
+4. *, /
+5. 単項+, 単項-
+6. ()
+
+## 演算子の優先順位
+![alt text](operator-priority.png)
+source: https://c-lang.sevendays-study.com/appendix4.html
 

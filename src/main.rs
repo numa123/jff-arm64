@@ -92,6 +92,7 @@ enum NodeKind {
     NdMul { lhs: Box<Node>, rhs: Box<Node> },
     NdDiv { lhs: Box<Node>, rhs: Box<Node> },
     NdNeg { lhs: Box<Node> },
+    NdEq { lhs: Box<Node>, rhs: Box<Node> },
     NdNum { val: isize },
 }
 
@@ -109,6 +110,28 @@ struct Node {
 // nodenizer
 impl Ctx<'_> {
     fn expr(&mut self) -> Node {
+        return self.equality();
+    }
+    fn equality(&mut self) -> Node {
+        let mut node = self.add();
+        while !self.tokens.is_empty() {
+            match &self.tokens[0].kind {
+                TokenKind::TkPunct { str } if str == "==" => {
+                    self.advance_tok(1);
+                    node = Node {
+                        kind: NodeKind::NdEq {
+                            lhs: Box::new(node),
+                            rhs: Box::new(self.add()),
+                        },
+                    };
+                }
+                _ => break,
+            }
+        }
+        return node;
+    }
+
+    fn add(&mut self) -> Node {
         let mut node = self.mul();
         while !self.tokens.is_empty() {
             match &self.tokens[0].kind {
@@ -211,36 +234,36 @@ fn gen_expr(node: Node) {
 
     if let NodeKind::NdAdd { lhs, rhs } = node.kind {
         gen_expr(*lhs);
-        println!("      str x0, [sp, -16]!  // push"); // 16はハードコードだが、スタックのサイズを計算して動的にするべき
+        push16();
         gen_expr(*rhs);
-        println!("      ldr x1, [sp], 16 // pop"); // lhsの計算結果がx1, rhsの計算結果がx0に入る
+        pop16();
         println!("      add x0, x1, x0");
         return;
     }
 
     if let NodeKind::NdSub { lhs, rhs } = node.kind {
         gen_expr(*lhs);
-        println!("      str x0, [sp, -16]!  // push");
+        push16();
         gen_expr(*rhs);
-        println!("      ldr x1, [sp], 16 // pop");
+        pop16();
         println!("      sub x0, x1, x0");
         return;
     }
 
     if let NodeKind::NdMul { lhs, rhs } = node.kind {
         gen_expr(*lhs);
-        println!("      str x0, [sp, -16]!  // push");
+        push16();
         gen_expr(*rhs);
-        println!("      ldr x1, [sp], 16 // pop");
+        pop16();
         println!("      mul x0, x1, x0");
         return;
     }
 
     if let NodeKind::NdDiv { lhs, rhs } = node.kind {
         gen_expr(*lhs);
-        println!("      str x0, [sp, -16]!  // push");
+        push16();
         gen_expr(*rhs);
-        println!("      ldr x1, [sp], 16 // pop");
+        pop16();
         println!("      sdiv x0, x1, x0");
         return;
     }
@@ -250,6 +273,24 @@ fn gen_expr(node: Node) {
         println!("      neg x0, x0");
         return;
     }
+
+    if let NodeKind::NdEq { lhs, rhs } = node.kind {
+        gen_expr(*lhs);
+        push16();
+        gen_expr(*rhs);
+        pop16();
+        println!("      cmp x0, x1");
+        println!("      cset x0, eq");
+        return;
+    }
+}
+
+fn push16() {
+    println!("      str x0, [sp, -16]!  // push"); // 16はハードコードだが、スタックのサイズを計算して動的にするべき
+}
+
+fn pop16() {
+    println!("      ldr x1, [sp], 16");
 }
 
 //
@@ -272,6 +313,17 @@ impl Ctx<'_> {
                     start: self.current_input_position() - num.to_string().len(),
                     len: num.to_string().len(),
                 });
+                continue;
+            }
+            if self.input.starts_with("==") {
+                tokens.push(Token {
+                    kind: TokenKind::TkPunct {
+                        str: self.input[0..2].to_string(),
+                    },
+                    start: self.current_input_position(),
+                    len: 2,
+                });
+                self.advance_input(2);
                 continue;
             }
             if c == '+' || c == '-' || c == '*' || c == '/' || c == '(' || c == ')' {
