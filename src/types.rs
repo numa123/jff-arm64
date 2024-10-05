@@ -23,6 +23,7 @@ pub enum TokenKind {
     TkPunct { str: String },
     TkNum { val: isize },
     TkIdent { name: String },
+    TkReturn,
 }
 
 #[derive(Debug)]
@@ -55,6 +56,7 @@ pub enum NodeKind {
     NdNum { val: isize },
     NdAssign { lhs: Box<Node>, rhs: Box<Node> },
     NdVar { var: Rc<RefCell<Var>> },
+    NdReturn { lhs: Box<Node> },
 }
 
 #[derive(Debug)]

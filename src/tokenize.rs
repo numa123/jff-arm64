@@ -139,6 +139,16 @@ impl Ctx<'_> {
         }
         return tokens;
     }
+
+    pub fn convert_keywords(&mut self) {
+        for token in &mut self.tokens {
+            if let TokenKind::TkIdent { name } = &token.kind {
+                if name == "return" {
+                    token.kind = TokenKind::TkReturn;
+                }
+            }
+        }
+    }
 }
 
 fn is_ident(c: char) -> bool {

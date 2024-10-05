@@ -144,6 +144,12 @@ fn gen_stmt(node: Node) {
         gen_expr(*lhs);
         return;
     }
+
+    if let NodeKind::NdReturn { lhs } = node.kind {
+        gen_expr(*lhs);
+        println!("	  b end");
+        return;
+    }
 }
 
 fn align16(i: isize) -> isize {
@@ -169,6 +175,7 @@ pub fn codegen(ctx: Ctx) {
         // eprintln!("{:#?}", stmt);
         gen_stmt(stmt);
     }
+    println!("end:");
     println!("      ldp x29, x30, [sp] ,{}", prologue_size);
     println!("      ret");
 }

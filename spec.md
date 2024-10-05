@@ -7,7 +7,7 @@
 ## EBNF
 - program = stmt*
   - 気持ちとしては、今の段階のプログラムは、stmtが0個以上あるものとしてコンパイラを作成している、というものだと思う
-- stmt = expr-stmt
+- stmt = "return" expr ";" | expr-stmt
 - expr-stmt = expr ";"
 - expr = assign
 - assign = equality ("=" assign)?

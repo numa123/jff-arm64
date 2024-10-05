@@ -4,6 +4,16 @@ use crate::types::*;
 
 impl Ctx<'_> {
     fn stmt(&mut self) -> Node {
+        if let TokenKind::TkReturn { .. } = self.tokens[0].kind {
+            self.advance_tok(1);
+            let node = Node {
+                kind: NodeKind::NdReturn {
+                    lhs: Box::new(self.expr()),
+                },
+            };
+            self.skip(";");
+            return node;
+        }
         return self.expr_stmt();
     }
     fn expr_stmt(&mut self) -> Node {
@@ -230,6 +240,7 @@ impl Ctx<'_> {
     pub fn parse(&mut self) {
         let mut program = Vec::new();
         self.tokens = self.tokenize();
+        self.convert_keywords();
         while !self.tokens.is_empty() {
             program.push(self.stmt());
         }
