@@ -6,10 +6,19 @@ pub static mut BCOUNT: usize = 0; // branch count
 fn gen_addr(node: Node) {
     match node.kind {
         NodeKind::NdVar => {
-            let offset = (node.var.unwrap().offset + 2) * 8; // 例えば、str x0, [x29, -16]とすると、x29-16 ~ x29-24ではなく、x29-16 ~ x29-8になる。
-                                                             // offset設定の際、現在は0から設定しているので、+1しないと、最初の変数がx29~x29+8になってしまって、lp(x30)と被ってしまう(と解釈している)
-                                                             // "+2"は、fp(x29)とlr(x30)の分を考慮している
-            println!("  add x0, x29, {}", offset);
+            if let Some(var) = node.var {
+                // gvalがない場合はローカル変数
+                if var.gval.is_none() {
+                    let offset = (var.offset + 2) * 8; // 例えば、str x0, [x29, -16]とすると、x29-16 ~ x29-24ではなく、x29-16 ~ x29-8になる。
+                                                       // offset設定の際、現在は0から設定しているので、+1しないと、最初の変数がx29~x29+8になってしまって、lp(x30)と被ってしまう(と解釈している)
+                                                       // "+2"は、fp(x29)とlr(x30)の分を考慮している
+                    println!("  add x0, x29, {}", offset);
+                } else {
+                    // gvalがある場合はグローバル変数
+                    println!("  adrp x0, _{}@PAGE", var.name);
+                    println!("  add x0, x0, _{}@PAGEOFF;", var.name);
+                }
+            }
         }
         NodeKind::NdDeref => {
             gen_expr(*(node.lhs).unwrap());
@@ -254,6 +263,19 @@ pub fn codegen(programs: &mut Vec<Var>) {
             println!("  ldp x29, x30, [sp] ,{}", prorogue_size);
             println!("  ret");
             println!();
+            continue;
         }
+
+        // global変数の時
+        println!("   .data");
+        println!("  .global _{}", program.name);
+        println!("_{}:", program.name);
+        if program.gval.is_none() {
+            println!("  .zero {}", program.ty.size);
+        } else if let Some(gval) = program.gval {
+            println!("   .xword {}", gval);
+        }
+        println!("   .text");
+        // println!("   .align  2");
     }
 }

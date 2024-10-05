@@ -68,6 +68,7 @@ fn new_var(v: &mut Vec<Var>, name: &str, ty: Type, is_arg_def: bool) -> Var {
         stmts: Vec::new(),
         variables: Vec::new(),
         args: Vec::new(),
+        gval: None,
     };
     v.push(var.clone());
     return var;
@@ -160,37 +161,78 @@ fn func_param(tokens: &mut Vec<Token>, input: &str, func: &mut Var) {
     }
 }
 
-fn function_declaration(tokens: &mut Vec<Token>, input: &str) -> Var {
+// ゴミコード
+fn function_or_variable_declaration(tokens: &mut Vec<Token>, input: &str) -> Var {
     let base_ty = declaration_specifier(tokens, input); // int
     let ty = type_chain(tokens, input, base_ty);
 
-    let mut func = Var {
+    let mut var = Var {
         name: tokens[0].str.clone(),
         ty: ty,
-        offset: 0,
+        offset: unsafe { GLOBALS.len() },
         def_arg: false,
-        is_func: true,
+        is_func: false,
         stmts: Vec::new(),
         variables: Vec::new(), // あとで使うけど、今は一旦int main()だけ書けるようにするか
         args: Vec::new(),
+        gval: None,
     };
     tokens.remove(0);
 
-    skip(tokens, "(", input);
-    if tokens[0].str == ")" {
+    if tokens[0].str == "(" {
+        var.is_func = true;
+        skip(tokens, "(", input);
+
+        if tokens[0].str == ")" {
+            skip(tokens, ")", input);
+            if var.variables.iter().filter(|v| v.def_arg == true).count() > 8 {
+                error_tok(&tokens[0], "too many arguments", input);
+            }
+            skip(tokens, "{", input); // compound-stmtのEBNF忘れてた
+            let block = compound_stmt(tokens, input, &mut var.variables);
+            var.stmts = block.block_body;
+            unsafe {
+                GLOBALS.push(var.clone());
+            }
+            return var;
+        }
+
+        func_param(tokens, input, &mut var);
         skip(tokens, ")", input);
-        return func;
+        // func.variablesの中でdef_arg: trueのものの数が8個を超えたらエラーを出す
+        if var.variables.iter().filter(|v| v.def_arg == true).count() > 8 {
+            error_tok(&tokens[0], "too many arguments", input);
+        }
+        skip(tokens, "{", input); // compound-stmtのEBNF忘れてた
+        let block = compound_stmt(tokens, input, &mut var.variables);
+        var.stmts = block.block_body;
+        unsafe {
+            GLOBALS.push(var.clone());
+        }
+
+        return var;
     }
 
-    func_param(tokens, input, &mut func);
-
-    // func.variablesの中でdef_arg: trueのものの数が8個を超えたらエラーを出す
-    if func.variables.iter().filter(|v| v.def_arg == true).count() > 8 {
-        error_tok(&tokens[0], "too many arguments", input);
+    // varって、valとかないのか
+    let mut node = new_node(NodeKind::NdBlock);
+    if tokens[0].str == "=" {
+        tokens.remove(0);
+        var.gval = Some(tokens[0].val);
+        tokens.remove(0);
+        unsafe {
+            GLOBALS.push(var.clone());
+        }
+        var.stmts = node.block_body;
+        skip(tokens, ";", input);
+        return var;
     }
 
-    skip(tokens, ")", input);
-    return func;
+    var.gval = Some(0);
+    unsafe {
+        GLOBALS.push(var.clone());
+    }
+    skip(tokens, ";", input);
+    return var;
 }
 
 //
@@ -540,6 +582,9 @@ fn primary(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
             // ここでidentが見つからないはずはない。declarationで追加しているから。という想定
             let var = if let Some(v) = find_var(v, tokens[0].str.as_str()) {
                 v
+            } else if let Some(v) = find_var(&unsafe { GLOBALS.clone() }, tokens[0].str.as_str()) {
+                // clone祭りすぎ
+                v
             } else {
                 error_tok(&tokens[0], "undefined variable", input);
                 panic!();
@@ -568,6 +613,7 @@ fn create_var(v: &mut Vec<Var>, name: &str, ty: Type, is_arg_def: bool) -> Var {
         stmts: Vec::new(),
         variables: Vec::new(),
         args: Vec::new(),
+        gval: None,
     };
     v.push(nv.clone());
     return nv;
@@ -575,13 +621,7 @@ fn create_var(v: &mut Vec<Var>, name: &str, ty: Type, is_arg_def: bool) -> Var {
 
 pub fn parse(tokens: &mut Vec<Token>, input: &str) -> Vec<Var> {
     while !tokens.is_empty() {
-        let mut func = function_declaration(tokens, input);
-        skip(tokens, "{", input); // compound-stmtのEBNF忘れてた
-        let block = compound_stmt(tokens, input, &mut func.variables);
-        func.stmts = block.block_body;
-        unsafe {
-            GLOBALS.push(func);
-        }
+        function_or_variable_declaration(tokens, input);
     }
     return unsafe { GLOBALS.clone() }; // 絶対無駄
 }

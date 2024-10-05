@@ -52,6 +52,7 @@ pub struct Var {
     pub stmts: Vec<Node>,    // stmts(?)
     pub variables: Vec<Var>, // variables including function arguments
     pub args: Vec<Node>,     // only function arguments
+    pub gval: Option<i32>,   // global variable value
 }
 
 #[derive(Debug, Clone)]

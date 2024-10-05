@@ -32,10 +32,8 @@
 //   *y = 0;
 //   return **x;
 // }
-
+long x = 3;
 int main() {
-  int x = 3;
-  int *y = &x;
-  int **z = &y;
-  return **z;
+  x = 6;
+  return x;
 }

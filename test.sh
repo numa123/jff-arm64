@@ -29,6 +29,11 @@ assert() {
 
 cargo build # 最初にビルド
 
+assert 1 'int x; int main() { x=1; return x; }'
+assert 3 'int x = 3; int main() { return x; }'
+assert 6 'int x = 3; int main() { x = 6; return x; }'
+
+
 assert 8 'int main() { int x; return sizeof(x); }'
 assert 8 'int main() { int x; return sizeof x; }'
 assert 8 'int main() { int *x; return sizeof(x); }'
@@ -40,7 +45,7 @@ assert 3 'int main() { int x[3]; *x=3; x[1]=4; x[2]=5; return *x; }'
 assert 4 'int main() { int x[3]; *x=3; x[1]=4; x[2]=5; return *(x+1); }'
 assert 5 'int main() { int x[3]; *x=3; x[1]=4; x[2]=5; return *(x+2); }'
 assert 5 'int main() { int x[3]; *x=3; x[1]=4; x[2]=5; return *(x+2); }'
-# assert 5 'int main() { int x[3]; *x=3; x[1]=4; 2[x]=5; return *(x+2); }' # 一旦これはコンパイルエラーってことで。文字列が先
+# # # assert 5 'int main() { int x[3]; *x=3; x[1]=4; 2[x]=5; return *(x+2); }' # 一旦これはコンパイルエラーってことで。文字列が先
 
 assert 3 'int main() { int x[2]; int *y=x; *y=3; return *x; }'
 assert 3 'int main() { int x[3]; *x=3; *(x+1)=4; *(x+2)=5; return *x; }'
