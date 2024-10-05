@@ -57,6 +57,7 @@ pub enum NodeKind {
     NdAssign { lhs: Box<Node>, rhs: Box<Node> },
     NdVar { var: Rc<RefCell<Var>> },
     NdReturn { lhs: Box<Node> },
+    NdBlock { body: Vec<Node> },
 }
 
 #[derive(Debug)]

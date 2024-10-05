@@ -4,17 +4,37 @@ use crate::types::*;
 
 impl Ctx<'_> {
     fn stmt(&mut self) -> Node {
-        if let TokenKind::TkReturn { .. } = self.tokens[0].kind {
-            self.advance_tok(1);
-            let node = Node {
-                kind: NodeKind::NdReturn {
-                    lhs: Box::new(self.expr()),
-                },
-            };
-            self.skip(";");
-            return node;
+        match &self.tokens[0].kind {
+            TokenKind::TkReturn => {
+                self.advance_tok(1);
+                let node = Node {
+                    kind: NodeKind::NdReturn {
+                        lhs: Box::new(self.expr()),
+                    },
+                };
+                self.skip(";");
+                return node;
+            }
+            TokenKind::TkPunct { str } if str == "{" => {
+                self.skip("{");
+                let node = self.compound_stmt();
+                return node;
+            }
+            _ => {}
         }
+
         return self.expr_stmt();
+    }
+    fn compound_stmt(&mut self) -> Node {
+        let mut body = Vec::new();
+        while !self.equal("}") {
+            body.push(self.stmt());
+        }
+        self.skip("}");
+        let node = Node {
+            kind: NodeKind::NdBlock { body },
+        };
+        return node;
     }
     fn expr_stmt(&mut self) -> Node {
         let node = Node {

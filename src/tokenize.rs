@@ -111,6 +111,8 @@ impl Ctx<'_> {
                 || c == '<'
                 || c == ';'
                 || c == '='
+                || c == '{'
+                || c == '}'
             {
                 tokens.push(Token {
                     kind: TokenKind::TkPunct { str: c.to_string() },

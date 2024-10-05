@@ -150,6 +150,13 @@ fn gen_stmt(node: Node) {
         println!("	  b end");
         return;
     }
+
+    if let NodeKind::NdBlock { body } = node.kind {
+        for stmt in body {
+            gen_stmt(stmt);
+        }
+        return;
+    }
 }
 
 fn align16(i: isize) -> isize {
