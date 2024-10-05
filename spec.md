@@ -6,7 +6,7 @@
 ## EBNF
 - expr = mul ("+" mul | "-" mul)*
 - mul = primary ("*" primary | "/" primary)*
-- primary = num
+- primary = num | "(" expr ")"
 
 ## メモ
 

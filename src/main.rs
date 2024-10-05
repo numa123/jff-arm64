@@ -31,10 +31,7 @@ impl Ctx<'_> {
                 self.tokens.remove(0);
                 return val;
             }
-            _ => {
-                self.error_tok(&self.tokens[0], "expected a number");
-                panic!();
-            }
+            _ => self.error_tok(&self.tokens[0], "expected a number"),
         }
     }
 
@@ -44,7 +41,16 @@ impl Ctx<'_> {
         }
     }
 
-    fn error_tok(&self, tok: &Token, msg: &str) {
+    fn skip(&mut self, op: &str) -> Token {
+        if let TokenKind::TkPunct { str } = &self.tokens[0].kind {
+            if str == op {
+                return self.tokens.remove(0);
+            }
+        }
+        self.error_tok(&self.tokens[0], format!("expected '{}'", op).as_str())
+    }
+
+    fn error_tok(&self, tok: &Token, msg: &str) -> ! {
         eprintln!("{}", self.input_copy);
         eprintln!("{}{}", " ".repeat(tok.start), "^".repeat(tok.len)); // 後々該当箇所のinput_copyを色付けして表す
         eprintln!("jff_error: {}", msg);
@@ -151,11 +157,16 @@ impl Ctx<'_> {
     }
 
     fn primary(&mut self) -> Node {
-        if let TokenKind::TkNum { .. } = self.tokens[0].kind {
-            return new_num(self.get_and_skip_number());
+        match &self.tokens[0].kind {
+            TokenKind::TkNum { .. } => return new_num(self.get_and_skip_number()),
+            TokenKind::TkPunct { str } if str == "(" => {
+                self.advance_tok(1);
+                let node = self.expr();
+                self.skip(")");
+                return node;
+            }
+            _ => self.error_tok(&self.tokens[0], "expected a number or ( expression )"),
         }
-        self.error_tok(&self.tokens[0], "expected a number");
-        panic!();
     }
 }
 
@@ -227,7 +238,7 @@ impl Ctx<'_> {
                 });
                 continue;
             }
-            if c == '+' || c == '-' || c == '*' || c == '/' {
+            if c == '+' || c == '-' || c == '*' || c == '/' || c == '(' || c == ')' {
                 tokens.push(Token {
                     kind: TokenKind::TkPunct { str: c.to_string() },
                     start: self.current_input_position(),
@@ -263,25 +274,6 @@ fn main() {
     println!("_main:");
 
     let node = ctx.expr();
-    // eprintln!("{:#?}", node);
     gen_expr(node);
-
-    // println!("    mov x0, {}", ctx.get_and_skip_number());
-
-    // while !ctx.tokens.is_empty() {
-    //     if let TokenKind::TkPunct { str } = &ctx.tokens[0].kind {
-    //         if str == "+" {
-    //             ctx.tokens.remove(0);
-    //             println!("    add x0, x0, {}", ctx.get_and_skip_number());
-    //             continue;
-    //         }
-    //         if str == "-" {
-    //             ctx.tokens.remove(0);
-    //             println!("    sub x0, x0, {}", ctx.get_and_skip_number());
-    //             continue;
-    //         }
-    //     }
-    //     ctx.error_tok(&ctx.tokens[0], "invalid token");
-    // }
     println!("      ret");
 }
