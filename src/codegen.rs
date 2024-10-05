@@ -34,6 +34,9 @@ fn load(ty: Type) {
     if ty.kind == TypeKind::TyArray {
         return;
     }
+    // if ty.size == 1 {
+    // println!("  ldrsb w0,") // これのためには、オフセットの計算を変えなければいけない
+    // }
     // eprintln!("{:#?}", ty);
     println!("  ldr x0, [x0]");
 }
@@ -237,7 +240,7 @@ pub fn codegen(programs: &mut Vec<Var>) {
         // 関数じゃない時
         // 関数の時
         if program.is_func {
-            // eprintln!("{:#?}", f.variables);
+            // eprintln!("{:#?}", program);
             // eprintln!("{}", calc_stack_size(&f.variables));
             // let stack_size = f.variables.len() * 8; // デバッグなど用のwzr, lp, fpは含めない、ローカル変数のみのスタックサイズ
             // 今はlongのみのサポートを想定しているから8バイトずつ確保している(つもり)

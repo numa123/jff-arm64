@@ -32,8 +32,7 @@
 //   *y = 0;
 //   return **x;
 // }
-long x = 3;
 int main() {
-  x = 6;
+  char x = 1;
   return x;
 }

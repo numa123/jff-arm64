@@ -91,6 +91,7 @@ pub enum TypeKind {
     TyInt,
     TyPtr,
     TyArray,
+    TyChar,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -107,7 +108,7 @@ pub struct Type {
 //
 pub fn is_integer(ty: &Type) -> bool {
     match ty.kind {
-        TypeKind::TyInt => true,
+        TypeKind::TyInt | TypeKind::TyChar => true,
         _ => false,
     }
 }
@@ -146,6 +147,23 @@ pub fn new_array(ty: Type, len: usize) -> Type {
         ptr_to: Some(Box::new(ty)),
         tok: None,
         array_len: Some(len),
+    }
+}
+
+pub fn new_char() -> Type {
+    Type {
+        kind: TypeKind::TyChar,
+        size: 1,
+        ptr_to: None,
+        tok: None,
+        array_len: None,
+    }
+}
+
+pub fn is_typename(token: Token) -> bool {
+    match token.str.as_str() {
+        "int" | "char" => true,
+        _ => false,
     }
 }
 

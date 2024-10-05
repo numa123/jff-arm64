@@ -2,8 +2,8 @@ use std::mem::swap;
 
 use crate::tokenize::{consume, error_tok, skip};
 use crate::types::{
-    add_type, is_integer, is_pointer, new_array, new_int, new_ptr_to, Node, NodeKind, Token,
-    TokenKind, Type, Var,
+    add_type, is_integer, is_pointer, is_typename, new_array, new_char, new_int, new_ptr_to, Node,
+    NodeKind, Token, TokenKind, Type, Var,
 };
 
 pub static mut GLOBALS: Vec<Var> = Vec::new();
@@ -74,7 +74,12 @@ fn new_var(v: &mut Vec<Var>, name: &str, ty: Type, is_arg_def: bool) -> Var {
     return var;
 }
 
+// declaration_specifier = "int" | "char"
 fn declaration_specifier(tokens: &mut Vec<Token>, input: &str) -> Type {
+    if tokens[0].str == "char" {
+        tokens.remove(0);
+        return new_char();
+    }
     skip(tokens, "int", input);
     return new_int();
 }
@@ -306,7 +311,7 @@ fn compound_stmt(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node
     let mut block_body = Vec::new();
     while !(tokens[0].str == "}") {
         // int declaration
-        let mut node = if tokens[0].str == "int" {
+        let mut node = if is_typename(tokens[0].clone()) {
             declaration(tokens, input, v)
         } else {
             stmt(tokens, input, v)

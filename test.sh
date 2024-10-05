@@ -29,6 +29,13 @@ assert() {
 
 cargo build # 最初にビルド
 
+assert 1 'int main() { char x=1; return x; }'
+assert 1 'int main() { char x=1; char y=2; return x; }'
+assert 2 'int main() { char x=1; char y=2; return y; }'
+assert 1 'int main() { char x; return sizeof(x); }'
+assert 10 'int main() { char x[10]; return sizeof(x); }'
+assert 1 'int main() { return sub_char(7, 3, 3); } int sub_char(char a, char b, char c) { return a-b-c; }'
+
 assert 1 'int x; int main() { x=1; return x; }'
 assert 3 'int x = 3; int main() { return x; }'
 assert 6 'int x = 3; int main() { x = 6; return x; }'

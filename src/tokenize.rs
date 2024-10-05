@@ -159,7 +159,9 @@ pub fn tokenize(r_input: &mut &str) -> Vec<Token> {
 // 予約後の場合はトークンの種類を変更する。
 // 意味ないのではと思ったけど、変数名が予約語の場合にエラーになるために必要(多分。未確認)
 pub fn convert_keywords(tokens: &mut Vec<Token>) {
-    let keywords = vec!["return", "if", "else", "for", "while", "int", "sizeof"]; // breakはまだ
+    let keywords = vec![
+        "return", "if", "else", "for", "while", "int", "sizeof", "char",
+    ]; // breakはまだ
     for t in tokens.iter_mut() {
         if keywords.contains(&t.str.as_str()) {
             t.kind = TokenKind::TkKeyword;
