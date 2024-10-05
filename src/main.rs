@@ -1,6 +1,8 @@
+use core::panic;
+
 struct Ctx<'a> {
     input: &'a str,
-    _input_copy: &'a str,
+    input_copy: &'a str,
     tokens: Vec<Token>,
 }
 
@@ -16,6 +18,39 @@ impl Ctx<'_> {
     fn advance(&mut self, n: usize) {
         self.input = &self.input[n..];
     }
+    fn current_input_position(&self) -> usize {
+        self.input_copy.len() - self.input.len()
+    }
+}
+
+// for token
+impl Ctx<'_> {
+    fn get_and_skip_number(&mut self) -> isize {
+        match self.tokens[0].kind {
+            TokenKind::TkNum { val } => {
+                self.tokens.remove(0);
+                return val;
+            }
+            _ => {
+                self.error_tok(&self.tokens[0], "expected a number");
+                panic!();
+            }
+        }
+    }
+
+    fn error_tok(&self, tok: &Token, msg: &str) {
+        eprintln!("{}", self.input_copy);
+        eprintln!("{}{}", " ".repeat(tok.start), "^".repeat(tok.len)); // 後々該当箇所のinput_copyを色付けして表す
+        eprintln!("jff_error: {}", msg);
+        panic!();
+    }
+
+    fn error_input_at(&self, msg: &str) {
+        eprintln!("{}", self.input_copy);
+        eprintln!("{}^", " ".repeat(self.current_input_position()));
+        eprintln!("jff_error: {}", msg);
+        panic!();
+    }
 }
 
 #[derive(Debug)]
@@ -27,8 +62,11 @@ enum TokenKind {
 #[derive(Debug)]
 struct Token {
     kind: TokenKind,
+    start: usize,
+    len: usize,
 }
 
+// start, endの計算がわかりづらい
 impl Ctx<'_> {
     fn tokenize(&mut self) -> Vec<Token> {
         let mut tokens = Vec::new();
@@ -43,16 +81,23 @@ impl Ctx<'_> {
                 let num = self.parse_and_skip_number();
                 tokens.push(Token {
                     kind: TokenKind::TkNum { val: num },
+                    start: self.current_input_position() - num.to_string().len(),
+                    len: num.to_string().len(),
                 });
                 continue;
             }
             if c == '+' || c == '-' {
                 tokens.push(Token {
                     kind: TokenKind::TkPunct { str: c.to_string() },
+                    start: self.current_input_position(),
+                    len: 1,
                 });
                 self.advance(1);
                 continue;
             }
+            self.error_input_at(
+                format!("invalid input: {}", self.input[0..1].to_string()).as_str(),
+            );
         }
         return tokens;
     }
@@ -67,7 +112,7 @@ fn main() {
 
     let mut ctx = Ctx {
         input: &input.as_str(),
-        _input_copy: &input.as_str(),
+        input_copy: &input.as_str(),
         tokens: Vec::new(),
     };
 
@@ -76,37 +121,23 @@ fn main() {
     println!(".global _main");
     println!("_main:");
 
-    match ctx.tokens.remove(0).kind {
-        TokenKind::TkNum { val } => {
-            println!("    mov x0, {}", val);
-        }
-        _ => panic!("invalid input: {}", ctx.input[0..1].to_string()),
-    }
+    // eprintln!("実行: {:?}", ctx.tokens[0]);
+    println!("    mov x0, {}", ctx.get_and_skip_number());
 
     while !ctx.tokens.is_empty() {
         if let TokenKind::TkPunct { str } = &ctx.tokens[0].kind {
             if str == "+" {
                 ctx.tokens.remove(0);
-                match ctx.tokens.remove(0).kind {
-                    TokenKind::TkNum { val } => {
-                        println!("    add x0, x0, {}", val);
-                    }
-                    _ => panic!("invalid input: {}", ctx.input[0..1].to_string()),
-                }
+                println!("    add x0, x0, {}", ctx.get_and_skip_number());
                 continue;
             }
             if str == "-" {
                 ctx.tokens.remove(0);
-                match ctx.tokens.remove(0).kind {
-                    TokenKind::TkNum { val } => {
-                        println!("    sub x0, x0, {}", val);
-                    }
-                    _ => panic!("invalid input: {}", ctx.input[0..1].to_string()),
-                }
+                println!("    sub x0, x0, {}", ctx.get_and_skip_number());
                 continue;
             }
         }
-        panic!("invalid input: {}", ctx.input[0..1].to_string());
+        ctx.error_tok(&ctx.tokens[0], "invalid token");
     }
     println!("    ret");
 }

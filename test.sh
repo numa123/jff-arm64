@@ -3,7 +3,7 @@ assert() {
 	expected="$1"
 	input="$2"
 	./target/debug/jff "$input" > tmp.s
-	gcc -o tmp tmp.s
+	gcc-14 -o tmp tmp.s
 	./tmp
 	actual="$?"
 	if [ "$actual" = "$expected" ]; then
