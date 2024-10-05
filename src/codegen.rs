@@ -6,9 +6,24 @@ fn pop16() {
     println!("      ldr x1, [sp], 16");
 }
 
+fn gen_addr(node: Node) {
+    if let NodeKind::NdVar { var } = node.kind {
+        let var = var.borrow();
+        println!("      add x0, x29, {}", var.offset);
+        return;
+    }
+}
+
 fn gen_expr(node: Node) {
     if let NodeKind::NdNum { val } = node.kind {
         println!("      mov x0, {}", val);
+        return;
+    }
+
+    if let NodeKind::NdVar { var } = node.kind {
+        let var = var.borrow();
+        println!("      add x0, x29, {}", var.offset); // えいや
+        println!("      ldr x0, [x0]");
         return;
     }
 
@@ -113,6 +128,15 @@ fn gen_expr(node: Node) {
         println!("      cset x0, ge");
         return;
     }
+
+    if let NodeKind::NdAssign { lhs, rhs } = node.kind {
+        gen_addr(*lhs);
+        push16();
+        gen_expr(*rhs);
+        pop16();
+        println!("      str x0, [x1]");
+        return;
+    }
 }
 
 fn gen_stmt(node: Node) {
@@ -122,12 +146,29 @@ fn gen_stmt(node: Node) {
     }
 }
 
-pub fn codegen(program: Vec<Node>) {
+fn align16(i: isize) -> isize {
+    (i + 15) & !15
+}
+
+pub fn codegen(ctx: Ctx) {
+    let mut stack_size = 0;
+    for var in ctx.variables {
+        let mut var = var.borrow_mut();
+        stack_size += var.offset;
+        var.offset = var.offset * 16;
+    }
+
+    let prologue_size = align16(stack_size) + 16;
+    println!(".text");
     println!(".global _main");
     println!("_main:");
+    println!("      stp x29, x30, [sp, -{}]!", prologue_size);
+    println!("      mov x29, sp");
 
-    for stmt in program {
+    for stmt in ctx.body {
+        // eprintln!("{:#?}", stmt);
         gen_stmt(stmt);
     }
+    println!("      ldp x29, x30, [sp] ,{}", prologue_size);
     println!("      ret");
 }

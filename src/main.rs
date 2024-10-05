@@ -16,6 +16,9 @@ fn main() {
         input: &input.as_str(),
         input_copy: &input.as_str(),
         tokens: Vec::new(),
+        variables: Vec::new(),
+        body: Vec::new(),
     };
-    codegen(ctx.parse());
+    ctx.parse();
+    codegen(ctx);
 }

@@ -70,6 +70,7 @@ impl Ctx<'_> {
     pub fn tokenize(&mut self) -> Vec<Token> {
         let mut tokens = Vec::new();
         while !self.input.is_empty() {
+            // eprintln!("{:#?}", self.tokens);
             let c = self.input.chars().next().unwrap();
 
             if c == ' ' {
@@ -109,6 +110,7 @@ impl Ctx<'_> {
                 || c == '>'
                 || c == '<'
                 || c == ';'
+                || c == '='
             {
                 tokens.push(Token {
                     kind: TokenKind::TkPunct { str: c.to_string() },
@@ -118,10 +120,30 @@ impl Ctx<'_> {
                 self.advance_input(1);
                 continue;
             }
+
+            // identifier
+            if is_ident(c) {
+                let name: String = self.input.chars().take_while(|c| is_ident2(*c)).collect();
+                self.advance_input(name.len());
+
+                tokens.push(Token {
+                    kind: TokenKind::TkIdent { name: name.clone() },
+                    start: self.current_input_position() - name.len(),
+                    len: name.len(),
+                });
+                continue;
+            }
             self.error_input_at(
                 format!("invalid input: {}", self.input[0..1].to_string()).as_str(),
             );
         }
         return tokens;
     }
+}
+
+fn is_ident(c: char) -> bool {
+    return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_';
+}
+fn is_ident2(c: char) -> bool {
+    return is_ident(c) || c.is_digit(10);
 }
