@@ -1,4 +1,4 @@
-use crate::types::{Function, Node, NodeKind, Type, TypeKind, Var};
+use crate::types::{Node, NodeKind, Type, TypeKind, Var};
 
 pub static mut BCOUNT: usize = 0; // branch count
 
@@ -222,33 +222,38 @@ fn calc_stack_size(vars: &Vec<Var>) -> usize {
     size
 }
 
-pub fn codegen(funcs: &mut Vec<Function>) {
-    for f in funcs {
-        // eprintln!("{:#?}", f.variables);
-        // eprintln!("{}", calc_stack_size(&f.variables));
-        // let stack_size = f.variables.len() * 8; // デバッグなど用のwzr, lp, fpは含めない、ローカル変数のみのスタックサイズ
-        // 今はlongのみのサポートを想定しているから8バイトずつ確保している(つもり)
-        let stack_size = calc_stack_size(&f.variables);
-        let prorogue_size = align_16(stack_size) + 16;
-        println!(".global _main");
-        println!("_{}:", f.name);
-        // プロローグ
-        // 無駄が多くなるが動くのでよしとしている。関数呼び出しの有無、変数宣言の有無などによって変化する。
-        // subがなかったり、sturがなかったり、mov x29, spになっていたり。
-        println!("  stp x29, x30, [sp, -{}]!", prorogue_size);
-        println!("  mov x29, sp");
+pub fn codegen(programs: &mut Vec<Var>) {
+    // if program.is_func == true
+    for program in programs {
+        // 関数じゃない時
+        // 関数の時
+        if program.is_func {
+            // eprintln!("{:#?}", f.variables);
+            // eprintln!("{}", calc_stack_size(&f.variables));
+            // let stack_size = f.variables.len() * 8; // デバッグなど用のwzr, lp, fpは含めない、ローカル変数のみのスタックサイズ
+            // 今はlongのみのサポートを想定しているから8バイトずつ確保している(つもり)
+            let stack_size = calc_stack_size(&program.variables);
+            let prorogue_size = align_16(stack_size) + 16;
+            println!(".global _main");
+            println!("_{}:", program.name);
+            // プロローグ
+            // 無駄が多くなるが動くのでよしとしている。関数呼び出しの有無、変数宣言の有無などによって変化する。
+            // subがなかったり、sturがなかったり、mov x29, spになっていたり。
+            println!("  stp x29, x30, [sp, -{}]!", prorogue_size);
+            println!("  mov x29, sp");
 
-        // 関数の引数をレジスターに詰めていく。普通の変数を設定するのと同じように
-        gen_args_prologue(&f.args);
+            // 関数の引数をレジスターに詰めていく。普通の変数を設定するのと同じように
+            gen_args_prologue(&program.args);
 
-        while !f.stmts.is_empty() {
-            gen_stmt(f.stmts[0].clone(), &f.name); // こうしないとnodeの所有権が移動してしまう。gen_exprを変えれば良いが一旦これで。
-            f.stmts.remove(0);
+            while !program.stmts.is_empty() {
+                gen_stmt(program.stmts[0].clone(), &program.name); // こうしないとnodeの所有権が移動してしまう。gen_exprを変えれば良いが一旦これで。
+                program.stmts.remove(0);
+            }
+
+            println!("end{}:", program.name);
+            println!("  ldp x29, x30, [sp] ,{}", prorogue_size);
+            println!("  ret");
+            println!();
         }
-
-        println!("end{}:", f.name);
-        println!("  ldp x29, x30, [sp] ,{}", prorogue_size);
-        println!("  ret");
-        println!();
     }
 }

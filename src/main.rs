@@ -1,7 +1,7 @@
 mod codegen;
 use codegen::codegen;
 mod parse;
-use parse::parse;
+use parse::{parse, GLOBALS};
 mod tokenize;
 use tokenize::{convert_keywords, tokenize};
 mod types;
@@ -17,8 +17,8 @@ fn main() {
     let input_copy = input; // デバッグ用。他にやりようがありそう -> 構造体のメンバに入れるのがよさそうかな
     let mut tokens = tokenize(&mut input);
     convert_keywords(&mut tokens);
-    let mut funcs = parse(&mut tokens, input_copy);
-    codegen(&mut funcs);
+    let mut vars = parse(&mut tokens, input_copy);
+    codegen(&mut vars);
 }
 
 // プログラム全体の構造体

@@ -43,9 +43,15 @@ pub enum NodeKind {
 #[derive(Debug, Clone)]
 pub struct Var {
     pub name: String,
+    pub ty: Type,
     pub offset: usize,
     pub def_arg: bool, // true if this variable is a function argument
-    pub ty: Type,
+    // pub is_local: bool,
+    // only for function
+    pub is_func: bool,
+    pub stmts: Vec<Node>,    // stmts(?)
+    pub variables: Vec<Var>, // variables including function arguments
+    pub args: Vec<Node>,     // only function arguments
 }
 
 #[derive(Debug, Clone)]
@@ -70,14 +76,14 @@ pub struct Node {
     // tokをつけて、error_tokを使いたい
 }
 
-#[derive(Debug, Clone)]
-pub struct Function {
-    pub name: String,
-    pub ty: Type,
-    pub stmts: Vec<Node>,    // stmts(?)
-    pub variables: Vec<Var>, // variables including function arguments
-    pub args: Vec<Node>,     // only function arguments
-}
+// #[derive(Debug, Clone)]
+// pub struct Function {
+//     pub name: String,
+//     pub ty: Type,
+//     pub stmts: Vec<Node>,    // stmts(?)
+//     pub variables: Vec<Var>, // variables including function arguments
+//     pub args: Vec<Node>,     // only function arguments
+// }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeKind {

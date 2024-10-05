@@ -2,9 +2,11 @@ use std::mem::swap;
 
 use crate::tokenize::{consume, error_tok, skip};
 use crate::types::{
-    add_type, is_integer, is_pointer, new_array, new_int, new_ptr_to, Function, Node, NodeKind,
-    Token, TokenKind, Type, Var,
+    add_type, is_integer, is_pointer, new_array, new_int, new_ptr_to, Node, NodeKind, Token,
+    TokenKind, Type, Var,
 };
+
+pub static mut GLOBALS: Vec<Var> = Vec::new();
 
 fn new_node(kind: NodeKind) -> Node {
     Node {
@@ -62,6 +64,10 @@ fn new_var(v: &mut Vec<Var>, name: &str, ty: Type, is_arg_def: bool) -> Var {
         offset: v.len(),
         def_arg: is_arg_def,
         ty: ty,
+        is_func: false,
+        stmts: Vec::new(),
+        variables: Vec::new(),
+        args: Vec::new(),
     };
     v.push(var.clone());
     return var;
@@ -128,7 +134,7 @@ fn declaration(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
 //
 // function
 //
-fn func_param(tokens: &mut Vec<Token>, input: &str, func: &mut Function) {
+fn func_param(tokens: &mut Vec<Token>, input: &str, func: &mut Var) {
     let base_ty = declaration_specifier(tokens, input);
     let ty = type_chain(tokens, input, base_ty);
     // int add(int 1, int 2){}のような関数定義をエラーに
@@ -154,16 +160,19 @@ fn func_param(tokens: &mut Vec<Token>, input: &str, func: &mut Function) {
     }
 }
 
-fn function_declaration(tokens: &mut Vec<Token>, input: &str) -> Function {
+fn function_declaration(tokens: &mut Vec<Token>, input: &str) -> Var {
     let base_ty = declaration_specifier(tokens, input); // int
     let ty = type_chain(tokens, input, base_ty);
 
-    let mut func = Function {
+    let mut func = Var {
         name: tokens[0].str.clone(),
+        ty: ty,
+        offset: 0,
+        def_arg: false,
+        is_func: true,
         stmts: Vec::new(),
         variables: Vec::new(), // あとで使うけど、今は一旦int main()だけ書けるようにするか
         args: Vec::new(),
-        ty: ty,
     };
     tokens.remove(0);
 
@@ -548,25 +557,31 @@ fn find_var(var: &Vec<Var>, name: &str) -> Option<Var> {
     return var.iter().find(|v| v.name == name).cloned();
 }
 
+// no create function
 fn create_var(v: &mut Vec<Var>, name: &str, ty: Type, is_arg_def: bool) -> Var {
     let nv = Var {
         name: name.to_string(),
+        ty: ty,
         offset: v.len(),
         def_arg: is_arg_def,
-        ty: ty,
+        is_func: false,
+        stmts: Vec::new(),
+        variables: Vec::new(),
+        args: Vec::new(),
     };
     v.push(nv.clone());
     return nv;
 }
 
-pub fn parse(tokens: &mut Vec<Token>, input: &str) -> Vec<Function> {
-    let mut funcs = Vec::new();
+pub fn parse(tokens: &mut Vec<Token>, input: &str) -> Vec<Var> {
     while !tokens.is_empty() {
         let mut func = function_declaration(tokens, input);
         skip(tokens, "{", input); // compound-stmtのEBNF忘れてた
         let block = compound_stmt(tokens, input, &mut func.variables);
         func.stmts = block.block_body;
-        funcs.push(func);
+        unsafe {
+            GLOBALS.push(func);
+        }
     }
-    return funcs;
+    return unsafe { GLOBALS.clone() }; // 絶対無駄
 }
