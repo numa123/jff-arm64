@@ -40,6 +40,7 @@ pub enum NodeKind {
     NdFuncCall, // function call
     NdAddr,     // &
     NdDeref,    // *
+    NdAnd,      // &&
 }
 
 #[derive(Debug, Clone)]

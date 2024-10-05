@@ -29,7 +29,8 @@ assert() {
 
 cargo build # 最初にビルド
 
-# assert 0 'int main() {  for (int i = 0; i < 10; i = i+1) {if (i % 3 == 0 && i % 5 == 0) { printf("FizzBuzz\n");} else if (i % 3 == 0) { printf("Fizz\n");} else if (i % 5 == 0) { printf("Buzz\n");} else {printf("%d\n", i);}  }} return 0;}'
+assert 6 'int main() { for (int i=1; i<10; i=i+1) { if (i % 3 == 0 && i % 2 == 0) { return i;} } }'
+assert 0 'int main() {  for (int i = 0; i < 100; i = i+1) {if (i % 3 == 0 && i % 5 == 0) { printf("FizzBuzz\n");} else if (i % 3 == 0) { printf("Fizz\n");} else if (i % 5 == 0) { printf("Buzz\n");} else {printf("n\n");}  } return 0;}'
 assert 0 'int main() {char *x = "Hello, World!\n"; printf(x); return 0;}'
 assert 0 'int main() { printf("Hello, World!"); return 0;}'
 assert 0 'int main() {int a = 1; if (a == 1) { printf("this is one!!"); } return 0;}'

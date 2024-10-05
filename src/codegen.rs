@@ -109,8 +109,8 @@ pub fn gen_expr(node: Node) {
             println!("  sdiv x0, x1, x0"); // sdivで0徐算をすると、0を返すようになっているっぽい
         }
         NodeKind::NdMod => {
-            println!("  sdiv x2, x1, x0");
-            println!("  msub x0, x2, x0, x1");
+            println!("  sdiv x2, x1, x0"); // 15%3の場合、x1=15, x0=3
+            println!("  msub x0, x2, x0, x1"); // x0 = x1 - x2 * x0
         }
         NodeKind::NdEq => {
             println!("  cmp x1, x0");
@@ -136,6 +136,14 @@ pub fn gen_expr(node: Node) {
             println!("  cmp x1, x0");
             println!("  cset x0, ge");
         }
+        NodeKind::NdAnd => {
+            println!("  mov x2, 0");
+            println!("  cmp x1, 0");
+            println!("  cset x2, ne");
+            println!("  cmp x0, 0");
+            println!("  cset x0, ne");
+            println!("  and x0, x0, x2");
+        }
         NodeKind::NdFuncCall => {
             for n in &node.args {
                 gen_expr(n.clone());
@@ -145,7 +153,6 @@ pub fn gen_expr(node: Node) {
             for i in (0..node.args.len()).rev() {
                 println!("  ldr x{i}, [sp], 16");
             }
-
             println!("  bl _{}", node.func_name)
         }
         _ => {
@@ -172,6 +179,7 @@ fn gen_stmt(node: Node, func_name: &str) {
         }
         NodeKind::NdIf => {
             let count = unsafe { IFCOUNT };
+            unsafe { IFCOUNT += 1 };
             gen_expr(*(node.cond).unwrap()); // x0に条件式の結果が入る。x0が1ならthne, 0ならelsを実行するようにジャンプ命令を生成する。この時ジャンプ先命令が一意になるように識別子をつけないといけない。また構造体に格納するモチベーションが生まれた
             println!("  cmp x0, 1");
             println!("  b.eq then{}", count);
@@ -185,10 +193,10 @@ fn gen_stmt(node: Node, func_name: &str) {
                 println!("  b endif{}", count);
             }
             println!("endif{}:", count);
-            unsafe { IFCOUNT += 1 };
         }
         NodeKind::NdFor => {
             let count = unsafe { FORCOUNT };
+            unsafe { FORCOUNT += 1 };
             if node.init.is_some() {
                 gen_stmt(*(node.init).unwrap(), func_name); // 間違えてgen_exprの時があった。
             }
@@ -209,7 +217,6 @@ fn gen_stmt(node: Node, func_name: &str) {
                 println!("  b.ne endfor{}", count);
             }
             println!("endfor{}:", count);
-            unsafe { FORCOUNT += 1 };
         }
         _ => {
             eprintln!("invalid node kind");

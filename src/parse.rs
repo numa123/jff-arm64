@@ -351,10 +351,23 @@ fn expr(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
 }
 
 fn assign(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
-    let node = equality(tokens, input, v);
+    let node = and(tokens, input, v);
     if tokens[0].str == "=" {
         tokens.remove(0);
         return new_binary(NodeKind::NdAssign, node, assign(tokens, input, v));
+    }
+    return node;
+}
+
+fn and(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
+    let mut node = equality(tokens, input, v);
+    while !tokens.is_empty() {
+        if tokens[0].str == "&&" {
+            tokens.remove(0);
+            node = new_binary(NodeKind::NdAnd, node, equality(tokens, input, v));
+            continue;
+        }
+        break;
     }
     return node;
 }

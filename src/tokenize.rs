@@ -11,7 +11,7 @@ pub fn skip(tokens: &mut Vec<Token>, s: &str, input: &str) -> bool {
     if tokens[0].str != s {
         let bold_white_text = "\x1b[1m\x1b[97m"; // エラーメッセージの装飾
         let reset = "\x1b[0m";
-        // eprintln!("{:#?}", tokens);
+        eprintln!("{:#?}", tokens);
         error_tok(
             &tokens[0],
             format!("expected {}{}{}", bold_white_text, s, reset).as_str(),
@@ -91,7 +91,8 @@ pub fn tokenize(r_input: &mut &str) -> Vec<Token> {
             && (r_input[0..2].eq("==")
                 || r_input[0..2].eq("!=")
                 || r_input[0..2].eq("<=")
-                || r_input[0..2].eq(">="))
+                || r_input[0..2].eq(">=")
+                || r_input[0..2].eq("&&"))
         {
             tokens.push(Token {
                 kind: TokenKind::TkPunct,
