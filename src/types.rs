@@ -21,6 +21,7 @@ pub enum NodeKind {
     NdSub,      // -
     NdMul,      // *
     NdDiv,      // /
+    NdMod,      // %
     NdNum,      // number
     NdNeg,      // unary =
     NdEq,       // ==

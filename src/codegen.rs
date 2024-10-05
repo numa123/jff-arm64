@@ -108,6 +108,10 @@ pub fn gen_expr(node: Node) {
         NodeKind::NdDiv => {
             println!("  sdiv x0, x1, x0"); // sdivで0徐算をすると、0を返すようになっているっぽい
         }
+        NodeKind::NdMod => {
+            println!("  sdiv x2, x1, x0");
+            println!("  msub x0, x2, x0, x1");
+        }
         NodeKind::NdEq => {
             println!("  cmp x1, x0");
             println!("  cset x0, eq");
@@ -287,7 +291,7 @@ pub fn codegen(programs: &mut Vec<Var>) {
             continue;
         } else if program.str.is_some() {
             println!("{}:", program.name); // lC:
-            println!(r#"  .ascii "{}""#, program.str.clone().unwrap());
+            println!(r#"  .ascii "{}\0""#, program.str.clone().unwrap());
             println!("  .align  3"); // これなぜか重要
         }
         // println!("   .align  2");

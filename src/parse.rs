@@ -284,7 +284,13 @@ fn stmt(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
         let mut node = new_node(NodeKind::NdFor);
         tokens.remove(0);
         skip(tokens, "(", input);
-        node.init = Some(Box::new(expr_stmt(tokens, input, v)));
+
+        node.init = if is_typename(tokens[0].clone()) {
+            Some(Box::new(declaration(tokens, input, v)))
+        } else {
+            Some(Box::new(expr_stmt(tokens, input, v)))
+        };
+        //  Some(Box::new(expr_stmt(tokens, input, v)));
         if tokens[0].str != ";" {
             node.cond = Some(Box::new(expr(tokens, input, v)));
         }
@@ -497,6 +503,11 @@ fn mul(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
         if t.str == "/" {
             tokens.remove(0);
             node = new_binary(NodeKind::NdDiv, node.clone(), unary(tokens, input, v));
+            continue;
+        }
+        if t.str == "%" {
+            tokens.remove(0);
+            node = new_binary(NodeKind::NdMod, node.clone(), unary(tokens, input, v));
             continue;
         }
         break;
