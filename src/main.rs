@@ -50,6 +50,13 @@ impl Ctx<'_> {
         self.error_tok(&self.tokens[0], format!("expected '{}'", op).as_str())
     }
 
+    fn equal(&mut self, op: &str) -> bool {
+        if let TokenKind::TkPunct { str } = &self.tokens[0].kind {
+            return str == op;
+        }
+        false
+    }
+
     fn error_tok(&self, tok: &Token, msg: &str) -> ! {
         eprintln!("{}", self.input_copy);
         eprintln!("{}{}", " ".repeat(tok.start), "^".repeat(tok.len)); // 後々該当箇所のinput_copyを色付けして表す
@@ -84,6 +91,7 @@ enum NodeKind {
     NdSub { lhs: Box<Node>, rhs: Box<Node> },
     NdMul { lhs: Box<Node>, rhs: Box<Node> },
     NdDiv { lhs: Box<Node>, rhs: Box<Node> },
+    NdNeg { lhs: Box<Node> },
     NdNum { val: isize },
 }
 
@@ -92,11 +100,11 @@ struct Node {
     kind: NodeKind,
 }
 
-fn new_num(val: isize) -> Node {
-    Node {
-        kind: NodeKind::NdNum { val: val },
-    }
-}
+// fn new_num(val: isize) -> Node {
+//     Node {
+//         kind: NodeKind::NdNum { val: val },
+//     }
+// }
 
 // nodenizer
 impl Ctx<'_> {
@@ -129,7 +137,7 @@ impl Ctx<'_> {
     }
 
     fn mul(&mut self) -> Node {
-        let mut node = self.primary();
+        let mut node = self.unary();
         while !self.tokens.is_empty() {
             match &self.tokens[0].kind {
                 TokenKind::TkPunct { str } if str == "*" => {
@@ -137,7 +145,7 @@ impl Ctx<'_> {
                     node = Node {
                         kind: NodeKind::NdMul {
                             lhs: Box::new(node),
-                            rhs: Box::new(self.primary()),
+                            rhs: Box::new(self.unary()),
                         },
                     };
                 }
@@ -146,7 +154,7 @@ impl Ctx<'_> {
                     node = Node {
                         kind: NodeKind::NdDiv {
                             lhs: Box::new(node),
-                            rhs: Box::new(self.primary()),
+                            rhs: Box::new(self.unary()),
                         },
                     };
                 }
@@ -156,9 +164,31 @@ impl Ctx<'_> {
         return node;
     }
 
+    fn unary(&mut self) -> Node {
+        if self.equal("+") {
+            self.advance_tok(1);
+            return self.unary();
+        }
+        if self.equal("-") {
+            self.advance_tok(1);
+            return Node {
+                kind: NodeKind::NdNeg {
+                    lhs: Box::new(self.unary()),
+                },
+            };
+        }
+        self.primary()
+    }
+
     fn primary(&mut self) -> Node {
         match &self.tokens[0].kind {
-            TokenKind::TkNum { .. } => return new_num(self.get_and_skip_number()),
+            TokenKind::TkNum { .. } => {
+                return Node {
+                    kind: NodeKind::NdNum {
+                        val: self.get_and_skip_number(),
+                    },
+                };
+            }
             TokenKind::TkPunct { str } if str == "(" => {
                 self.advance_tok(1);
                 let node = self.expr();
@@ -212,6 +242,12 @@ fn gen_expr(node: Node) {
         gen_expr(*rhs);
         println!("      ldr x1, [sp], 16 // pop");
         println!("      sdiv x0, x1, x0");
+        return;
+    }
+
+    if let NodeKind::NdNeg { lhs } = node.kind {
+        gen_expr(*lhs);
+        println!("      neg x0, x0");
         return;
     }
 }

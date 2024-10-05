@@ -5,7 +5,8 @@
 - intの方が良い気がしなくもないけど一旦longのままでやる
 ## EBNF
 - expr = mul ("+" mul | "-" mul)*
-- mul = primary ("*" primary | "/" primary)*
+- mul = unary ("*" unary | "/" unary)*
+- unary = ("+" | "-") unary | primary
 - primary = num | "(" expr ")"
 
 ## メモ
