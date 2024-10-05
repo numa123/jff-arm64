@@ -9,7 +9,7 @@
   - 気持ちとしては、今の段階のプログラムは、stmtが0個以上あるものとしてコンパイラを作成している、というものだと思う
 - stmt = "return" expr ";" | expr-stmt | "{" compound-stmt
 - compound-stmt = stmt* "}"
-- expr-stmt = expr ";"
+- expr-stmt = expr? ";"
 - expr = assign
 - assign = equality ("=" assign)?
 - equality = relational ("==" relational | "!=" relational)*

@@ -37,6 +37,12 @@ impl Ctx<'_> {
         return node;
     }
     fn expr_stmt(&mut self) -> Node {
+        if self.equal(";") {
+            self.advance_tok(1);
+            return Node {
+                kind: NodeKind::NdBlock { body: Vec::new() },
+            };
+        }
         let node = Node {
             kind: NodeKind::NdExprStmt {
                 lhs: Box::new(self.expr()),
