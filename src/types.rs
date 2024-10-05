@@ -4,6 +4,7 @@ pub enum TokenKind {
     TkNum,
     TkIdent, // variable
     TkKeyword,
+    TkStr,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -53,6 +54,7 @@ pub struct Var {
     pub variables: Vec<Var>, // variables including function arguments
     pub args: Vec<Node>,     // only function arguments
     pub gval: Option<i32>,   // global variable value
+    pub str: Option<String>, // string literal
 }
 
 #[derive(Debug, Clone)]

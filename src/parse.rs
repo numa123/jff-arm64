@@ -1,3 +1,4 @@
+use std::fmt::format;
 use std::mem::swap;
 
 use crate::tokenize::{consume, error_tok, skip};
@@ -69,6 +70,7 @@ fn new_var(v: &mut Vec<Var>, name: &str, ty: Type, is_arg_def: bool) -> Var {
         variables: Vec::new(),
         args: Vec::new(),
         gval: None,
+        str: None,
     };
     v.push(var.clone());
     return var;
@@ -181,6 +183,7 @@ fn function_or_variable_declaration(tokens: &mut Vec<Token>, input: &str) -> Var
         variables: Vec::new(), // あとで使うけど、今は一旦int main()だけ書けるようにするか
         args: Vec::new(),
         gval: None,
+        str: None,
     };
     tokens.remove(0);
 
@@ -553,6 +556,26 @@ fn primary(tokens: &mut Vec<Token>, input: &str, v: &mut Vec<Var>) -> Node {
             tokens.remove(0); // ここでremoveしないでバグったことがあった
             return num;
         }
+        // tokens[0] は、str = "hoge"
+        TokenKind::TkStr => {
+            let var = Var {
+                name: format!("lC{}", unsafe { GLOBALS.len() }),
+                ty: new_array(new_char(), tokens[0].str.len()),
+                offset: 0, // ここはどうでもいい
+                def_arg: false,
+                is_func: false,
+                stmts: Vec::new(),
+                variables: Vec::new(),
+                args: Vec::new(),
+                gval: None,
+                str: Some(tokens[0].str.clone()),
+            };
+            unsafe {
+                GLOBALS.push(var.clone());
+            }
+            tokens.remove(0);
+            return new_var_node(var);
+        }
         TokenKind::TkIdent => {
             // function call
             if tokens.len() >= 2 && tokens[1].str == "(" {
@@ -619,6 +642,7 @@ fn create_var(v: &mut Vec<Var>, name: &str, ty: Type, is_arg_def: bool) -> Var {
         variables: Vec::new(),
         args: Vec::new(),
         gval: None,
+        str: None,
     };
     v.push(nv.clone());
     return nv;

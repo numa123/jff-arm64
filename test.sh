@@ -29,7 +29,11 @@ assert() {
 
 cargo build # 最初にビルド
 
-assert 1 'int main() { char x=1; return x; }'
+assert 0 '  int main() {char *x = "Hello, World!"; printf(x); return 0;}'
+assert 0 '  int main() { printf("Hello, World!"); return 0;}'
+assert 0 '           int main() {int a = 1; if (a == 1) { printf("this is one!!"); } return 0;}'
+assert 0 '   int main() {int i = 0; for (i; i<10; i=i+1) { if (i <=5) { printf("LESS EQUAL5!!    "); } else { printf("MORE 5!!    "); } } return 0;}'
+assert 1 'int main() { char *x; return 1; }'
 assert 1 'int main() { char x=1; char y=2; return x; }'
 assert 2 'int main() { char x=1; char y=2; return y; }'
 assert 1 'int main() { char x; return sizeof(x); }'

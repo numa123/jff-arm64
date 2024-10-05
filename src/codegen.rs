@@ -1,6 +1,7 @@
 use crate::types::{Node, NodeKind, Type, TypeKind, Var};
 
-pub static mut BCOUNT: usize = 0; // branch count
+pub static mut IFCOUNT: usize = 0; // branch count
+pub static mut FORCOUNT: usize = 0; // branch count
 
 // 左辺値のアドレスをx0に入れる処理
 fn gen_addr(node: Node) {
@@ -8,13 +9,17 @@ fn gen_addr(node: Node) {
         NodeKind::NdVar => {
             if let Some(var) = node.var {
                 // gvalがない場合はローカル変数
-                if var.gval.is_none() {
+                if var.gval.is_none() && var.str.is_none() {
                     let offset = (var.offset + 2) * 8; // 例えば、str x0, [x29, -16]とすると、x29-16 ~ x29-24ではなく、x29-16 ~ x29-8になる。
                                                        // offset設定の際、現在は0から設定しているので、+1しないと、最初の変数がx29~x29+8になってしまって、lp(x30)と被ってしまう(と解釈している)
                                                        // "+2"は、fp(x29)とlr(x30)の分を考慮している
                     println!("  add x0, x29, {}", offset);
+                } else if var.gval.is_none() && var.str.is_some() {
+                    // strがある場合は文字列リテラル
+                    println!("  adrp x0, {}@PAGE", var.name);
+                    println!("  add x0, x0, {}@PAGEOFF", var.name);
                 } else {
-                    // gvalがある場合はグローバル変数
+                    // gvalがある場合はグローバル変数の数値
                     println!("  adrp x0, _{}@PAGE", var.name);
                     println!("  add x0, x0, _{}@PAGEOFF;", var.name);
                 }
@@ -162,24 +167,24 @@ fn gen_stmt(node: Node, func_name: &str) {
             }
         }
         NodeKind::NdIf => {
-            let count = unsafe { BCOUNT };
+            let count = unsafe { IFCOUNT };
             gen_expr(*(node.cond).unwrap()); // x0に条件式の結果が入る。x0が1ならthne, 0ならelsを実行するようにジャンプ命令を生成する。この時ジャンプ先命令が一意になるように識別子をつけないといけない。また構造体に格納するモチベーションが生まれた
             println!("  cmp x0, 1");
             println!("  b.eq then{}", count);
             println!("  b.ne else{}", count);
             println!("then{}:", count);
             gen_stmt(*(node.then).unwrap(), func_name);
-            println!("  b end{}", count);
+            println!("  b endif{}", count);
             println!("else{}:", count);
             if let Some(els) = node.els {
                 gen_stmt(*els, func_name);
-                println!("  b end{}", count);
+                println!("  b endif{}", count);
             }
-            println!("end{}:", count);
-            unsafe { BCOUNT += 1 };
+            println!("endif{}:", count);
+            unsafe { IFCOUNT += 1 };
         }
         NodeKind::NdFor => {
-            let count = unsafe { BCOUNT };
+            let count = unsafe { FORCOUNT };
             if node.init.is_some() {
                 gen_stmt(*(node.init).unwrap(), func_name); // 間違えてgen_exprの時があった。
             }
@@ -197,9 +202,10 @@ fn gen_stmt(node: Node, func_name: &str) {
                 gen_expr(*cond);
                 println!("  cmp x0, 1");
                 println!("  b.eq start{}", count);
-                println!("  b.ne end{}", count);
+                println!("  b.ne endfor{}", count);
             }
-            println!("end{}:", count);
+            println!("endfor{}:", count);
+            unsafe { FORCOUNT += 1 };
         }
         _ => {
             eprintln!("invalid node kind");
@@ -246,6 +252,7 @@ pub fn codegen(programs: &mut Vec<Var>) {
             // 今はlongのみのサポートを想定しているから8バイトずつ確保している(つもり)
             let stack_size = calc_stack_size(&program.variables);
             let prorogue_size = align_16(stack_size) + 16;
+            println!(".text"); // こいつ重要っぽい
             println!(".global _main");
             println!("_{}:", program.name);
             // プロローグ
@@ -269,16 +276,20 @@ pub fn codegen(programs: &mut Vec<Var>) {
             continue;
         }
 
-        // global変数の時
-        println!("   .data");
-        println!("  .global _{}", program.name);
-        println!("_{}:", program.name);
-        if program.gval.is_none() {
-            println!("  .zero {}", program.ty.size);
-        } else if let Some(gval) = program.gval {
-            println!("   .xword {}", gval);
+        // global変数
+        // 数値の時
+        if program.gval.is_some() {
+            println!(".data");
+            println!(".global _{}", program.name);
+            println!("_{}:", program.name);
+            println!(".xword {}", program.gval.unwrap());
+            println!();
+            continue;
+        } else if program.str.is_some() {
+            println!("{}:", program.name); // lC:
+            println!(r#"  .ascii "{}""#, program.str.clone().unwrap());
+            println!("  .align  3"); // これなぜか重要
         }
-        println!("   .text");
         // println!("   .align  2");
     }
 }

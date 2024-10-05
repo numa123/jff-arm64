@@ -11,6 +11,7 @@ pub fn skip(tokens: &mut Vec<Token>, s: &str, input: &str) -> bool {
     if tokens[0].str != s {
         let bold_white_text = "\x1b[1m\x1b[97m"; // エラーメッセージの装飾
         let reset = "\x1b[0m";
+        // eprintln!("{:#?}", tokens);
         error_tok(
             &tokens[0],
             format!("expected {}{}{}", bold_white_text, s, reset).as_str(),
@@ -131,6 +132,26 @@ pub fn tokenize(r_input: &mut &str) -> Vec<Token> {
             continue;
         }
 
+        // string literal
+        //
+        if c == '"' {
+            let mut str = String::new();
+            *r_input = &r_input[1..];
+            while r_input.chars().next().unwrap() != '"' {
+                str.push(r_input.chars().next().unwrap());
+                *r_input = &r_input[1..];
+            }
+            *r_input = &r_input[1..]; // skip '"'
+            tokens.push(Token {
+                kind: TokenKind::TkStr,
+                val: 0,
+                str: str.clone(),
+                loc: index,
+            });
+            index += str.len() + 2; // +2は両端のダブルクォート
+            continue;
+        }
+
         // identifier
         if is_ident(c) {
             let mut ident = String::new();
@@ -176,3 +197,5 @@ fn is_ident(c: char) -> bool {
 fn is_ident2(c: char) -> bool {
     return is_ident(c) || c.is_digit(10);
 }
+
+// fn read_string_literal(c: char) -> Token {}
