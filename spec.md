@@ -5,7 +5,7 @@
 - intの方が良い気がしなくもないけど一旦longのままでやる
 ## EBNF
 - expr = equality
-- equality = add ("==" add)*
+- equality = add ("==" add | "!=" add)*
 - add = mul ("+" mul | "-" mul)*
 - mul = unary ("*" unary | "/" unary)*
 - unary = ("+" | "-") unary | primary
@@ -13,7 +13,7 @@
 
 ## 現在サポート中の演算子の優先順位
 低
-1. ==
+1. ==, !=
 3. +, -
 4. *, /
 5. 単項+, 単項-

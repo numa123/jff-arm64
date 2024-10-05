@@ -93,6 +93,7 @@ enum NodeKind {
     NdDiv { lhs: Box<Node>, rhs: Box<Node> },
     NdNeg { lhs: Box<Node> },
     NdEq { lhs: Box<Node>, rhs: Box<Node> },
+    NdNe { lhs: Box<Node>, rhs: Box<Node> },
     NdNum { val: isize },
 }
 
@@ -120,6 +121,15 @@ impl Ctx<'_> {
                     self.advance_tok(1);
                     node = Node {
                         kind: NodeKind::NdEq {
+                            lhs: Box::new(node),
+                            rhs: Box::new(self.add()),
+                        },
+                    };
+                }
+                TokenKind::TkPunct { str } if str == "!=" => {
+                    self.advance_tok(1);
+                    node = Node {
+                        kind: NodeKind::NdNe {
                             lhs: Box::new(node),
                             rhs: Box::new(self.add()),
                         },
@@ -283,6 +293,16 @@ fn gen_expr(node: Node) {
         println!("      cset x0, eq");
         return;
     }
+
+    if let NodeKind::NdNe { lhs, rhs } = node.kind {
+        gen_expr(*lhs);
+        push16();
+        gen_expr(*rhs);
+        pop16();
+        println!("      cmp x0, x1");
+        println!("      cset x0, ne");
+        return;
+    }
 }
 
 fn push16() {
@@ -315,7 +335,7 @@ impl Ctx<'_> {
                 });
                 continue;
             }
-            if self.input.starts_with("==") {
+            if self.input.starts_with("==") || self.input.starts_with("!=") {
                 tokens.push(Token {
                     kind: TokenKind::TkPunct {
                         str: self.input[0..2].to_string(),
