@@ -76,6 +76,8 @@ struct Token {
 enum NodeKind {
     NdAdd { lhs: Box<Node>, rhs: Box<Node> },
     NdSub { lhs: Box<Node>, rhs: Box<Node> },
+    NdMul { lhs: Box<Node>, rhs: Box<Node> },
+    NdDiv { lhs: Box<Node>, rhs: Box<Node> },
     NdNum { val: isize },
 }
 
@@ -90,9 +92,10 @@ fn new_num(val: isize) -> Node {
     }
 }
 
+// nodenizer
 impl Ctx<'_> {
     fn expr(&mut self) -> Node {
-        let mut node = self.primary();
+        let mut node = self.mul();
         while !self.tokens.is_empty() {
             match &self.tokens[0].kind {
                 TokenKind::TkPunct { str } if str == "+" => {
@@ -100,7 +103,7 @@ impl Ctx<'_> {
                     node = Node {
                         kind: NodeKind::NdAdd {
                             lhs: Box::new(node),
-                            rhs: Box::new(self.primary()),
+                            rhs: Box::new(self.mul()),
                         },
                     };
                 }
@@ -109,7 +112,7 @@ impl Ctx<'_> {
                     node = Node {
                         kind: NodeKind::NdSub {
                             lhs: Box::new(node),
-                            rhs: Box::new(self.primary()),
+                            rhs: Box::new(self.mul()),
                         },
                     };
                 }
@@ -117,6 +120,34 @@ impl Ctx<'_> {
             }
         }
         node
+    }
+
+    fn mul(&mut self) -> Node {
+        let mut node = self.primary();
+        while !self.tokens.is_empty() {
+            match &self.tokens[0].kind {
+                TokenKind::TkPunct { str } if str == "*" => {
+                    self.advance_tok(1);
+                    node = Node {
+                        kind: NodeKind::NdMul {
+                            lhs: Box::new(node),
+                            rhs: Box::new(self.primary()),
+                        },
+                    };
+                }
+                TokenKind::TkPunct { str } if str == "/" => {
+                    self.advance_tok(1);
+                    node = Node {
+                        kind: NodeKind::NdDiv {
+                            lhs: Box::new(node),
+                            rhs: Box::new(self.primary()),
+                        },
+                    };
+                }
+                _ => break,
+            }
+        }
+        return node;
     }
 
     fn primary(&mut self) -> Node {
@@ -128,6 +159,9 @@ impl Ctx<'_> {
     }
 }
 
+//
+// code generator
+//
 fn gen_expr(node: Node) {
     if let NodeKind::NdNum { val } = node.kind {
         println!("      mov x0, {}", val);
@@ -151,9 +185,29 @@ fn gen_expr(node: Node) {
         println!("      sub x0, x1, x0");
         return;
     }
+
+    if let NodeKind::NdMul { lhs, rhs } = node.kind {
+        gen_expr(*lhs);
+        println!("      str x0, [sp, -16]!  // push");
+        gen_expr(*rhs);
+        println!("      ldr x1, [sp], 16 // pop");
+        println!("      mul x0, x1, x0");
+        return;
+    }
+
+    if let NodeKind::NdDiv { lhs, rhs } = node.kind {
+        gen_expr(*lhs);
+        println!("      str x0, [sp, -16]!  // push");
+        gen_expr(*rhs);
+        println!("      ldr x1, [sp], 16 // pop");
+        println!("      sdiv x0, x1, x0");
+        return;
+    }
 }
 
-// start, endの計算がわかりづらい
+//
+// tokenizer
+//
 impl Ctx<'_> {
     fn tokenize(&mut self) -> Vec<Token> {
         let mut tokens = Vec::new();
@@ -173,7 +227,7 @@ impl Ctx<'_> {
                 });
                 continue;
             }
-            if c == '+' || c == '-' {
+            if c == '+' || c == '-' || c == '*' || c == '/' {
                 tokens.push(Token {
                     kind: TokenKind::TkPunct { str: c.to_string() },
                     start: self.current_input_position(),
