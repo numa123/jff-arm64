@@ -265,8 +265,8 @@ pub fn codegen(ctx: Ctx) {
         // 各関数の変数に対してスタックサイズを計算
         for var in &func.variables {
             let mut var = var.borrow_mut();
-            stack_size += var.offset;
             var.offset = var.offset + 16; // スタックのオフセットを調整
+            stack_size += var.offset;
         }
 
         let prologue_size = align16(stack_size) + 16;
@@ -277,6 +277,19 @@ pub fn codegen(ctx: Ctx) {
         println!("_{}:", name);
         println!("      stp x29, x30, [sp, -{}]!", prologue_size);
         println!("      mov x29, sp");
+
+        // 引数の処理
+        for (i, arg) in func.args.iter().enumerate() {
+            // 他のアドレスを計算する際、x0を使うので、最初の引数のみ特別扱いして対比する
+            if i == 0 {
+                println!("      mov x9, x0");
+                gen_addr(arg.clone()); // x0にアドレスが入る
+                println!("      str x9, [x0]");
+                continue;
+            }
+            gen_addr(arg.clone()); // x0にアドレスが入る
+            println!("      str x{}, [x0]", i);
+        }
 
         // 関数のbodyに対して`gen_stmt`を呼び出す
         if let Some(body) = &func.body {

@@ -26,7 +26,7 @@
 - mul = unary ("*" unary | "/" unary)*
 - unary = ("+" | "-" | "*" | "&") unary | primary
 - primary = num | "(" expr ")" | ident args?
-- args = "(" ")"
+- args = "(" (declspec decltype ident ("," declspec decltype ident)*)? ")"
 
 ## 現在サポート中の演算子の優先順位
 低
@@ -49,6 +49,8 @@ source: https://c-lang.sevendays-study.com/appendix4.html
 - そろそろコードが冗長になってきた
 - 型のつけ忘れとかできちんと動かない場合がある。
 - 冗長なのにわかりづらいコードになってきた。
+- 関数定義の引数はは、is_def_argをtrueにして、variablesと同じ扱いにした。やっぱやめた。offsetの計算がめんどい
+- consumeとequalを使っているので分かれている。統一したい
 
 
 # 注意

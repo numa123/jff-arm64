@@ -7,47 +7,41 @@ impl Ctx<'_> {
         self.skip("int");
         return new_int();
     }
-    fn decltype(&mut self, ty: Type) -> Type {
+    fn decltype(&mut self, ty: Type) -> (Type, String) {
         let mut ty = ty;
         while self.consume("*") {
             ty = new_ptr_to(ty);
         }
-        return ty;
+        let name = self.get_ident();
+        return (ty, name);
     }
     fn declaration(&mut self) -> Node {
         let base_ty = self.declspec();
         let mut body = Vec::new();
         while !self.equal(";") {
-            let ty = self.decltype(base_ty.clone());
-            if let TokenKind::TkIdent { name } = &self.tokens[0].kind {
-                // eprintln!("{}\n{:#?}", name, ty);
-                let mut node = self.create_var(name.clone().as_str(), ty);
+            let (ty, name) = self.decltype(base_ty.clone());
+            let mut node = self.create_lvar(name.clone().as_str(), ty, false);
+            if self.equal("=") {
                 self.advance_one_tok();
-                if self.equal("=") {
-                    self.advance_one_tok();
-                    node = Node {
-                        kind: NodeKind::NdAssign {
-                            lhs: Box::new(node),
-                            rhs: Box::new(self.expr()),
-                        },
-                        ty: None,
-                    };
-                }
-                let mut node = Node {
-                    kind: NodeKind::NdExprStmt {
+                node = Node {
+                    kind: NodeKind::NdAssign {
                         lhs: Box::new(node),
+                        rhs: Box::new(self.expr()),
                     },
                     ty: None,
                 };
-                add_type(&mut node);
-                body.push(node);
-                if self.equal(",") {
-                    self.advance_one_tok();
-                    continue;
-                }
-            } else {
-                // tokenがidentifierでない場合
-                self.error_tok(&self.tokens[0], "expected an identifier");
+            }
+            let mut node = Node {
+                kind: NodeKind::NdExprStmt {
+                    lhs: Box::new(node),
+                },
+                ty: None,
+            };
+            add_type(&mut node);
+            body.push(node);
+            if self.equal(",") {
+                self.advance_one_tok();
+                continue;
             }
         }
         let node = Node {
@@ -526,7 +520,8 @@ impl Ctx<'_> {
         }
     }
 
-    fn create_var(&mut self, name: &str, ty: Type) -> Node {
+    // 関数定義用の
+    fn create_lvar(&mut self, name: &str, ty: Type, is_def_arg: bool) -> Node {
         let variables = &mut self
             .functions
             .get_mut(&self.processing_funcname)
@@ -537,35 +532,56 @@ impl Ctx<'_> {
             name: name.to_string(),
             offset: variables.len() as isize * 8, // Offset will be calculated later // あとで方を実装した際、そのsizeなりによって変更すべき。ここでやるか、codegenでやるかはあとで
             ty: ty.clone(),
+            is_def_arg: is_def_arg,
         }));
         variables.push(var.clone());
         let node = Node {
             kind: NodeKind::NdVar { var: var.clone() },
             ty: Some(ty),
         };
+
+        // 関数定義の引数の場合、関数のargsにも追加
+        if is_def_arg {
+            let func = self.functions.get_mut(&self.processing_funcname).unwrap();
+            if func.args.len() >= 8 {
+                self.error_tok(&self.tokens[0], "too many arguments");
+            }
+            func.args.push(node.clone());
+        }
         return node;
     }
 
     // 今は関数だけ
+    // functionとかに切り出すべき
     pub fn parse(&mut self) {
         self.tokens = self.tokenize();
         self.convert_keywords();
         while !self.tokens.is_empty() {
             let base_ty = self.declspec();
-            let ty = self.decltype(base_ty);
+            let (ty, name) = self.decltype(base_ty);
             let variables: Vec<Rc<RefCell<Var>>> = Vec::new();
-            let name = self.get_ident();
             // set processing funcname environment variable
             self.processing_funcname = name.clone();
             let func = Function {
                 name: name.clone(),
                 variables,
+                args: Vec::new(),
                 body: None,
                 ty: ty,
             };
             self.functions.insert(name.clone(), func);
-            // セットアップ終了
+
+            // 引数の処理
             self.skip("(");
+            while !self.equal(")") {
+                let base_ty = self.declspec();
+                let (ty, name) = self.decltype(base_ty);
+                let mut node = self.create_lvar(name.as_str(), ty, true);
+                add_type(&mut node);
+                if self.equal(",") {
+                    self.advance_one_tok();
+                }
+            }
             self.skip(")");
             self.skip("{");
             let mut node = self.compound_stmt();

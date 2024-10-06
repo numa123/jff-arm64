@@ -6,6 +6,7 @@ pub struct Function {
     pub name: String,
     pub variables: Vec<Rc<RefCell<Var>>>,
     pub body: Option<Node>, // {compound_stmt}
+    pub args: Vec<Node>,    // Vec<Rc<RefCell<Var>>>にするかも。可変長引数の場合。
     pub ty: Type,
 }
 #[derive(Debug)]
@@ -38,6 +39,7 @@ pub struct Var {
     pub name: String,
     pub offset: isize,
     pub ty: Type,
+    pub is_def_arg: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -140,27 +142,29 @@ pub struct Node {
 #[derive(Debug, Clone)]
 enum TypeKind {
     TyInt,
-    TyPtr,
-    TyFunc,
+    TyPtr { ptr_to: Box<Type> },
+    TyArray { len: usize },
 }
 
 #[derive(Debug, Clone)]
 pub struct Type {
     pub kind: TypeKind,
-    pub ptr_to: Option<Box<Type>>,
+    pub size: usize,
 }
 
 pub fn new_ptr_to(ty: Type) -> Type {
     Type {
-        kind: TypeKind::TyPtr,
-        ptr_to: Some(Box::new(ty)),
+        kind: TypeKind::TyPtr {
+            ptr_to: Box::new(ty),
+        },
+        size: 8,
     }
 }
 
 pub fn new_int() -> Type {
     Type {
         kind: TypeKind::TyInt,
-        ptr_to: None,
+        size: 8, // long?
     }
 }
 
@@ -178,7 +182,7 @@ pub fn is_integer_node(node: &Node) -> bool {
 
 pub fn is_pointer_node(node: &Node) -> bool {
     if let Some(ty) = &node.ty {
-        if let TypeKind::TyPtr = ty.kind {
+        if let TypeKind::TyPtr { .. } = ty.kind {
             true
         } else {
             false
@@ -199,7 +203,7 @@ pub fn is_integer(ty: &Type) -> bool {
 
 #[allow(dead_code)]
 pub fn is_pointer(ty: &Type) -> bool {
-    if let TypeKind::TyPtr = ty.kind {
+    if let TypeKind::TyPtr { .. } = ty.kind {
         true
     } else {
         false
@@ -241,13 +245,12 @@ pub fn add_type(node: &mut Node) {
         }
         NodeKind::NdDeref { lhs } => {
             add_type(lhs);
-            // eprintln!("{:#?}", lhs);
             if let Some(ty) = &lhs.ty {
-                if !is_pointer(ty) {
+                if let TypeKind::TyPtr { ptr_to } = &ty.kind {
+                    node.ty = Some((**ptr_to).clone());
+                } else {
                     panic!("not a pointer");
-                    // 確かにこの辺で、トークンが欲しくなる。
                 }
-                node.ty = Some(*(ty.ptr_to.clone().unwrap()));
             }
         }
         NodeKind::NdReturn { lhs } | NodeKind::NdExprStmt { lhs } | NodeKind::NdNeg { lhs } => {
