@@ -6,6 +6,9 @@ fn pop16() {
     println!("      ldr x1, [sp], 16");
 }
 
+static mut IFIDX: usize = 0;
+static mut FORIDX: usize = 0;
+
 fn gen_addr(node: Node) {
     if let NodeKind::NdVar { var } = node.kind {
         let var = var.borrow();
@@ -161,20 +164,50 @@ fn gen_stmt(node: Node) {
         return;
     }
 
+    // あえて冗長なアセンブリを出力
     if let NodeKind::NdIf { cond, then, els } = node.kind {
+        let idx = unsafe { IFIDX };
+        unsafe { IFIDX += 1 };
         gen_expr(*cond);
         println!("	  cmp x0, 1");
         if let Some(els) = els {
-            println!("	  b.ne else");
+            println!("	  b.ne else.{}", idx);
             gen_stmt(*then);
-            println!("	  b endif");
-            println!("else:");
+            println!("	  b endif.{}", idx);
+            println!("else.{}:", idx);
             gen_stmt(*els);
         } else {
-            println!("	  b.ne endif");
+            println!("	  b.ne endif.{}", idx);
             gen_stmt(*then);
         }
-        println!("endif:");
+        println!("endif.{}:", idx);
+        return;
+    }
+
+    if let NodeKind::NdFor {
+        init,
+        cond,
+        inc,
+        body,
+    } = node.kind
+    {
+        let idx = unsafe { FORIDX };
+        unsafe { FORIDX += 1 };
+        gen_stmt(*init);
+        println!("	  b cond.{}", idx);
+        println!("startfor.{}:", idx);
+        gen_stmt(*body);
+        if let Some(inc) = inc {
+            gen_expr(*inc);
+        }
+        println!("cond.{}:", idx);
+        if let Some(cond) = cond {
+            gen_expr(*cond);
+            println!("	  cmp x0, 1");
+            println!("	  b.ne endfor.{}", idx);
+        }
+        println!("	  b startfor.{}", idx);
+        println!("endfor.{}:", idx);
         return;
     }
 

@@ -108,6 +108,12 @@ pub enum NodeKind {
         then: Box<Node>,
         els: Option<Box<Node>>,
     },
+    NdFor {
+        init: Box<Node>,
+        cond: Option<Box<Node>>,
+        inc: Option<Box<Node>>,
+        body: Box<Node>,
+    },
 }
 
 #[derive(Debug)]

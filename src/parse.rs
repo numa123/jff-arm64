@@ -22,23 +22,41 @@ impl Ctx<'_> {
                 let cond = self.expr();
                 self.skip(")");
                 let then = self.stmt();
+                let mut els = None;
                 if self.equal("else") {
                     self.advance_tok(1);
-                    let els = self.stmt();
-                    node = Node {
-                        kind: NodeKind::NdIf {
-                            cond: Box::new(cond),
-                            then: Box::new(then),
-                            els: Some(Box::new(els)),
-                        },
-                    };
-                    return node;
+                    els = Some(self.stmt());
                 }
                 node = Node {
                     kind: NodeKind::NdIf {
                         cond: Box::new(cond),
                         then: Box::new(then),
-                        els: None,
+                        els: els.map(Box::new),
+                    },
+                };
+                return node;
+            }
+            TokenKind::TkKeyword { name } if name == "for" => {
+                self.advance_tok(1);
+                self.skip("(");
+                let init = self.expr_stmt();
+                let mut cond = None;
+                let mut inc = None;
+                if !self.equal(";") {
+                    cond = Some(self.expr());
+                }
+                self.skip(";");
+                if !self.equal(")") {
+                    inc = Some(self.expr());
+                }
+                self.skip(")");
+                let body = self.stmt();
+                let node = Node {
+                    kind: NodeKind::NdFor {
+                        init: Box::new(init),
+                        cond: cond.map(Box::new),
+                        inc: inc.map(Box::new),
+                        body: Box::new(body),
                     },
                 };
                 return node;
