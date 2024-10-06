@@ -13,6 +13,12 @@ impl Ctx<'_> {
             ty = new_ptr_to(ty);
         }
         let name = self.get_ident();
+        if self.equal("[") {
+            self.advance_one_tok();
+            let size = self.get_and_skip_number();
+            self.skip("]");
+            ty = new_array_ty(ty, size as usize);
+        }
         return (ty, name);
     }
     fn declaration(&mut self) -> Node {
@@ -304,11 +310,13 @@ impl Ctx<'_> {
                     }
                     // ptr + num
                     if is_pointer_node(&node) && is_integer_node(&rhs) {
+                        // node.tyのkindのptr_toのsizeを取得してvalに足す
+                        let size = get_pointer_or_array_size(&node);
                         let r = Node {
                             kind: NodeKind::NdMul {
                                 lhs: Box::new(rhs),
                                 rhs: Box::new(Node {
-                                    kind: NodeKind::NdNum { val: 8 },
+                                    kind: NodeKind::NdNum { val: size as isize }, // usizeの限界を超えたらエラーになりそう
                                     ty: Some(new_int()),
                                 }),
                             },
@@ -346,7 +354,9 @@ impl Ctx<'_> {
                             kind: NodeKind::NdMul {
                                 lhs: Box::new(rhs),
                                 rhs: Box::new(Node {
-                                    kind: NodeKind::NdNum { val: 8 },
+                                    kind: NodeKind::NdNum {
+                                        val: get_pointer_or_array_size(&node) as isize,
+                                    },
                                     ty: Some(new_int()),
                                 }),
                             },
@@ -374,7 +384,9 @@ impl Ctx<'_> {
                             kind: NodeKind::NdDiv {
                                 lhs: Box::new(l),
                                 rhs: Box::new(Node {
-                                    kind: NodeKind::NdNum { val: 8 },
+                                    kind: NodeKind::NdNum {
+                                        val: get_pointer_or_array_size(&node) as isize,
+                                    },
                                     ty: Some(new_int()),
                                 }),
                             },
@@ -620,5 +632,15 @@ impl Ctx<'_> {
             }
         }
         None
+    }
+}
+
+fn get_pointer_or_array_size(node: &Node) -> usize {
+    match &node.ty {
+        Some(ty) => match &ty.kind {
+            TypeKind::TyPtr { ptr_to } | TypeKind::TyArray { ptr_to, .. } => ptr_to.size,
+            _ => panic!("not a pointer or array"),
+        },
+        None => panic!("no type information"),
     }
 }

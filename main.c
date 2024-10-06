@@ -1,7 +1,7 @@
-int fib(int x) {
-  if (x <= 1)
-    return 1;
-  return fib(x - 1) + fib(x - 2);
+long main() {
+  long x[3];
+  *x = 3;
+  *(x + 1) = 4;
+  *(x + 2) = 5;
+  return *x;
 }
-
-int main() { return fib(9); }

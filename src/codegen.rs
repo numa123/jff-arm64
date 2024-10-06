@@ -9,6 +9,13 @@ fn pop16() {
 static mut IFIDX: usize = 0;
 static mut FORIDX: usize = 0;
 
+fn load(ty: &Type) {
+    if let TypeKind::TyArray { .. } = ty.kind {
+        return;
+    }
+    println!("  ldr x0, [x0]");
+}
+
 fn gen_addr(node: Node) {
     if let NodeKind::NdVar { var } = node.kind {
         let var = var.borrow();
@@ -31,7 +38,7 @@ fn gen_expr(node: Node) {
     if let NodeKind::NdVar { var } = node.kind {
         let var = var.borrow();
         println!("      add x0, x29, {}", var.offset); // えいや
-        println!("      ldr x0, [x0]");
+        load(&var.ty);
         return;
     }
 
@@ -153,7 +160,7 @@ fn gen_expr(node: Node) {
 
     if let NodeKind::NdDeref { lhs } = node.kind {
         gen_expr(*lhs);
-        println!("      ldr x0, [x0]");
+        load(node.ty.as_ref().unwrap()); // 正しいか？
         return;
     }
 
@@ -260,22 +267,22 @@ fn align16(i: isize) -> isize {
 
 pub fn codegen(ctx: Ctx) {
     for (name, func) in &ctx.functions {
-        let mut stack_size = 0;
+        let mut stack_size = 16; // 少々余分に撮っていると思う
 
         // 各関数の変数に対してスタックサイズを計算
+        // どうやってアラインメントすれば良いのか正直わからん
         for var in &func.variables {
             let mut var = var.borrow_mut();
-            var.offset = var.offset + 16; // スタックのオフセットを調整
-            stack_size += var.offset;
+            var.offset = stack_size;
+            stack_size += var.ty.size as isize;
         }
-
-        let prologue_size = align16(stack_size) + 16;
+        stack_size = align16(stack_size);
 
         // 関数名に基づくラベル
         println!(".text");
         println!(".global _{}", name);
         println!("_{}:", name);
-        println!("      stp x29, x30, [sp, -{}]!", prologue_size);
+        println!("      stp x29, x30, [sp, -{}]!", stack_size);
         println!("      mov x29, sp");
 
         // 引数の処理
@@ -297,7 +304,7 @@ pub fn codegen(ctx: Ctx) {
         }
 
         println!("end.{}:", name);
-        println!("      ldp x29, x30, [sp] ,{}", prologue_size);
+        println!("      ldp x29, x30, [sp] ,{}", stack_size);
         println!("      ret");
     }
 }

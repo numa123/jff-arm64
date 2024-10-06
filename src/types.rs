@@ -140,10 +140,10 @@ pub struct Node {
 }
 
 #[derive(Debug, Clone)]
-enum TypeKind {
+pub enum TypeKind {
     TyInt,
     TyPtr { ptr_to: Box<Type> },
-    TyArray { len: usize },
+    TyArray { ptr_to: Box<Type>, len: usize },
 }
 
 #[derive(Debug, Clone)]
@@ -168,6 +168,16 @@ pub fn new_int() -> Type {
     }
 }
 
+pub fn new_array_ty(ty: Type, len: usize) -> Type {
+    Type {
+        kind: TypeKind::TyArray {
+            ptr_to: Box::new(ty.clone()),
+            len,
+        },
+        size: ty.size * len,
+    }
+}
+
 pub fn is_integer_node(node: &Node) -> bool {
     if let Some(ty) = &node.ty {
         if let TypeKind::TyInt = ty.kind {
@@ -181,14 +191,12 @@ pub fn is_integer_node(node: &Node) -> bool {
 }
 
 pub fn is_pointer_node(node: &Node) -> bool {
-    if let Some(ty) = &node.ty {
-        if let TypeKind::TyPtr { .. } = ty.kind {
-            true
-        } else {
-            false
-        }
-    } else {
-        false
+    match &node.ty {
+        Some(ty) => match &ty.kind {
+            TypeKind::TyPtr { .. } | TypeKind::TyArray { .. } => true,
+            _ => false,
+        },
+        None => false,
     }
 }
 
@@ -246,11 +254,14 @@ pub fn add_type(node: &mut Node) {
         NodeKind::NdDeref { lhs } => {
             add_type(lhs);
             if let Some(ty) = &lhs.ty {
-                if let TypeKind::TyPtr { ptr_to } = &ty.kind {
-                    node.ty = Some((**ptr_to).clone());
-                } else {
-                    panic!("not a pointer");
+                match &ty.kind {
+                    TypeKind::TyPtr { ptr_to } | TypeKind::TyArray { ptr_to, .. } => {
+                        node.ty = Some((**ptr_to).clone());
+                    }
+                    _ => panic!("not a pointer or array"),
                 }
+            } else {
+                panic!("no type information");
             }
         }
         NodeKind::NdReturn { lhs } | NodeKind::NdExprStmt { lhs } | NodeKind::NdNeg { lhs } => {
