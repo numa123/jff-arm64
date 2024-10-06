@@ -48,7 +48,24 @@ impl Ctx<'_> {
         if let TokenKind::TkPunct { str } = &self.tokens[0].kind {
             return str == op;
         }
+        if let TokenKind::TkKeyword { name } = &self.tokens[0].kind {
+            return name == op;
+        }
         false
+    }
+
+    pub fn consume(&mut self, s: &str) -> bool {
+        if self.equal(s) {
+            self.tokens.remove(0);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn show_tokens(&self) {
+        eprintln!("{:#?}", self.tokens);
     }
 
     pub fn error_tok(&self, tok: &Token, msg: &str) -> ! {
@@ -143,10 +160,11 @@ impl Ctx<'_> {
     }
 
     pub fn convert_keywords(&mut self) {
+        let keywords = vec!["return", "if", "else"];
         for token in &mut self.tokens {
             if let TokenKind::TkIdent { name } = &token.kind {
-                if name == "return" {
-                    token.kind = TokenKind::TkReturn;
+                if keywords.contains(&name.as_str()) {
+                    token.kind = TokenKind::TkKeyword { name: name.clone() };
                 }
             }
         }

@@ -12,6 +12,7 @@ fn gen_addr(node: Node) {
         println!("      add x0, x29, {}", var.offset);
         return;
     }
+    panic!("not expected node: {:#?}", node);
 }
 
 fn gen_expr(node: Node) {
@@ -137,6 +138,8 @@ fn gen_expr(node: Node) {
         println!("      str x0, [x1]");
         return;
     }
+
+    panic!("not expected node: {:#?}", node);
 }
 
 fn gen_stmt(node: Node) {
@@ -157,6 +160,25 @@ fn gen_stmt(node: Node) {
         }
         return;
     }
+
+    if let NodeKind::NdIf { cond, then, els } = node.kind {
+        gen_expr(*cond);
+        println!("	  cmp x0, 1");
+        if let Some(els) = els {
+            println!("	  b.ne else");
+            gen_stmt(*then);
+            println!("	  b endif");
+            println!("else:");
+            gen_stmt(*els);
+        } else {
+            println!("	  b.ne endif");
+            gen_stmt(*then);
+        }
+        println!("endif:");
+        return;
+    }
+
+    panic!("not expected node"); // matchにした方が良い
 }
 
 fn align16(i: isize) -> isize {
@@ -179,7 +201,6 @@ pub fn codegen(ctx: Ctx) {
     println!("      mov x29, sp");
 
     for stmt in ctx.body {
-        // eprintln!("{:#?}", stmt);
         gen_stmt(stmt);
     }
     println!("end:");

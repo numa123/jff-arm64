@@ -23,7 +23,7 @@ pub enum TokenKind {
     TkPunct { str: String },
     TkNum { val: isize },
     TkIdent { name: String },
-    TkReturn,
+    TkKeyword { name: String },
 }
 
 #[derive(Debug)]
@@ -41,23 +41,73 @@ pub struct Var {
 
 #[derive(Debug)]
 pub enum NodeKind {
-    NdAdd { lhs: Box<Node>, rhs: Box<Node> },
-    NdSub { lhs: Box<Node>, rhs: Box<Node> },
-    NdMul { lhs: Box<Node>, rhs: Box<Node> },
-    NdDiv { lhs: Box<Node>, rhs: Box<Node> },
-    NdNeg { lhs: Box<Node> },
-    NdEq { lhs: Box<Node>, rhs: Box<Node> },
-    NdNe { lhs: Box<Node>, rhs: Box<Node> },
-    NdLt { lhs: Box<Node>, rhs: Box<Node> },
-    NdLe { lhs: Box<Node>, rhs: Box<Node> },
-    NdGt { lhs: Box<Node>, rhs: Box<Node> },
-    NdGe { lhs: Box<Node>, rhs: Box<Node> },
-    NdExprStmt { lhs: Box<Node> },
-    NdNum { val: isize },
-    NdAssign { lhs: Box<Node>, rhs: Box<Node> },
-    NdVar { var: Rc<RefCell<Var>> },
-    NdReturn { lhs: Box<Node> },
-    NdBlock { body: Vec<Node> },
+    NdAdd {
+        lhs: Box<Node>,
+        rhs: Box<Node>,
+    },
+    NdSub {
+        lhs: Box<Node>,
+        rhs: Box<Node>,
+    },
+    NdMul {
+        lhs: Box<Node>,
+        rhs: Box<Node>,
+    },
+    NdDiv {
+        lhs: Box<Node>,
+        rhs: Box<Node>,
+    },
+    NdNeg {
+        lhs: Box<Node>,
+    },
+    NdEq {
+        lhs: Box<Node>,
+        rhs: Box<Node>,
+    },
+    NdNe {
+        lhs: Box<Node>,
+        rhs: Box<Node>,
+    },
+    NdLt {
+        lhs: Box<Node>,
+        rhs: Box<Node>,
+    },
+    NdLe {
+        lhs: Box<Node>,
+        rhs: Box<Node>,
+    },
+    NdGt {
+        lhs: Box<Node>,
+        rhs: Box<Node>,
+    },
+    NdGe {
+        lhs: Box<Node>,
+        rhs: Box<Node>,
+    },
+    NdExprStmt {
+        lhs: Box<Node>,
+    },
+    NdNum {
+        val: isize,
+    },
+    NdAssign {
+        lhs: Box<Node>,
+        rhs: Box<Node>,
+    },
+    NdVar {
+        var: Rc<RefCell<Var>>,
+    },
+    NdReturn {
+        lhs: Box<Node>,
+    },
+    NdBlock {
+        body: Vec<Node>,
+    },
+    NdIf {
+        cond: Box<Node>,
+        then: Box<Node>,
+        els: Option<Box<Node>>,
+    },
 }
 
 #[derive(Debug)]

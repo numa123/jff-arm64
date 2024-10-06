@@ -5,7 +5,7 @@ use crate::types::*;
 impl Ctx<'_> {
     fn stmt(&mut self) -> Node {
         match &self.tokens[0].kind {
-            TokenKind::TkReturn => {
+            TokenKind::TkKeyword { name } if name == "return" => {
                 self.advance_tok(1);
                 let node = Node {
                     kind: NodeKind::NdReturn {
@@ -13,6 +13,34 @@ impl Ctx<'_> {
                     },
                 };
                 self.skip(";");
+                return node;
+            }
+            TokenKind::TkKeyword { name } if name == "if" => {
+                self.advance_tok(1);
+                let node: Node;
+                self.skip("(");
+                let cond = self.expr();
+                self.skip(")");
+                let then = self.stmt();
+                if self.equal("else") {
+                    self.advance_tok(1);
+                    let els = self.stmt();
+                    node = Node {
+                        kind: NodeKind::NdIf {
+                            cond: Box::new(cond),
+                            then: Box::new(then),
+                            els: Some(Box::new(els)),
+                        },
+                    };
+                    return node;
+                }
+                node = Node {
+                    kind: NodeKind::NdIf {
+                        cond: Box::new(cond),
+                        then: Box::new(then),
+                        els: None,
+                    },
+                };
                 return node;
             }
             TokenKind::TkPunct { str } if str == "{" => {
@@ -27,10 +55,9 @@ impl Ctx<'_> {
     }
     fn compound_stmt(&mut self) -> Node {
         let mut body = Vec::new();
-        while !self.equal("}") {
+        while !self.consume("}") {
             body.push(self.stmt());
         }
-        self.skip("}");
         let node = Node {
             kind: NodeKind::NdBlock { body },
         };
@@ -242,16 +269,11 @@ impl Ctx<'_> {
                         kind: NodeKind::NdVar { var: var.clone() }, // Clone the Rc to increase the reference count
                     };
                 } else {
-                    // Create a new variable
                     let var = Rc::new(RefCell::new(Var {
                         name: name.clone(),
                         offset: self.variables.len() as isize * 8, // Offset will be calculated later // あとで方を実装した際、そのsizeなりによって変更すべき。ここでやるか、codegenでやるかはあとで
                     }));
-
-                    // Add the variable to the list
                     self.variables.push(var.clone());
-
-                    // Set the variable in the node
                     node = Node {
                         kind: NodeKind::NdVar { var: var.clone() },
                     };
