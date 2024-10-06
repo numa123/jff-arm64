@@ -15,6 +15,10 @@ fn gen_addr(node: Node) {
         println!("      add x0, x29, {}", var.offset);
         return;
     }
+    if let NodeKind::NdDeref { lhs } = node.kind {
+        gen_expr(*lhs);
+        return;
+    }
     panic!("not expected node: {:#?}", node);
 }
 
@@ -142,6 +146,17 @@ fn gen_expr(node: Node) {
         return;
     }
 
+    if let NodeKind::NdAddr { lhs } = node.kind {
+        gen_addr(*lhs);
+        return;
+    }
+
+    if let NodeKind::NdDeref { lhs } = node.kind {
+        gen_expr(*lhs);
+        println!("      ldr x0, [x0]");
+        return;
+    }
+
     panic!("not expected node: {:#?}", node);
 }
 
@@ -236,7 +251,7 @@ pub fn codegen(ctx: Ctx) {
     for var in ctx.variables {
         let mut var = var.borrow_mut();
         stack_size += var.offset;
-        var.offset = var.offset * 16;
+        var.offset = var.offset + 16;
     }
 
     let prologue_size = align16(stack_size) + 16;

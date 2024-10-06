@@ -16,7 +16,7 @@
 - relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 - add = mul ("+" mul | "-" mul)*
 - mul = unary ("*" unary | "/" unary)*
-- unary = ("+" | "-") unary | primary
+- unary = ("+" | "-" | "*" | "&") unary | primary
 - primary = num | "(" expr ")" | ident
 
 ## 現在サポート中の演算子の優先順位
@@ -25,7 +25,7 @@
 2. <, <=, >, >=
 3. +, -
 4. *, /
-5. 単項+, 単項-
+5. 単項+, 単項-, 単項*, 単項&
 6. ()
 
 ## 演算子の優先順位
@@ -34,6 +34,7 @@ source: https://c-lang.sevendays-study.com/appendix4.html
 
 # メモ
 - 変数を定義するところあたりから、気合い入れて設計していくべき
+- ポインタ同士の掛け算とかはどういう扱いになっているんだ今のコードだと
 
 - multiletter variableを実装している時のFunctionの気持ちとしては、test.shで書いているシングルクォーテーションで囲まれた部分は、関数のブロック内で起こっていることみたいな感覚。int main() { ここ } の、ここの部分。
 

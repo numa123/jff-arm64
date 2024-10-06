@@ -6,7 +6,7 @@ impl Ctx<'_> {
     fn stmt(&mut self) -> Node {
         match &self.tokens[0].kind {
             TokenKind::TkKeyword { name } if name == "return" => {
-                self.advance_tok(1);
+                self.advance_one_tok();
                 let node = Node {
                     kind: NodeKind::NdReturn {
                         lhs: Box::new(self.expr()),
@@ -16,7 +16,7 @@ impl Ctx<'_> {
                 return node;
             }
             TokenKind::TkKeyword { name } if name == "if" => {
-                self.advance_tok(1);
+                self.advance_one_tok();
                 let node: Node;
                 self.skip("(");
                 let cond = self.expr();
@@ -24,7 +24,7 @@ impl Ctx<'_> {
                 let then = self.stmt();
                 let mut els = None;
                 if self.equal("else") {
-                    self.advance_tok(1);
+                    self.advance_one_tok();
                     els = Some(self.stmt());
                 }
                 node = Node {
@@ -37,7 +37,7 @@ impl Ctx<'_> {
                 return node;
             }
             TokenKind::TkKeyword { name } if name == "for" => {
-                self.advance_tok(1);
+                self.advance_one_tok();
                 self.skip("(");
                 let init = self.expr_stmt();
                 let mut cond = None;
@@ -62,7 +62,7 @@ impl Ctx<'_> {
                 return node;
             }
             TokenKind::TkKeyword { name } if name == "while" => {
-                self.advance_tok(1);
+                self.advance_one_tok();
                 self.skip("(");
                 let cond = self.expr();
                 self.skip(")");
@@ -97,7 +97,7 @@ impl Ctx<'_> {
     }
     fn expr_stmt(&mut self) -> Node {
         if self.equal(";") {
-            self.advance_tok(1);
+            self.advance_one_tok();
             return Node {
                 kind: NodeKind::NdBlock { body: Vec::new() },
             };
@@ -118,7 +118,7 @@ impl Ctx<'_> {
         while !self.tokens.is_empty() {
             match &self.tokens[0].kind {
                 TokenKind::TkPunct { str } if str == "=" => {
-                    self.advance_tok(1);
+                    self.advance_one_tok();
                     node = Node {
                         kind: NodeKind::NdAssign {
                             lhs: Box::new(node),
@@ -136,7 +136,7 @@ impl Ctx<'_> {
         while !self.tokens.is_empty() {
             match &self.tokens[0].kind {
                 TokenKind::TkPunct { str } if str == "==" => {
-                    self.advance_tok(1);
+                    self.advance_one_tok();
                     node = Node {
                         kind: NodeKind::NdEq {
                             lhs: Box::new(node),
@@ -145,7 +145,7 @@ impl Ctx<'_> {
                     };
                 }
                 TokenKind::TkPunct { str } if str == "!=" => {
-                    self.advance_tok(1);
+                    self.advance_one_tok();
                     node = Node {
                         kind: NodeKind::NdNe {
                             lhs: Box::new(node),
@@ -164,7 +164,7 @@ impl Ctx<'_> {
         while !self.tokens.is_empty() {
             match &self.tokens[0].kind {
                 TokenKind::TkPunct { str } if str == "<" => {
-                    self.advance_tok(1);
+                    self.advance_one_tok();
                     node = Node {
                         kind: NodeKind::NdLt {
                             lhs: Box::new(node),
@@ -173,7 +173,7 @@ impl Ctx<'_> {
                     };
                 }
                 TokenKind::TkPunct { str } if str == "<=" => {
-                    self.advance_tok(1);
+                    self.advance_one_tok();
                     node = Node {
                         kind: NodeKind::NdLe {
                             lhs: Box::new(node),
@@ -182,7 +182,7 @@ impl Ctx<'_> {
                     };
                 }
                 TokenKind::TkPunct { str } if str == ">" => {
-                    self.advance_tok(1);
+                    self.advance_one_tok();
                     node = Node {
                         kind: NodeKind::NdGt {
                             lhs: Box::new(node),
@@ -191,7 +191,7 @@ impl Ctx<'_> {
                     };
                 }
                 TokenKind::TkPunct { str } if str == ">=" => {
-                    self.advance_tok(1);
+                    self.advance_one_tok();
                     node = Node {
                         kind: NodeKind::NdGe {
                             lhs: Box::new(node),
@@ -210,7 +210,7 @@ impl Ctx<'_> {
         while !self.tokens.is_empty() {
             match &self.tokens[0].kind {
                 TokenKind::TkPunct { str } if str == "+" => {
-                    self.advance_tok(1);
+                    self.advance_one_tok();
                     node = Node {
                         kind: NodeKind::NdAdd {
                             lhs: Box::new(node),
@@ -219,7 +219,7 @@ impl Ctx<'_> {
                     };
                 }
                 TokenKind::TkPunct { str } if str == "-" => {
-                    self.advance_tok(1);
+                    self.advance_one_tok();
                     node = Node {
                         kind: NodeKind::NdSub {
                             lhs: Box::new(node),
@@ -238,7 +238,7 @@ impl Ctx<'_> {
         while !self.tokens.is_empty() {
             match &self.tokens[0].kind {
                 TokenKind::TkPunct { str } if str == "*" => {
-                    self.advance_tok(1);
+                    self.advance_one_tok();
                     node = Node {
                         kind: NodeKind::NdMul {
                             lhs: Box::new(node),
@@ -247,7 +247,7 @@ impl Ctx<'_> {
                     };
                 }
                 TokenKind::TkPunct { str } if str == "/" => {
-                    self.advance_tok(1);
+                    self.advance_one_tok();
                     node = Node {
                         kind: NodeKind::NdDiv {
                             lhs: Box::new(node),
@@ -263,13 +263,29 @@ impl Ctx<'_> {
 
     fn unary(&mut self) -> Node {
         if self.equal("+") {
-            self.advance_tok(1);
+            self.advance_one_tok();
             return self.unary();
         }
         if self.equal("-") {
-            self.advance_tok(1);
+            self.advance_one_tok();
             return Node {
                 kind: NodeKind::NdNeg {
+                    lhs: Box::new(self.unary()),
+                },
+            };
+        }
+        if self.equal("&") {
+            self.advance_one_tok();
+            return Node {
+                kind: NodeKind::NdAddr {
+                    lhs: Box::new(self.unary()),
+                },
+            };
+        }
+        if self.equal("*") {
+            self.advance_one_tok();
+            return Node {
+                kind: NodeKind::NdDeref {
                     lhs: Box::new(self.unary()),
                 },
             };
@@ -287,14 +303,14 @@ impl Ctx<'_> {
                 };
             }
             TokenKind::TkPunct { str } if str == "(" => {
-                self.advance_tok(1);
+                self.advance_one_tok();
                 let node = self.expr();
                 self.skip(")");
                 return node;
             }
             TokenKind::TkIdent { name } => {
                 let name = name.clone();
-                self.advance_tok(1);
+                self.advance_one_tok();
                 let node: Node;
                 if let Some(var) = self.find_var(&name) {
                     node = Node {

@@ -29,10 +29,17 @@ impl Ctx<'_> {
         }
     }
 
-    pub fn advance_tok(&mut self, n: usize) {
+    pub fn advance_one_tok(&mut self) -> Token {
+        self.tokens.remove(0)
+    }
+
+    #[allow(dead_code)]
+    pub fn advance_toks(&mut self, n: usize) -> Vec<Token> {
+        let mut tokens = Vec::new();
         for _ in 0..n {
-            self.tokens.remove(0);
+            tokens.push(self.tokens.remove(0));
         }
+        tokens
     }
 
     pub fn skip(&mut self, op: &str) -> Token {
@@ -130,6 +137,7 @@ impl Ctx<'_> {
                 || c == '='
                 || c == '{'
                 || c == '}'
+                || c == '&'
             {
                 tokens.push(Token {
                     kind: TokenKind::TkPunct { str: c.to_string() },

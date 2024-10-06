@@ -118,6 +118,12 @@ pub enum NodeKind {
         cond: Box<Node>,
         body: Box<Node>,
     },
+    NdAddr {
+        lhs: Box<Node>,
+    },
+    NdDeref {
+        lhs: Box<Node>,
+    },
 }
 
 #[derive(Debug)]
