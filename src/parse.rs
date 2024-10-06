@@ -3,6 +3,60 @@ use std::{cell::RefCell, mem::swap, rc::Rc};
 use crate::types::*;
 
 impl Ctx<'_> {
+    fn declspec(&mut self) -> Type {
+        self.skip("int");
+        return new_int();
+    }
+    fn decltype(&mut self, ty: Type) -> Type {
+        let mut ty = ty;
+        while self.consume("*") {
+            ty = new_ptr_to(ty);
+        }
+        return ty;
+    }
+    fn declaration(&mut self) -> Node {
+        let base_ty = self.declspec();
+        let mut body = Vec::new();
+        while !self.equal(";") {
+            let ty = self.decltype(base_ty.clone());
+            if let TokenKind::TkIdent { name } = &self.tokens[0].kind {
+                // eprintln!("{}\n{:#?}", name, ty);
+                let mut node = self.create_var(name.clone().as_str(), ty);
+                self.advance_one_tok();
+                if self.equal("=") {
+                    self.advance_one_tok();
+                    node = Node {
+                        kind: NodeKind::NdAssign {
+                            lhs: Box::new(node),
+                            rhs: Box::new(self.expr()),
+                        },
+                        ty: None,
+                    };
+                }
+                let mut node = Node {
+                    kind: NodeKind::NdExprStmt {
+                        lhs: Box::new(node),
+                    },
+                    ty: None,
+                };
+                add_type(&mut node);
+                body.push(node);
+                if self.equal(",") {
+                    self.advance_one_tok();
+                    continue;
+                }
+            } else {
+                // tokenがidentifierでない場合
+                self.error_tok(&self.tokens[0], "expected an identifier");
+            }
+        }
+        let node = Node {
+            kind: NodeKind::NdBlock { body },
+            ty: None,
+        };
+        self.skip(";");
+        return node;
+    }
     fn stmt(&mut self) -> Node {
         match &self.tokens[0].kind {
             TokenKind::TkKeyword { name } if name == "return" => {
@@ -92,9 +146,15 @@ impl Ctx<'_> {
     fn compound_stmt(&mut self) -> Node {
         let mut body = Vec::new();
         while !self.consume("}") {
-            let mut stmt = self.stmt();
-            add_type(&mut stmt);
-            body.push(stmt);
+            if self.equal("int") {
+                let mut node = self.declaration();
+                add_type(&mut node);
+                body.push(node);
+            } else {
+                let mut stmt = self.stmt();
+                add_type(&mut stmt);
+                body.push(stmt);
+            }
         }
         let node = Node {
             kind: NodeKind::NdBlock { body },
@@ -424,23 +484,29 @@ impl Ctx<'_> {
                 if let Some(var) = self.find_var(&name) {
                     node = Node {
                         kind: NodeKind::NdVar { var: var.clone() }, // Clone the Rc to increase the reference count
-                        ty: None,
+                        ty: Some(var.borrow().clone().ty),
                     };
                 } else {
-                    let var = Rc::new(RefCell::new(Var {
-                        name: name.clone(),
-                        offset: self.variables.len() as isize * 8, // Offset will be calculated later // あとで方を実装した際、そのsizeなりによって変更すべき。ここでやるか、codegenでやるかはあとで
-                    }));
-                    self.variables.push(var.clone());
-                    node = Node {
-                        kind: NodeKind::NdVar { var: var.clone() },
-                        ty: None,
-                    };
+                    self.error_tok(&self.tokens[0], "undefined variable");
                 }
                 return node;
             }
             _ => self.error_tok(&self.tokens[0], "expected a number or ( expression )"),
         }
+    }
+
+    fn create_var(&mut self, name: &str, ty: Type) -> Node {
+        let var = Rc::new(RefCell::new(Var {
+            name: name.to_string(),
+            offset: self.variables.len() as isize * 8, // Offset will be calculated later // あとで方を実装した際、そのsizeなりによって変更すべき。ここでやるか、codegenでやるかはあとで
+            ty: ty.clone(),
+        }));
+        self.variables.push(var.clone());
+        let node = Node {
+            kind: NodeKind::NdVar { var: var.clone() },
+            ty: Some(ty),
+        };
+        return node;
     }
 
     // -> Function

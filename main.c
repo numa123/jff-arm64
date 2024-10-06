@@ -1,4 +1,1 @@
-int main() {
-  int x = 3;
-  int *y = 1 + &x;
-}
+int main() { int a = 3, b; }

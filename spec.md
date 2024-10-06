@@ -8,10 +8,15 @@
   - Nodeを作成する際にtyをつけて、Nodeを生成する際に毎回tyをつける。
 
 ## EBNF
+- declspec = "int"
+- decltype = "*"* 
+  - 入力: declaration_specifierとtoken。出力: type
+- declaration = declspec ( decltype ident ("=" expr)? ("," decltype ("=" expr)?)* )? ";"
+
 - program = stmt*
   - 気持ちとしては、今の段階のプログラムは、stmtが0個以上あるものとしてコンパイラを作成している、というものだと思う
 - stmt = "return" expr ";" | expr-stmt | "{" compound-stmt | "if" "(" expr ")" stmt ("else" stmt)? | "for" "(" expr-stmt expr? ";" expr? ")" stmt | "while" "(" expr ")" stmt
-- compound-stmt = stmt* "}"
+- compound-stmt = (declaration | stmt)* "}"
 - expr-stmt = expr? ";"
 - expr = assign
 - assign = equality ("=" assign)?
@@ -41,6 +46,8 @@ source: https://c-lang.sevendays-study.com/appendix4.html
 
 - multiletter variableを実装している時のFunctionの気持ちとしては、test.shで書いているシングルクォーテーションで囲まれた部分は、関数のブロック内で起こっていることみたいな感覚。int main() { ここ } の、ここの部分。
 - そろそろコードが冗長になってきた
+- 型のつけ忘れとかできちんと動かない場合がある。
+- 冗長なのにわかりづらいコードになってきた。
 
 
 # 注意

@@ -37,6 +37,7 @@ pub struct Token {
 pub struct Var {
     pub name: String,
     pub offset: isize,
+    pub ty: Type,
 }
 
 #[derive(Debug, Clone)]
@@ -235,12 +236,13 @@ pub fn add_type(node: &mut Node) {
         }
         NodeKind::NdDeref { lhs } => {
             add_type(lhs);
+            // eprintln!("{:#?}", lhs);
             if let Some(ty) = &lhs.ty {
-                if let TypeKind::TyPtr = ty.kind {
-                    node.ty = Some(*(ty.ptr_to.clone().unwrap()));
-                } else {
-                    node.ty = Some(new_int());
+                if !is_pointer(ty) {
+                    panic!("not a pointer");
+                    // 確かにこの辺で、トークンが欲しくなる。
                 }
+                node.ty = Some(*(ty.ptr_to.clone().unwrap()));
             }
         }
         NodeKind::NdReturn { lhs } | NodeKind::NdExprStmt { lhs } | NodeKind::NdNeg { lhs } => {

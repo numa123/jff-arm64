@@ -48,6 +48,11 @@ impl Ctx<'_> {
                 return self.tokens.remove(0);
             }
         }
+        if let TokenKind::TkKeyword { name } = &self.tokens[0].kind {
+            if name == op {
+                return self.tokens.remove(0);
+            }
+        }
         self.error_tok(&self.tokens[0], format!("expected '{}'", op).as_str())
     }
 
@@ -138,6 +143,7 @@ impl Ctx<'_> {
                 || c == '{'
                 || c == '}'
                 || c == '&'
+                || c == ','
             {
                 tokens.push(Token {
                     kind: TokenKind::TkPunct { str: c.to_string() },
@@ -168,7 +174,7 @@ impl Ctx<'_> {
     }
 
     pub fn convert_keywords(&mut self) {
-        let keywords = vec!["return", "if", "else", "for", "while"];
+        let keywords = vec!["return", "if", "else", "for", "while", "int"];
         for token in &mut self.tokens {
             if let TokenKind::TkIdent { name } = &token.kind {
                 if keywords.contains(&name.as_str()) {
