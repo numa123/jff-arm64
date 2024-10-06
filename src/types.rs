@@ -114,6 +114,10 @@ pub enum NodeKind {
         inc: Option<Box<Node>>,
         body: Box<Node>,
     },
+    NdWhile {
+        cond: Box<Node>,
+        body: Box<Node>,
+    },
 }
 
 #[derive(Debug)]

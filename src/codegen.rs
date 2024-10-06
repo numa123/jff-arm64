@@ -211,6 +211,19 @@ fn gen_stmt(node: Node) {
         return;
     }
 
+    if let NodeKind::NdWhile { cond, body } = node.kind {
+        let idx = unsafe { FORIDX };
+        unsafe { FORIDX += 1 };
+        println!("startwhile.{}:", idx);
+        gen_expr(*cond);
+        println!("	  cmp x0, 1");
+        println!("	  b.ne endwhile.{}", idx);
+        gen_stmt(*body);
+        println!("	  b startwhile.{}", idx);
+        println!("endwhile.{}:", idx);
+        return;
+    }
+
     panic!("not expected node"); // matchにした方が良い
 }
 

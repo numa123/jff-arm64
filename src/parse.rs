@@ -61,6 +61,20 @@ impl Ctx<'_> {
                 };
                 return node;
             }
+            TokenKind::TkKeyword { name } if name == "while" => {
+                self.advance_tok(1);
+                self.skip("(");
+                let cond = self.expr();
+                self.skip(")");
+                let body = self.stmt();
+                let node = Node {
+                    kind: NodeKind::NdWhile {
+                        cond: Box::new(cond),
+                        body: Box::new(body),
+                    },
+                };
+                return node;
+            }
             TokenKind::TkPunct { str } if str == "{" => {
                 self.skip("{");
                 let node = self.compound_stmt();
