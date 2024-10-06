@@ -1,7 +1,7 @@
+
 long main() {
-  long x[3];
+  long x[2];
   *x = 3;
   *(x + 1) = 4;
-  *(x + 2) = 5;
-  return *x;
+  return *(x + 1);
 }

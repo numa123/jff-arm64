@@ -13,7 +13,7 @@ fn load(ty: &Type) {
     if let TypeKind::TyArray { .. } = ty.kind {
         return;
     }
-    println!("  ldr x0, [x0]");
+    println!("      ldr x0, [x0]");
 }
 
 fn gen_addr(node: Node) {
@@ -180,6 +180,7 @@ fn gen_expr(node: Node) {
 }
 
 fn gen_stmt(node: Node, funcname: &str) {
+    // eprintln!("gen_stmt: {:#?}", node);
     if let NodeKind::NdExprStmt { lhs } = node.kind {
         gen_expr(*lhs);
         return;

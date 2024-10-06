@@ -13,14 +13,21 @@ impl Ctx<'_> {
             ty = new_ptr_to(ty);
         }
         let name = self.get_ident();
+        ty = self.type_suffix(ty);
+        return (ty, name);
+    }
+    // 今は配列のみ
+    fn type_suffix(&mut self, ty: Type) -> Type {
         if self.equal("[") {
             self.advance_one_tok();
             let size = self.get_and_skip_number();
             self.skip("]");
-            ty = new_array_ty(ty, size as usize);
+            let ty = self.type_suffix(ty);
+            return new_array_ty(ty, size as usize);
         }
-        return (ty, name);
+        ty
     }
+
     fn declaration(&mut self) -> Node {
         let base_ty = self.declspec();
         let mut body = Vec::new();
@@ -312,6 +319,7 @@ impl Ctx<'_> {
                     if is_pointer_node(&node) && is_integer_node(&rhs) {
                         // node.tyのkindのptr_toのsizeを取得してvalに足す
                         let size = get_pointer_or_array_size(&node);
+                        // eprintln!("size: {}", size);
                         let r = Node {
                             kind: NodeKind::NdMul {
                                 lhs: Box::new(rhs),
@@ -329,6 +337,7 @@ impl Ctx<'_> {
                             },
                             ty: node.ty,
                         };
+                        // eprintln!("{:#?}", node);
                         continue;
                     }
                 }
