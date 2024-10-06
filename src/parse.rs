@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, mem::swap, rc::Rc};
 
 use crate::types::*;
 
@@ -11,6 +11,7 @@ impl Ctx<'_> {
                     kind: NodeKind::NdReturn {
                         lhs: Box::new(self.expr()),
                     },
+                    ty: None,
                 };
                 self.skip(";");
                 return node;
@@ -33,6 +34,7 @@ impl Ctx<'_> {
                         then: Box::new(then),
                         els: els.map(Box::new),
                     },
+                    ty: None,
                 };
                 return node;
             }
@@ -58,6 +60,7 @@ impl Ctx<'_> {
                         inc: inc.map(Box::new),
                         body: Box::new(body),
                     },
+                    ty: None,
                 };
                 return node;
             }
@@ -72,6 +75,7 @@ impl Ctx<'_> {
                         cond: Box::new(cond),
                         body: Box::new(body),
                     },
+                    ty: None,
                 };
                 return node;
             }
@@ -88,10 +92,13 @@ impl Ctx<'_> {
     fn compound_stmt(&mut self) -> Node {
         let mut body = Vec::new();
         while !self.consume("}") {
-            body.push(self.stmt());
+            let mut stmt = self.stmt();
+            add_type(&mut stmt);
+            body.push(stmt);
         }
         let node = Node {
             kind: NodeKind::NdBlock { body },
+            ty: None,
         };
         return node;
     }
@@ -100,12 +107,14 @@ impl Ctx<'_> {
             self.advance_one_tok();
             return Node {
                 kind: NodeKind::NdBlock { body: Vec::new() },
+                ty: None,
             };
         }
         let node = Node {
             kind: NodeKind::NdExprStmt {
                 lhs: Box::new(self.expr()),
             },
+            ty: None,
         };
         self.skip(";");
         return node;
@@ -124,6 +133,7 @@ impl Ctx<'_> {
                             lhs: Box::new(node),
                             rhs: Box::new(self.assign()),
                         },
+                        ty: None,
                     };
                 }
                 _ => break,
@@ -142,6 +152,7 @@ impl Ctx<'_> {
                             lhs: Box::new(node),
                             rhs: Box::new(self.relational()),
                         },
+                        ty: None,
                     };
                 }
                 TokenKind::TkPunct { str } if str == "!=" => {
@@ -151,6 +162,7 @@ impl Ctx<'_> {
                             lhs: Box::new(node),
                             rhs: Box::new(self.relational()),
                         },
+                        ty: None,
                     };
                 }
                 _ => break,
@@ -170,6 +182,7 @@ impl Ctx<'_> {
                             lhs: Box::new(node),
                             rhs: Box::new(self.add()),
                         },
+                        ty: None,
                     };
                 }
                 TokenKind::TkPunct { str } if str == "<=" => {
@@ -179,6 +192,7 @@ impl Ctx<'_> {
                             lhs: Box::new(node),
                             rhs: Box::new(self.add()),
                         },
+                        ty: None,
                     };
                 }
                 TokenKind::TkPunct { str } if str == ">" => {
@@ -188,6 +202,7 @@ impl Ctx<'_> {
                             lhs: Box::new(node),
                             rhs: Box::new(self.add()),
                         },
+                        ty: None,
                     };
                 }
                 TokenKind::TkPunct { str } if str == ">=" => {
@@ -197,6 +212,7 @@ impl Ctx<'_> {
                             lhs: Box::new(node),
                             rhs: Box::new(self.add()),
                         },
+                        ty: None,
                     };
                 }
                 _ => break,
@@ -211,21 +227,108 @@ impl Ctx<'_> {
             match &self.tokens[0].kind {
                 TokenKind::TkPunct { str } if str == "+" => {
                     self.advance_one_tok();
-                    node = Node {
-                        kind: NodeKind::NdAdd {
-                            lhs: Box::new(node),
-                            rhs: Box::new(self.mul()),
-                        },
-                    };
+                    let mut rhs = self.mul();
+                    add_type(&mut node);
+                    add_type(&mut rhs);
+                    // num + num
+                    if is_integer_node(&node) && is_integer_node(&rhs) {
+                        node = Node {
+                            kind: NodeKind::NdAdd {
+                                lhs: Box::new(node.clone()), // cloneか...
+                                rhs: Box::new(rhs),
+                            },
+                            ty: node.ty,
+                        };
+                        continue;
+                    }
+                    if is_pointer_node(&node) && is_pointer_node(&rhs) {
+                        self.error_tok(&self.tokens[0], "invalid operands");
+                    }
+                    // canonicalize num + ptr -> ptr + num
+                    if is_integer_node(&node) && is_pointer_node(&rhs) {
+                        swap(&mut node, &mut rhs);
+                    }
+                    // ptr + num
+                    if is_pointer_node(&node) && is_integer_node(&rhs) {
+                        let r = Node {
+                            kind: NodeKind::NdMul {
+                                lhs: Box::new(rhs),
+                                rhs: Box::new(Node {
+                                    kind: NodeKind::NdNum { val: 8 },
+                                    ty: Some(new_int()),
+                                }),
+                            },
+                            ty: None,
+                        };
+                        node = Node {
+                            kind: NodeKind::NdAdd {
+                                lhs: Box::new(node.clone()),
+                                rhs: Box::new(r),
+                            },
+                            ty: node.ty,
+                        };
+                        continue;
+                    }
                 }
                 TokenKind::TkPunct { str } if str == "-" => {
                     self.advance_one_tok();
-                    node = Node {
-                        kind: NodeKind::NdSub {
-                            lhs: Box::new(node),
-                            rhs: Box::new(self.mul()),
-                        },
-                    };
+                    let mut rhs = self.mul();
+                    add_type(&mut node);
+                    add_type(&mut rhs);
+                    // num - num
+                    if is_integer_node(&node) && is_integer_node(&rhs) {
+                        node = Node {
+                            kind: NodeKind::NdSub {
+                                lhs: Box::new(node.clone()), // cloneか...
+                                rhs: Box::new(rhs),
+                            },
+                            ty: node.ty,
+                        };
+                        continue;
+                    }
+                    // ptr - num
+                    if is_pointer_node(&node) && is_integer_node(&rhs) {
+                        let r = Node {
+                            kind: NodeKind::NdMul {
+                                lhs: Box::new(rhs),
+                                rhs: Box::new(Node {
+                                    kind: NodeKind::NdNum { val: 8 },
+                                    ty: Some(new_int()),
+                                }),
+                            },
+                            ty: None,
+                        };
+                        node = Node {
+                            kind: NodeKind::NdSub {
+                                lhs: Box::new(node.clone()),
+                                rhs: Box::new(r),
+                            },
+                            ty: node.ty,
+                        };
+                        continue;
+                    }
+                    // ptr - ptr, which returns how many elements are between the two pointers
+                    if is_pointer_node(&node) && is_pointer_node(&rhs) {
+                        let l = Node {
+                            kind: NodeKind::NdSub {
+                                lhs: Box::new(node.clone()),
+                                rhs: Box::new(rhs),
+                            },
+                            ty: Some(new_int()),
+                        };
+                        node = Node {
+                            kind: NodeKind::NdDiv {
+                                lhs: Box::new(l),
+                                rhs: Box::new(Node {
+                                    kind: NodeKind::NdNum { val: 8 },
+                                    ty: Some(new_int()),
+                                }),
+                            },
+                            ty: None, // あとで付与されるはず
+                        };
+                        continue;
+                    }
+                    self.error_tok(&self.tokens[0], "invalid operands"); // ここの引数は正しいのか？
                 }
                 _ => break,
             }
@@ -244,6 +347,7 @@ impl Ctx<'_> {
                             lhs: Box::new(node),
                             rhs: Box::new(self.unary()),
                         },
+                        ty: None,
                     };
                 }
                 TokenKind::TkPunct { str } if str == "/" => {
@@ -253,6 +357,7 @@ impl Ctx<'_> {
                             lhs: Box::new(node),
                             rhs: Box::new(self.unary()),
                         },
+                        ty: None,
                     };
                 }
                 _ => break,
@@ -272,6 +377,7 @@ impl Ctx<'_> {
                 kind: NodeKind::NdNeg {
                     lhs: Box::new(self.unary()),
                 },
+                ty: None,
             };
         }
         if self.equal("&") {
@@ -280,6 +386,7 @@ impl Ctx<'_> {
                 kind: NodeKind::NdAddr {
                     lhs: Box::new(self.unary()),
                 },
+                ty: None,
             };
         }
         if self.equal("*") {
@@ -288,6 +395,7 @@ impl Ctx<'_> {
                 kind: NodeKind::NdDeref {
                     lhs: Box::new(self.unary()),
                 },
+                ty: None,
             };
         }
         self.primary()
@@ -300,6 +408,7 @@ impl Ctx<'_> {
                     kind: NodeKind::NdNum {
                         val: self.get_and_skip_number(),
                     },
+                    ty: None,
                 };
             }
             TokenKind::TkPunct { str } if str == "(" => {
@@ -315,6 +424,7 @@ impl Ctx<'_> {
                 if let Some(var) = self.find_var(&name) {
                     node = Node {
                         kind: NodeKind::NdVar { var: var.clone() }, // Clone the Rc to increase the reference count
+                        ty: None,
                     };
                 } else {
                     let var = Rc::new(RefCell::new(Var {
@@ -324,6 +434,7 @@ impl Ctx<'_> {
                     self.variables.push(var.clone());
                     node = Node {
                         kind: NodeKind::NdVar { var: var.clone() },
+                        ty: None,
                     };
                 }
                 return node;
