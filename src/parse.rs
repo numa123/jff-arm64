@@ -461,6 +461,29 @@ impl Ctx<'_> {
         self.primary()
     }
 
+    fn funccall(&mut self, name: &str) -> Node {
+        self.advance_one_tok();
+        let mut args = Vec::new();
+        while !self.equal(")") {
+            if self.equal(",") {
+                self.advance_one_tok();
+            }
+            args.push(self.assign());
+        }
+        if args.len() > 8 {
+            self.error_tok(&self.tokens[0], "too many arguments");
+        }
+        let node = Node {
+            kind: NodeKind::NdFuncCall {
+                name: name.to_string(),
+                args: args,
+            },
+            ty: Some(new_int()), // 自分で定義するようになったら、また変数リストから、型を取り出して入れる
+        };
+        self.skip(")");
+        return node;
+    }
+
     fn primary(&mut self) -> Node {
         match &self.tokens[0].kind {
             TokenKind::TkNum { .. } => {
@@ -483,12 +506,7 @@ impl Ctx<'_> {
                 let node: Node;
                 // funccall
                 if self.equal("(") {
-                    self.advance_one_tok();
-                    node = Node {
-                        kind: NodeKind::NdFuncCall { name: name.clone() },
-                        ty: Some(new_int()), // 自分で定義するようになったら、また変数リストから、型を取り出して入れる
-                    };
-                    self.skip(")");
+                    node = self.funccall(&name);
                     return node;
                 }
 

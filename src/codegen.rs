@@ -157,7 +157,14 @@ fn gen_expr(node: Node) {
         return;
     }
 
-    if let NodeKind::NdFuncCall { name } = node.kind {
+    if let NodeKind::NdFuncCall { name, args } = node.kind {
+        for arg in &args {
+            gen_expr(arg.clone());
+            push16();
+        }
+        for i in (0..args.len()).rev() {
+            println!("      ldr x{}, [sp], 16", i);
+        }
         println!("      bl _{}", name);
         return;
     }

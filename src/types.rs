@@ -127,6 +127,7 @@ pub enum NodeKind {
     },
     NdFuncCall {
         name: String,
+        args: Vec<Node>,
     },
 }
 
