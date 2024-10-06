@@ -461,6 +461,7 @@ impl Ctx<'_> {
         self.primary()
     }
 
+    // ここ、関数のtyも返すようにしたいが、自分で定義したものだけで、includeしたものをどうするかわからん
     fn funccall(&mut self, name: &str) -> Node {
         self.advance_one_tok();
         let mut args = Vec::new();
@@ -478,7 +479,7 @@ impl Ctx<'_> {
                 name: name.to_string(),
                 args: args,
             },
-            ty: Some(new_int()), // 自分で定義するようになったら、また変数リストから、型を取り出して入れる
+            ty: Some(new_int()), // 自分で定義するようになったら、また変数リストから、型を取り出して入れる。includeの場合はどうする？足し算とかできないよな。まあ後で考えるか
         };
         self.skip(")");
         return node;
@@ -526,12 +527,18 @@ impl Ctx<'_> {
     }
 
     fn create_var(&mut self, name: &str, ty: Type) -> Node {
+        let variables = &mut self
+            .functions
+            .get_mut(&self.processing_funcname)
+            .unwrap()
+            .variables;
+
         let var = Rc::new(RefCell::new(Var {
             name: name.to_string(),
-            offset: self.variables.len() as isize * 8, // Offset will be calculated later // あとで方を実装した際、そのsizeなりによって変更すべき。ここでやるか、codegenでやるかはあとで
+            offset: variables.len() as isize * 8, // Offset will be calculated later // あとで方を実装した際、そのsizeなりによって変更すべき。ここでやるか、codegenでやるかはあとで
             ty: ty.clone(),
         }));
-        self.variables.push(var.clone());
+        variables.push(var.clone());
         let node = Node {
             kind: NodeKind::NdVar { var: var.clone() },
             ty: Some(ty),
@@ -539,21 +546,59 @@ impl Ctx<'_> {
         return node;
     }
 
-    // -> Function
+    // 今は関数だけ
     pub fn parse(&mut self) {
-        let mut program = Vec::new();
         self.tokens = self.tokenize();
         self.convert_keywords();
         while !self.tokens.is_empty() {
-            program.push(self.stmt());
+            let base_ty = self.declspec();
+            let ty = self.decltype(base_ty);
+            let variables: Vec<Rc<RefCell<Var>>> = Vec::new();
+            let name = self.get_ident();
+            // set processing funcname environment variable
+            self.processing_funcname = name.clone();
+            let func = Function {
+                name: name.clone(),
+                variables,
+                body: None,
+                ty: ty,
+            };
+            self.functions.insert(name.clone(), func);
+            // セットアップ終了
+            self.skip("(");
+            self.skip(")");
+            self.skip("{");
+            let mut node = self.compound_stmt();
+            add_type(&mut node);
+            if let Some(func) = self.functions.get_mut(&name) {
+                func.body = Some(node);
+            } else {
+                panic!("Function not found");
+            }
         }
-        self.body = program;
+    }
+
+    fn get_ident(&mut self) -> String {
+        let n: String;
+        if let TokenKind::TkIdent { name } = &self.tokens[0].kind {
+            n = name.clone();
+        } else {
+            self.error_tok(&self.tokens[0], "expected identifier");
+        }
+        self.advance_one_tok();
+        return n;
     }
 }
 
 impl Ctx<'_> {
-    pub fn find_var(&self, name: &str) -> Option<Rc<RefCell<Var>>> {
-        for var in &self.variables {
+    pub fn find_var(&mut self, name: &str) -> Option<Rc<RefCell<Var>>> {
+        let variables = &mut self
+            .functions
+            .get_mut(&self.processing_funcname)
+            .unwrap()
+            .variables
+            .iter();
+        for var in variables {
             if var.borrow().name == name {
                 return Some(var.clone());
             }

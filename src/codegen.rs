@@ -172,7 +172,7 @@ fn gen_expr(node: Node) {
     panic!("not expected node: {:#?}", node);
 }
 
-fn gen_stmt(node: Node) {
+fn gen_stmt(node: Node, funcname: &str) {
     if let NodeKind::NdExprStmt { lhs } = node.kind {
         gen_expr(*lhs);
         return;
@@ -180,13 +180,13 @@ fn gen_stmt(node: Node) {
 
     if let NodeKind::NdReturn { lhs } = node.kind {
         gen_expr(*lhs);
-        println!("	  b end");
+        println!("      b end.{}", funcname);
         return;
     }
 
     if let NodeKind::NdBlock { body } = node.kind {
         for stmt in body {
-            gen_stmt(stmt);
+            gen_stmt(stmt, funcname);
         }
         return;
     }
@@ -199,13 +199,13 @@ fn gen_stmt(node: Node) {
         println!("	  cmp x0, 1");
         if let Some(els) = els {
             println!("	  b.ne else.{}", idx);
-            gen_stmt(*then);
+            gen_stmt(*then, funcname);
             println!("	  b endif.{}", idx);
             println!("else.{}:", idx);
-            gen_stmt(*els);
+            gen_stmt(*els, funcname);
         } else {
             println!("	  b.ne endif.{}", idx);
-            gen_stmt(*then);
+            gen_stmt(*then, funcname);
         }
         println!("endif.{}:", idx);
         return;
@@ -220,10 +220,10 @@ fn gen_stmt(node: Node) {
     {
         let idx = unsafe { FORIDX };
         unsafe { FORIDX += 1 };
-        gen_stmt(*init);
+        gen_stmt(*init, funcname);
         println!("	  b cond.{}", idx);
         println!("startfor.{}:", idx);
-        gen_stmt(*body);
+        gen_stmt(*body, funcname);
         if let Some(inc) = inc {
             gen_expr(*inc);
         }
@@ -245,7 +245,7 @@ fn gen_stmt(node: Node) {
         gen_expr(*cond);
         println!("	  cmp x0, 1");
         println!("	  b.ne endwhile.{}", idx);
-        gen_stmt(*body);
+        gen_stmt(*body, funcname);
         println!("	  b startwhile.{}", idx);
         println!("endwhile.{}:", idx);
         return;
@@ -259,24 +259,32 @@ fn align16(i: isize) -> isize {
 }
 
 pub fn codegen(ctx: Ctx) {
-    let mut stack_size = 0;
-    for var in ctx.variables {
-        let mut var = var.borrow_mut();
-        stack_size += var.offset;
-        var.offset = var.offset + 16;
-    }
+    for (name, func) in &ctx.functions {
+        let mut stack_size = 0;
 
-    let prologue_size = align16(stack_size) + 16;
-    println!(".text");
-    println!(".global _main");
-    println!("_main:");
-    println!("      stp x29, x30, [sp, -{}]!", prologue_size);
-    println!("      mov x29, sp");
+        // 各関数の変数に対してスタックサイズを計算
+        for var in &func.variables {
+            let mut var = var.borrow_mut();
+            stack_size += var.offset;
+            var.offset = var.offset + 16; // スタックのオフセットを調整
+        }
 
-    for stmt in ctx.body {
-        gen_stmt(stmt);
+        let prologue_size = align16(stack_size) + 16;
+
+        // 関数名に基づくラベル
+        println!(".text");
+        println!(".global _{}", name);
+        println!("_{}:", name);
+        println!("      stp x29, x30, [sp, -{}]!", prologue_size);
+        println!("      mov x29, sp");
+
+        // 関数のbodyに対して`gen_stmt`を呼び出す
+        if let Some(body) = &func.body {
+            gen_stmt(body.clone(), name);
+        }
+
+        println!("end.{}:", name);
+        println!("      ldp x29, x30, [sp] ,{}", prologue_size);
+        println!("      ret");
     }
-    println!("end:");
-    println!("      ldp x29, x30, [sp] ,{}", prologue_size);
-    println!("      ret");
 }

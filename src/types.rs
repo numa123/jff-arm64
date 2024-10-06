@@ -1,21 +1,21 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 // いずれ
-// #[derive(Debug)]
-// pub struct Function {
-//     pub variables: Vec<Var>,
-//     pub body: Vec<Node>, // 今はstmt*
-//                          // stack_size: usize,
-// }
+#[derive(Debug)]
+pub struct Function {
+    pub name: String,
+    pub variables: Vec<Rc<RefCell<Var>>>,
+    pub body: Option<Node>, // {compound_stmt}
+    pub ty: Type,
+}
 #[derive(Debug)]
 pub struct Ctx<'a> {
     pub input: &'a str,
     pub input_copy: &'a str,
     pub tokens: Vec<Token>,
-    pub variables: Vec<Rc<RefCell<Var>>>,
-    pub body: Vec<Node>, // 今はstmt*
-                         // pub functions: Vec<Function>, いずれ
-                         // global_variables: Vec<Var>, いずれ
+    // global_variables: Vec<Var>, いずれ
+    pub processing_funcname: String,
+    pub functions: HashMap<String, Function>,
 }
 
 #[derive(Debug)]
@@ -141,6 +141,7 @@ pub struct Node {
 enum TypeKind {
     TyInt,
     TyPtr,
+    TyFunc,
 }
 
 #[derive(Debug, Clone)]
