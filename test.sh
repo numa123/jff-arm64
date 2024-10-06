@@ -1,9 +1,14 @@
 #!/bin/bash
+cat <<EOF | gcc -xc -c -o tmp2.o -
+int ret3() { return 3; }
+int ret5() { return 5; }
+EOF
+
 assert() {
 	expected="$1"
 	input="$2"
 	./target/debug/jff "$input" > tmp.s
-	gcc-14 -o tmp tmp.s
+	gcc-14 -o tmp tmp.s tmp2.o
 	./tmp
 	actual="$?"
 	if [ "$actual" = "$expected" ]; then
@@ -16,6 +21,9 @@ assert() {
 
 cargo build
 
+
+assert 3 '{ return ret3(); }'
+assert 5 '{ return ret5(); }'
 assert 0 '{ return 0; }'
 assert 42 '{ return 42; }'
 assert 21 '{ return 5+20-4; }'

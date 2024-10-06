@@ -125,6 +125,9 @@ pub enum NodeKind {
     NdDeref {
         lhs: Box<Node>,
     },
+    NdFuncCall {
+        name: String,
+    },
 }
 
 #[derive(Debug, Clone)]

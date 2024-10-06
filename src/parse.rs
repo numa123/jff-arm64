@@ -481,6 +481,18 @@ impl Ctx<'_> {
                 let name = name.clone();
                 self.advance_one_tok();
                 let node: Node;
+                // funccall
+                if self.equal("(") {
+                    self.advance_one_tok();
+                    node = Node {
+                        kind: NodeKind::NdFuncCall { name: name.clone() },
+                        ty: Some(new_int()), // 自分で定義するようになったら、また変数リストから、型を取り出して入れる
+                    };
+                    self.skip(")");
+                    return node;
+                }
+
+                // variable
                 if let Some(var) = self.find_var(&name) {
                     node = Node {
                         kind: NodeKind::NdVar { var: var.clone() }, // Clone the Rc to increase the reference count

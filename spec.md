@@ -25,7 +25,8 @@
 - add = mul ("+" mul | "-" mul)*
 - mul = unary ("*" unary | "/" unary)*
 - unary = ("+" | "-" | "*" | "&") unary | primary
-- primary = num | "(" expr ")" | ident
+- primary = num | "(" expr ")" | ident args?
+- args = "(" ")"
 
 ## 現在サポート中の演算子の優先順位
 低

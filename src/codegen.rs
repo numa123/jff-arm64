@@ -157,6 +157,11 @@ fn gen_expr(node: Node) {
         return;
     }
 
+    if let NodeKind::NdFuncCall { name } = node.kind {
+        println!("      bl _{}", name);
+        return;
+    }
+
     panic!("not expected node: {:#?}", node);
 }
 
