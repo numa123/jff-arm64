@@ -2,11 +2,246 @@ use std::{cell::RefCell, mem::swap, rc::Rc};
 
 use crate::types::*;
 
+fn new_assign(lhs: Node, rhs: Node) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdAssign {
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        },
+        ty: None,
+    };
+    add_type(&mut node);
+    node
+}
+
+fn new_block(body: Vec<Node>) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdBlock { body },
+        ty: None,
+    };
+    add_type(&mut node);
+    node
+}
+
+fn null_stmt() -> Node {
+    Node {
+        kind: NodeKind::NdBlock { body: Vec::new() },
+        ty: None,
+    }
+}
+
+fn new_expr_stmt(lhs: Node) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdExprStmt { lhs: Box::new(lhs) },
+        ty: None,
+    };
+    add_type(&mut node);
+    node
+}
+
+fn new_return(lhs: Node) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdReturn { lhs: Box::new(lhs) },
+        ty: None,
+    };
+    add_type(&mut node);
+    node
+}
+
+fn new_if(cond: Node, then: Node, els: Option<Node>) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdIf {
+            cond: Box::new(cond),
+            then: Box::new(then),
+            els: els.map(Box::new),
+        },
+        ty: None,
+    };
+    add_type(&mut node);
+    node
+}
+
+fn new_for(init: Node, cond: Option<Node>, inc: Option<Node>, body: Node) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdFor {
+            init: Box::new(init),
+            cond: cond.map(Box::new),
+            inc: inc.map(Box::new),
+            body: Box::new(body),
+        },
+        ty: None,
+    };
+    add_type(&mut node);
+    node
+}
+
+fn new_while(cond: Node, body: Node) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdWhile {
+            cond: Box::new(cond),
+            body: Box::new(body),
+        },
+        ty: None,
+    };
+    add_type(&mut node);
+    node
+}
+
+fn new_eq(lhs: Node, rhs: Node) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdEq {
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        },
+        ty: None,
+    };
+    add_type(&mut node);
+    node
+}
+
+fn new_ne(lhs: Node, rhs: Node) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdNe {
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        },
+        ty: None,
+    };
+    add_type(&mut node);
+    node
+}
+
+fn new_lt(lhs: Node, rhs: Node) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdLt {
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        },
+        ty: None,
+    };
+    add_type(&mut node);
+    node
+}
+
+fn new_le(lhs: Node, rhs: Node) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdLe {
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        },
+        ty: None,
+    };
+    add_type(&mut node);
+    node
+}
+
+fn new_gt(lhs: Node, rhs: Node) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdGt {
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        },
+        ty: None,
+    };
+    add_type(&mut node);
+    node
+}
+
+fn new_ge(lhs: Node, rhs: Node) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdGe {
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        },
+        ty: None,
+    };
+    add_type(&mut node);
+    node
+}
+
+fn new_sub(lhs: Node, rhs: Node) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdSub {
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        },
+        ty: None,
+    };
+    add_type(&mut node);
+    node
+}
+
+fn new_mul(lhs: Node, rhs: Node) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdMul {
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        },
+        ty: None,
+    };
+    add_type(&mut node);
+    node
+}
+
+fn new_div(lhs: Node, rhs: Node) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdDiv {
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        },
+        ty: None,
+    };
+    add_type(&mut node);
+    node
+}
+
+fn new_neg(lhs: Node) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdNeg { lhs: Box::new(lhs) },
+        ty: None,
+    };
+    add_type(&mut node);
+    node
+}
+
+fn new_addr(lhs: Node) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdAddr { lhs: Box::new(lhs) },
+        ty: None,
+    };
+    add_type(&mut node);
+    node
+}
+
+fn new_deref(lhs: Node) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdDeref { lhs: Box::new(lhs) },
+        ty: None,
+    };
+    add_type(&mut node);
+    node
+}
+
+fn new_num(val: isize) -> Node {
+    Node {
+        kind: NodeKind::NdNum { val },
+        ty: None,
+    }
+}
+
+fn new_var(var: Rc<RefCell<Var>>) -> Node {
+    Node {
+        kind: NodeKind::NdVar { var },
+        ty: None,
+    }
+}
+
 impl Ctx<'_> {
     fn declspec(&mut self) -> Type {
         self.skip("int");
         return new_int();
     }
+
     fn decltype(&mut self, ty: Type) -> (Type, String) {
         let mut ty = ty;
         while self.consume("*") {
@@ -16,6 +251,7 @@ impl Ctx<'_> {
         ty = self.type_suffix(ty);
         return (ty, name);
     }
+
     // 今は配列のみ
     fn type_suffix(&mut self, ty: Type) -> Type {
         if self.equal("[") {
@@ -36,44 +272,25 @@ impl Ctx<'_> {
             let mut node = self.create_lvar(name.clone().as_str(), ty, false);
             if self.equal("=") {
                 self.advance_one_tok();
-                node = Node {
-                    kind: NodeKind::NdAssign {
-                        lhs: Box::new(node),
-                        rhs: Box::new(self.expr()),
-                    },
-                    ty: None,
-                };
+                node = new_assign(node, self.expr());
             }
-            let mut node = Node {
-                kind: NodeKind::NdExprStmt {
-                    lhs: Box::new(node),
-                },
-                ty: None,
-            };
-            add_type(&mut node);
+            let node = new_expr_stmt(node);
             body.push(node);
             if self.equal(",") {
                 self.advance_one_tok();
                 continue;
             }
         }
-        let node = Node {
-            kind: NodeKind::NdBlock { body },
-            ty: None,
-        };
+        let node = new_block(body);
         self.skip(";");
         return node;
     }
+
     fn stmt(&mut self) -> Node {
         match &self.tokens[0].kind {
             TokenKind::TkKeyword { name } if name == "return" => {
                 self.advance_one_tok();
-                let node = Node {
-                    kind: NodeKind::NdReturn {
-                        lhs: Box::new(self.expr()),
-                    },
-                    ty: None,
-                };
+                let node = new_return(self.expr());
                 self.skip(";");
                 return node;
             }
@@ -89,14 +306,7 @@ impl Ctx<'_> {
                     self.advance_one_tok();
                     els = Some(self.stmt());
                 }
-                node = Node {
-                    kind: NodeKind::NdIf {
-                        cond: Box::new(cond),
-                        then: Box::new(then),
-                        els: els.map(Box::new),
-                    },
-                    ty: None,
-                };
+                node = new_if(cond, then, els);
                 return node;
             }
             TokenKind::TkKeyword { name } if name == "for" => {
@@ -114,15 +324,7 @@ impl Ctx<'_> {
                 }
                 self.skip(")");
                 let body = self.stmt();
-                let node = Node {
-                    kind: NodeKind::NdFor {
-                        init: Box::new(init),
-                        cond: cond.map(Box::new),
-                        inc: inc.map(Box::new),
-                        body: Box::new(body),
-                    },
-                    ty: None,
-                };
+                let node = new_for(init, cond, inc, body);
                 return node;
             }
             TokenKind::TkKeyword { name } if name == "while" => {
@@ -131,13 +333,7 @@ impl Ctx<'_> {
                 let cond = self.expr();
                 self.skip(")");
                 let body = self.stmt();
-                let node = Node {
-                    kind: NodeKind::NdWhile {
-                        cond: Box::new(cond),
-                        body: Box::new(body),
-                    },
-                    ty: None,
-                };
+                let node = new_while(cond, body);
                 return node;
             }
             TokenKind::TkPunct { str } if str == "{" => {
@@ -150,6 +346,7 @@ impl Ctx<'_> {
 
         return self.expr_stmt();
     }
+
     fn compound_stmt(&mut self) -> Node {
         let mut body = Vec::new();
         while !self.consume("}") {
@@ -163,74 +360,49 @@ impl Ctx<'_> {
                 body.push(stmt);
             }
         }
-        let node = Node {
-            kind: NodeKind::NdBlock { body },
-            ty: None,
-        };
+        let node = new_block(body);
         return node;
     }
+
     fn expr_stmt(&mut self) -> Node {
         if self.equal(";") {
             self.advance_one_tok();
-            return Node {
-                kind: NodeKind::NdBlock { body: Vec::new() },
-                ty: None,
-            };
+            return null_stmt();
         }
-        let node = Node {
-            kind: NodeKind::NdExprStmt {
-                lhs: Box::new(self.expr()),
-            },
-            ty: None,
-        };
+        let node = new_expr_stmt(self.expr());
         self.skip(";");
         return node;
     }
+
     fn expr(&mut self) -> Node {
         return self.assign();
     }
+
     fn assign(&mut self) -> Node {
         let mut node = self.equality();
         while !self.tokens.is_empty() {
             match &self.tokens[0].kind {
                 TokenKind::TkPunct { str } if str == "=" => {
                     self.advance_one_tok();
-                    node = Node {
-                        kind: NodeKind::NdAssign {
-                            lhs: Box::new(node),
-                            rhs: Box::new(self.assign()),
-                        },
-                        ty: None,
-                    };
+                    node = new_assign(node, self.assign());
                 }
                 _ => break,
             }
         }
         return node;
     }
+
     fn equality(&mut self) -> Node {
         let mut node = self.relational();
         while !self.tokens.is_empty() {
             match &self.tokens[0].kind {
                 TokenKind::TkPunct { str } if str == "==" => {
                     self.advance_one_tok();
-                    node = Node {
-                        kind: NodeKind::NdEq {
-                            lhs: Box::new(node),
-                            rhs: Box::new(self.relational()),
-                        },
-                        ty: None,
-                    };
+                    node = new_eq(node, self.relational());
                 }
                 TokenKind::TkPunct { str } if str == "!=" => {
                     self.advance_one_tok();
-                    node = Node {
-                        kind: NodeKind::NdNe {
-                            lhs: Box::new(node),
-                            rhs: Box::new(self.relational()),
-                        },
-                        ty: None,
-                    };
+                    node = new_ne(node, self.relational());
                 }
                 _ => break,
             }
@@ -244,43 +416,19 @@ impl Ctx<'_> {
             match &self.tokens[0].kind {
                 TokenKind::TkPunct { str } if str == "<" => {
                     self.advance_one_tok();
-                    node = Node {
-                        kind: NodeKind::NdLt {
-                            lhs: Box::new(node),
-                            rhs: Box::new(self.add()),
-                        },
-                        ty: None,
-                    };
+                    node = new_lt(node, self.add());
                 }
                 TokenKind::TkPunct { str } if str == "<=" => {
                     self.advance_one_tok();
-                    node = Node {
-                        kind: NodeKind::NdLe {
-                            lhs: Box::new(node),
-                            rhs: Box::new(self.add()),
-                        },
-                        ty: None,
-                    };
+                    node = new_le(node, self.add());
                 }
                 TokenKind::TkPunct { str } if str == ">" => {
                     self.advance_one_tok();
-                    node = Node {
-                        kind: NodeKind::NdGt {
-                            lhs: Box::new(node),
-                            rhs: Box::new(self.add()),
-                        },
-                        ty: None,
-                    };
+                    node = new_gt(node, self.add());
                 }
                 TokenKind::TkPunct { str } if str == ">=" => {
                     self.advance_one_tok();
-                    node = Node {
-                        kind: NodeKind::NdGe {
-                            lhs: Box::new(node),
-                            rhs: Box::new(self.add()),
-                        },
-                        ty: None,
-                    };
+                    node = new_ge(node, self.add());
                 }
                 _ => break,
             }
@@ -294,52 +442,8 @@ impl Ctx<'_> {
             match &self.tokens[0].kind {
                 TokenKind::TkPunct { str } if str == "+" => {
                     self.advance_one_tok();
-                    let mut rhs = self.mul();
-                    add_type(&mut node);
-                    add_type(&mut rhs);
-                    // num + num
-                    if is_integer_node(&node) && is_integer_node(&rhs) {
-                        node = Node {
-                            kind: NodeKind::NdAdd {
-                                lhs: Box::new(node.clone()), // cloneか...
-                                rhs: Box::new(rhs),
-                            },
-                            ty: node.ty,
-                        };
-                        continue;
-                    }
-                    if is_pointer_node(&node) && is_pointer_node(&rhs) {
-                        self.error_tok(&self.tokens[0], "invalid operands");
-                    }
-                    // canonicalize num + ptr -> ptr + num
-                    if is_integer_node(&node) && is_pointer_node(&rhs) {
-                        swap(&mut node, &mut rhs);
-                    }
-                    // ptr + num
-                    if is_pointer_node(&node) && is_integer_node(&rhs) {
-                        // node.tyのkindのptr_toのsizeを取得してvalに足す
-                        let size = get_pointer_or_array_size(&node);
-                        // eprintln!("size: {}", size);
-                        let r = Node {
-                            kind: NodeKind::NdMul {
-                                lhs: Box::new(rhs),
-                                rhs: Box::new(Node {
-                                    kind: NodeKind::NdNum { val: size as isize }, // usizeの限界を超えたらエラーになりそう
-                                    ty: Some(new_int()),
-                                }),
-                            },
-                            ty: None,
-                        };
-                        node = Node {
-                            kind: NodeKind::NdAdd {
-                                lhs: Box::new(node.clone()),
-                                rhs: Box::new(r),
-                            },
-                            ty: node.ty,
-                        };
-                        // eprintln!("{:#?}", node);
-                        continue;
-                    }
+                    let rhs = self.mul();
+                    node = self.new_add(node, rhs);
                 }
                 TokenKind::TkPunct { str } if str == "-" => {
                     self.advance_one_tok();
@@ -348,36 +452,13 @@ impl Ctx<'_> {
                     add_type(&mut rhs);
                     // num - num
                     if is_integer_node(&node) && is_integer_node(&rhs) {
-                        node = Node {
-                            kind: NodeKind::NdSub {
-                                lhs: Box::new(node.clone()), // cloneか...
-                                rhs: Box::new(rhs),
-                            },
-                            ty: node.ty,
-                        };
+                        node = new_sub(node, rhs);
                         continue;
                     }
                     // ptr - num
                     if is_pointer_node(&node) && is_integer_node(&rhs) {
-                        let r = Node {
-                            kind: NodeKind::NdMul {
-                                lhs: Box::new(rhs),
-                                rhs: Box::new(Node {
-                                    kind: NodeKind::NdNum {
-                                        val: get_pointer_or_array_size(&node) as isize,
-                                    },
-                                    ty: Some(new_int()),
-                                }),
-                            },
-                            ty: None,
-                        };
-                        node = Node {
-                            kind: NodeKind::NdSub {
-                                lhs: Box::new(node.clone()),
-                                rhs: Box::new(r),
-                            },
-                            ty: node.ty,
-                        };
+                        let r = new_mul(rhs, new_num(get_pointer_or_array_size(&node) as isize));
+                        node = new_sub(node, r);
                         continue;
                     }
                     // ptr - ptr, which returns how many elements are between the two pointers
@@ -389,18 +470,7 @@ impl Ctx<'_> {
                             },
                             ty: Some(new_int()),
                         };
-                        node = Node {
-                            kind: NodeKind::NdDiv {
-                                lhs: Box::new(l),
-                                rhs: Box::new(Node {
-                                    kind: NodeKind::NdNum {
-                                        val: get_pointer_or_array_size(&node) as isize,
-                                    },
-                                    ty: Some(new_int()),
-                                }),
-                            },
-                            ty: None, // あとで付与されるはず
-                        };
+                        node = new_div(l, new_num(get_pointer_or_array_size(&node) as isize));
                         continue;
                     }
                     self.error_tok(&self.tokens[0], "invalid operands"); // ここの引数は正しいのか？
@@ -417,23 +487,11 @@ impl Ctx<'_> {
             match &self.tokens[0].kind {
                 TokenKind::TkPunct { str } if str == "*" => {
                     self.advance_one_tok();
-                    node = Node {
-                        kind: NodeKind::NdMul {
-                            lhs: Box::new(node),
-                            rhs: Box::new(self.unary()),
-                        },
-                        ty: None,
-                    };
+                    node = new_mul(node, self.unary());
                 }
                 TokenKind::TkPunct { str } if str == "/" => {
                     self.advance_one_tok();
-                    node = Node {
-                        kind: NodeKind::NdDiv {
-                            lhs: Box::new(node),
-                            rhs: Box::new(self.unary()),
-                        },
-                        ty: None,
-                    };
+                    return new_div(node, self.unary());
                 }
                 _ => break,
             }
@@ -448,32 +506,29 @@ impl Ctx<'_> {
         }
         if self.equal("-") {
             self.advance_one_tok();
-            return Node {
-                kind: NodeKind::NdNeg {
-                    lhs: Box::new(self.unary()),
-                },
-                ty: None,
-            };
+            return new_neg(self.unary());
         }
         if self.equal("&") {
             self.advance_one_tok();
-            return Node {
-                kind: NodeKind::NdAddr {
-                    lhs: Box::new(self.unary()),
-                },
-                ty: None,
-            };
+            return new_addr(self.unary());
         }
         if self.equal("*") {
             self.advance_one_tok();
-            return Node {
-                kind: NodeKind::NdDeref {
-                    lhs: Box::new(self.unary()),
-                },
-                ty: None,
-            };
+            return new_deref(self.unary());
         }
-        self.primary()
+        self.postfix()
+    }
+
+    fn postfix(&mut self) -> Node {
+        let mut node = self.primary();
+        while self.equal("[") {
+            self.advance_one_tok();
+            let idx = self.expr();
+            self.skip("]");
+            node = new_deref(self.new_add(node, idx));
+        }
+        add_type(&mut node);
+        return node;
     }
 
     // ここ、関数のtyも返すようにしたいが、自分で定義したものだけで、includeしたものをどうするかわからん
@@ -503,12 +558,7 @@ impl Ctx<'_> {
     fn primary(&mut self) -> Node {
         match &self.tokens[0].kind {
             TokenKind::TkNum { .. } => {
-                return Node {
-                    kind: NodeKind::NdNum {
-                        val: self.get_and_skip_number(),
-                    },
-                    ty: None,
-                };
+                return new_num(self.get_and_skip_number());
             }
             TokenKind::TkPunct { str } if str == "(" => {
                 self.advance_one_tok();
@@ -556,10 +606,7 @@ impl Ctx<'_> {
             is_def_arg: is_def_arg,
         }));
         variables.push(var.clone());
-        let node = Node {
-            kind: NodeKind::NdVar { var: var.clone() },
-            ty: Some(ty),
-        };
+        let node = new_var(var);
 
         // 関数定義の引数の場合、関数のargsにも追加
         if is_def_arg {
@@ -624,6 +671,48 @@ impl Ctx<'_> {
         }
         self.advance_one_tok();
         return n;
+    }
+
+    fn new_add(&mut self, lhs: Node, rhs: Node) -> Node {
+        let mut lhs = lhs;
+        let mut rhs = rhs;
+        // self.advance_one_tok();
+        // let mut rhs = self.mul();
+        add_type(&mut lhs);
+        add_type(&mut rhs);
+        // num + num
+        if is_integer_node(&lhs) && is_integer_node(&rhs) {
+            let node = Node {
+                kind: NodeKind::NdAdd {
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                },
+                ty: Some(new_int()),
+            };
+            return node;
+        }
+        if is_pointer_node(&lhs) && is_pointer_node(&rhs) {
+            self.error_tok(&self.tokens[0], "invalid operands");
+        }
+        // canonicalize num + ptr -> ptr + num
+        if is_integer_node(&lhs) && is_pointer_node(&rhs) {
+            swap(&mut lhs, &mut rhs);
+        }
+        // ptr + num
+        if is_pointer_node(&lhs) && is_integer_node(&rhs) {
+            // node.tyのkindのptr_toのsizeを取得してvalに足す
+            let size = get_pointer_or_array_size(&lhs);
+            let r = new_mul(rhs, new_num(size as isize));
+            let node = Node {
+                kind: NodeKind::NdAdd {
+                    lhs: Box::new(lhs.clone()),
+                    rhs: Box::new(r),
+                },
+                ty: Some(lhs.ty.clone().unwrap()),
+            };
+            return node;
+        }
+        return lhs;
     }
 }
 

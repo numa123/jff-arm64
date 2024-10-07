@@ -17,249 +17,230 @@ fn load(ty: &Type) {
 }
 
 fn gen_addr(node: Node) {
-    if let NodeKind::NdVar { var } = node.kind {
-        let var = var.borrow();
-        println!("      add x0, x29, {}", var.offset);
-        return;
+    match node.kind {
+        NodeKind::NdVar { var } => {
+            let var = var.borrow();
+            println!("      add x0, x29, {}", var.offset);
+            return;
+        }
+        NodeKind::NdDeref { lhs } => {
+            gen_expr(*lhs);
+            return;
+        }
+        _ => panic!("not expected node: {:#?}", node),
     }
-    if let NodeKind::NdDeref { lhs } = node.kind {
-        gen_expr(*lhs);
-        return;
-    }
-    panic!("not expected node: {:#?}", node);
 }
 
 fn gen_expr(node: Node) {
-    if let NodeKind::NdNum { val } = node.kind {
-        println!("      mov x0, {}", val);
-        return;
-    }
-
-    if let NodeKind::NdVar { var } = node.kind {
-        let var = var.borrow();
-        println!("      add x0, x29, {}", var.offset); // えいや
-        load(&var.ty);
-        return;
-    }
-
-    if let NodeKind::NdAdd { lhs, rhs } = node.kind {
-        gen_expr(*lhs);
-        push16();
-        gen_expr(*rhs);
-        pop16();
-        println!("      add x0, x1, x0");
-        return;
-    }
-
-    if let NodeKind::NdSub { lhs, rhs } = node.kind {
-        gen_expr(*lhs);
-        push16();
-        gen_expr(*rhs);
-        pop16();
-        println!("      sub x0, x1, x0");
-        return;
-    }
-
-    if let NodeKind::NdMul { lhs, rhs } = node.kind {
-        gen_expr(*lhs);
-        push16();
-        gen_expr(*rhs);
-        pop16();
-        println!("      mul x0, x1, x0");
-        return;
-    }
-
-    if let NodeKind::NdDiv { lhs, rhs } = node.kind {
-        gen_expr(*lhs);
-        push16();
-        gen_expr(*rhs);
-        pop16();
-        println!("      sdiv x0, x1, x0");
-        return;
-    }
-
-    if let NodeKind::NdNeg { lhs } = node.kind {
-        gen_expr(*lhs);
-        println!("      neg x0, x0");
-        return;
-    }
-
-    if let NodeKind::NdEq { lhs, rhs } = node.kind {
-        gen_expr(*lhs);
-        push16();
-        gen_expr(*rhs);
-        pop16();
-        println!("      cmp x0, x1");
-        println!("      cset x0, eq");
-        return;
-    }
-
-    if let NodeKind::NdNe { lhs, rhs } = node.kind {
-        gen_expr(*lhs);
-        push16();
-        gen_expr(*rhs);
-        pop16();
-        println!("      cmp x0, x1");
-        println!("      cset x0, ne");
-        return;
-    }
-
-    if let NodeKind::NdLt { lhs, rhs } = node.kind {
-        gen_expr(*lhs);
-        push16();
-        gen_expr(*rhs);
-        pop16();
-        println!("      cmp x1, x0");
-        println!("      cset x0, lt");
-        return;
-    }
-
-    if let NodeKind::NdLe { lhs, rhs } = node.kind {
-        gen_expr(*lhs);
-        push16();
-        gen_expr(*rhs);
-        pop16();
-        println!("      cmp x1, x0");
-        println!("      cset x0, le");
-        return;
-    }
-
-    if let NodeKind::NdGt { lhs, rhs } = node.kind {
-        gen_expr(*lhs);
-        push16();
-        gen_expr(*rhs);
-        pop16();
-        println!("      cmp x1, x0");
-        println!("      cset x0, gt");
-        return;
-    }
-
-    if let NodeKind::NdGe { lhs, rhs } = node.kind {
-        gen_expr(*lhs);
-        push16();
-        gen_expr(*rhs);
-        pop16();
-        println!("      cmp x1, x0");
-        println!("      cset x0, ge");
-        return;
-    }
-
-    if let NodeKind::NdAssign { lhs, rhs } = node.kind {
-        gen_addr(*lhs);
-        push16();
-        gen_expr(*rhs);
-        pop16();
-        println!("      str x0, [x1]");
-        return;
-    }
-
-    if let NodeKind::NdAddr { lhs } = node.kind {
-        gen_addr(*lhs);
-        return;
-    }
-
-    if let NodeKind::NdDeref { lhs } = node.kind {
-        gen_expr(*lhs);
-        load(node.ty.as_ref().unwrap()); // 正しいか？
-        return;
-    }
-
-    if let NodeKind::NdFuncCall { name, args } = node.kind {
-        for arg in &args {
-            gen_expr(arg.clone());
+    match node.kind {
+        NodeKind::NdNum { val } => {
+            println!("      mov x0, {}", val);
+            return;
+        }
+        NodeKind::NdVar { var } => {
+            let var = var.borrow();
+            println!("      add x0, x29, {}", var.offset); // えいや
+            load(&var.ty);
+            return;
+        }
+        NodeKind::NdAdd { lhs, rhs } => {
+            gen_expr(*lhs);
             push16();
+            gen_expr(*rhs);
+            pop16();
+            println!("      add x0, x1, x0");
+            return;
         }
-        for i in (0..args.len()).rev() {
-            println!("      ldr x{}, [sp], 16", i);
+        NodeKind::NdSub { lhs, rhs } => {
+            gen_expr(*lhs);
+            push16();
+            gen_expr(*rhs);
+            pop16();
+            println!("      sub x0, x1, x0");
+            return;
         }
-        println!("      bl _{}", name);
-        return;
+        NodeKind::NdMul { lhs, rhs } => {
+            gen_expr(*lhs);
+            push16();
+            gen_expr(*rhs);
+            pop16();
+            println!("      mul x0, x1, x0");
+            return;
+        }
+        NodeKind::NdDiv { lhs, rhs } => {
+            gen_expr(*lhs);
+            push16();
+            gen_expr(*rhs);
+            pop16();
+            println!("      sdiv x0, x1, x0");
+            return;
+        }
+        NodeKind::NdNeg { lhs } => {
+            gen_expr(*lhs);
+            println!("      neg x0, x0");
+            return;
+        }
+        NodeKind::NdEq { lhs, rhs } => {
+            gen_expr(*lhs);
+            push16();
+            gen_expr(*rhs);
+            pop16();
+            println!("      cmp x0, x1");
+            println!("      cset x0, eq");
+            return;
+        }
+        NodeKind::NdNe { lhs, rhs } => {
+            gen_expr(*lhs);
+            push16();
+            gen_expr(*rhs);
+            pop16();
+            println!("      cmp x0, x1");
+            println!("      cset x0, ne");
+            return;
+        }
+        NodeKind::NdLt { lhs, rhs } => {
+            gen_expr(*lhs);
+            push16();
+            gen_expr(*rhs);
+            pop16();
+            println!("      cmp x1, x0");
+            println!("      cset x0, lt");
+            return;
+        }
+        NodeKind::NdLe { lhs, rhs } => {
+            gen_expr(*lhs);
+            push16();
+            gen_expr(*rhs);
+            pop16();
+            println!("      cmp x1, x0");
+            println!("      cset x0, le");
+            return;
+        }
+        NodeKind::NdGt { lhs, rhs } => {
+            gen_expr(*lhs);
+            push16();
+            gen_expr(*rhs);
+            pop16();
+            println!("      cmp x1, x0");
+            println!("      cset x0, gt");
+            return;
+        }
+        NodeKind::NdGe { lhs, rhs } => {
+            gen_expr(*lhs);
+            push16();
+            gen_expr(*rhs);
+            pop16();
+            println!("      cmp x1, x0");
+            println!("      cset x0, ge");
+            return;
+        }
+        NodeKind::NdAssign { lhs, rhs } => {
+            gen_addr(*lhs);
+            push16();
+            gen_expr(*rhs);
+            pop16();
+            println!("      str x0, [x1]");
+            return;
+        }
+        NodeKind::NdAddr { lhs } => {
+            gen_addr(*lhs);
+            return;
+        }
+        NodeKind::NdDeref { lhs } => {
+            gen_expr(*lhs);
+            load(node.ty.as_ref().unwrap()); // 正しいか？
+            return;
+        }
+        NodeKind::NdFuncCall { name, args } => {
+            for arg in &args {
+                gen_expr(arg.clone());
+                push16();
+            }
+            for i in (0..args.len()).rev() {
+                println!("      ldr x{}, [sp], 16", i);
+            }
+            println!("      bl _{}", name);
+            return;
+        }
+        _ => panic!("not expected node: {:#?}", node),
     }
-
-    panic!("not expected node: {:#?}", node);
 }
 
 fn gen_stmt(node: Node, funcname: &str) {
     // eprintln!("gen_stmt: {:#?}", node);
-    if let NodeKind::NdExprStmt { lhs } = node.kind {
-        gen_expr(*lhs);
-        return;
-    }
-
-    if let NodeKind::NdReturn { lhs } = node.kind {
-        gen_expr(*lhs);
-        println!("      b end.{}", funcname);
-        return;
-    }
-
-    if let NodeKind::NdBlock { body } = node.kind {
-        for stmt in body {
-            gen_stmt(stmt, funcname);
+    match node.kind {
+        NodeKind::NdExprStmt { lhs } => {
+            gen_expr(*lhs);
+            return;
         }
-        return;
-    }
-
-    // あえて冗長なアセンブリを出力
-    if let NodeKind::NdIf { cond, then, els } = node.kind {
-        let idx = unsafe { IFIDX };
-        unsafe { IFIDX += 1 };
-        gen_expr(*cond);
-        println!("	  cmp x0, 1");
-        if let Some(els) = els {
-            println!("	  b.ne else.{}", idx);
-            gen_stmt(*then, funcname);
-            println!("	  b endif.{}", idx);
-            println!("else.{}:", idx);
-            gen_stmt(*els, funcname);
-        } else {
-            println!("	  b.ne endif.{}", idx);
-            gen_stmt(*then, funcname);
+        NodeKind::NdReturn { lhs } => {
+            gen_expr(*lhs);
+            println!("      b end.{}", funcname);
+            return;
         }
-        println!("endif.{}:", idx);
-        return;
-    }
-
-    if let NodeKind::NdFor {
-        init,
-        cond,
-        inc,
-        body,
-    } = node.kind
-    {
-        let idx = unsafe { FORIDX };
-        unsafe { FORIDX += 1 };
-        gen_stmt(*init, funcname);
-        println!("	  b cond.{}", idx);
-        println!("startfor.{}:", idx);
-        gen_stmt(*body, funcname);
-        if let Some(inc) = inc {
-            gen_expr(*inc);
+        NodeKind::NdBlock { body } => {
+            for stmt in body {
+                gen_stmt(stmt, funcname);
+            }
+            return;
         }
-        println!("cond.{}:", idx);
-        if let Some(cond) = cond {
+        NodeKind::NdIf { cond, then, els } => {
+            let idx = unsafe { IFIDX };
+            unsafe { IFIDX += 1 };
             gen_expr(*cond);
             println!("	  cmp x0, 1");
-            println!("	  b.ne endfor.{}", idx);
+            if let Some(els) = els {
+                println!("	  b.ne else.{}", idx);
+                gen_stmt(*then, funcname);
+                println!("	  b endif.{}", idx);
+                println!("else.{}:", idx);
+                gen_stmt(*els, funcname);
+            } else {
+                println!("	  b.ne endif.{}", idx);
+                gen_stmt(*then, funcname);
+            }
+            println!("endif.{}:", idx);
+            return;
         }
-        println!("	  b startfor.{}", idx);
-        println!("endfor.{}:", idx);
-        return;
+        NodeKind::NdFor {
+            init,
+            cond,
+            inc,
+            body,
+        } => {
+            let idx = unsafe { FORIDX };
+            unsafe { FORIDX += 1 };
+            gen_stmt(*init, funcname);
+            println!("	  b cond.{}", idx);
+            println!("startfor.{}:", idx);
+            gen_stmt(*body, funcname);
+            if let Some(inc) = inc {
+                gen_expr(*inc);
+            }
+            println!("cond.{}:", idx);
+            if let Some(cond) = cond {
+                gen_expr(*cond);
+                println!("	  cmp x0, 1");
+                println!("	  b.ne endfor.{}", idx);
+            }
+            println!("	  b startfor.{}", idx);
+            println!("endfor.{}:", idx);
+            return;
+        }
+        NodeKind::NdWhile { cond, body } => {
+            let idx = unsafe { FORIDX };
+            unsafe { FORIDX += 1 };
+            println!("startwhile.{}:", idx);
+            gen_expr(*cond);
+            println!("	  cmp x0, 1");
+            println!("	  b.ne endwhile.{}", idx);
+            gen_stmt(*body, funcname);
+            println!("	  b startwhile.{}", idx);
+            println!("endwhile.{}:", idx);
+            return;
+        }
+        _ => panic!("not expected node: {:#?}", node),
     }
-
-    if let NodeKind::NdWhile { cond, body } = node.kind {
-        let idx = unsafe { FORIDX };
-        unsafe { FORIDX += 1 };
-        println!("startwhile.{}:", idx);
-        gen_expr(*cond);
-        println!("	  cmp x0, 1");
-        println!("	  b.ne endwhile.{}", idx);
-        gen_stmt(*body, funcname);
-        println!("	  b startwhile.{}", idx);
-        println!("endwhile.{}:", idx);
-        return;
-    }
-
-    panic!("not expected node"); // matchにした方が良い
 }
 
 fn align16(i: isize) -> isize {
