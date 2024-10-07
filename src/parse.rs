@@ -1,3 +1,4 @@
+use core::error;
 use std::{cell::RefCell, mem::swap, rc::Rc};
 
 use crate::types::*;
@@ -238,8 +239,12 @@ fn new_var(var: Rc<RefCell<Var>>) -> Node {
 
 impl Ctx<'_> {
     fn declspec(&mut self) -> Type {
-        self.skip("int");
-        return new_int();
+        if self.consume("int") {
+            return new_int();
+        } else if self.consume("char") {
+            return new_char();
+        }
+        self.error_tok(&self.tokens[0], "int or char expected");
     }
 
     // return (Type, name, is_function)
@@ -354,10 +359,20 @@ impl Ctx<'_> {
         return self.expr_stmt();
     }
 
+    fn is_typename(&mut self) -> bool {
+        match &self.tokens[0].kind {
+            TokenKind::TkKeyword { name } => match name.as_str() {
+                "int" | "char" => return true,
+                _ => return false,
+            },
+            _ => return false,
+        }
+    }
+
     fn compound_stmt(&mut self) -> Node {
         let mut body = Vec::new();
         while !self.consume("}") {
-            if self.equal("int") {
+            if self.is_typename() {
                 let mut node = self.declaration();
                 add_type(&mut node);
                 body.push(node);

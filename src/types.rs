@@ -146,6 +146,7 @@ pub enum TypeKind {
     TyInt,
     TyPtr { ptr_to: Box<Type> },
     TyArray { ptr_to: Box<Type>, len: usize },
+    TyChar,
 }
 
 #[derive(Debug, Clone)]
@@ -170,6 +171,13 @@ pub fn new_int() -> Type {
     }
 }
 
+pub fn new_char() -> Type {
+    Type {
+        kind: TypeKind::TyChar,
+        size: 1,
+    }
+}
+
 pub fn new_array_ty(ty: Type, len: usize) -> Type {
     Type {
         kind: TypeKind::TyArray {
@@ -182,10 +190,10 @@ pub fn new_array_ty(ty: Type, len: usize) -> Type {
 
 pub fn is_integer_node(node: &Node) -> bool {
     if let Some(ty) = &node.ty {
-        if let TypeKind::TyInt = ty.kind {
-            true
-        } else {
-            false
+        match ty.kind {
+            TypeKind::TyInt => true,
+            TypeKind::TyChar => true, // charと数値は足せる
+            _ => false,
         }
     } else {
         false

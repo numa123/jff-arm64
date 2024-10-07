@@ -277,6 +277,7 @@ pub fn codegen(ctx: Ctx) {
             let mut var = var.borrow_mut();
             var.offset = stack_size;
             stack_size += var.ty.size as isize;
+            eprintln!("{}: {:#?}", var.name, var);
         }
         stack_size = align16(stack_size);
 
