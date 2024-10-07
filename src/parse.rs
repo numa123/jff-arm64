@@ -566,6 +566,12 @@ impl Ctx<'_> {
                 self.skip(")");
                 return node;
             }
+            TokenKind::TkKeyword { name } if name == "sizeof" => {
+                self.advance_one_tok();
+                let mut node = self.unary();
+                add_type(&mut node);
+                return new_num(node.ty.as_ref().unwrap().size as isize);
+            }
             TokenKind::TkIdent { name } => {
                 let name = name.clone();
                 self.advance_one_tok();
