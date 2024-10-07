@@ -51,6 +51,7 @@ source: https://c-lang.sevendays-study.com/appendix4.html
 - 冗長なのにわかりづらいコードになってきた。
 - 関数定義の引数はは、is_def_argをtrueにして、variablesと同じ扱いにした。やっぱやめた。offsetの計算がめんどい
 - consumeとequalを使っているので分かれている。統一したい
+- グローバル変数の定義の際、グローバル用に用意するか、そのままうまくやるか悩む
 
 
 # 注意

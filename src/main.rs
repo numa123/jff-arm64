@@ -16,7 +16,10 @@ fn main() {
         input: &input.as_str(),
         input_copy: &input.as_str(),
         tokens: Vec::new(),
+        global_variables: Vec::new(),
+        // global_stmts: Vec::new(),
         processing_funcname: "".to_string(), // defualt
+        is_processing_local: false,
         functions: std::collections::HashMap::new(),
     };
     ctx.parse();

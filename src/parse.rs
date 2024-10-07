@@ -242,33 +242,40 @@ impl Ctx<'_> {
         return new_int();
     }
 
-    fn decltype(&mut self, ty: Type) -> (Type, String) {
+    // return (Type, name, is_function)
+    // グローバル変数か、関数かの判定に使う。parseのはじめ以外では使用しない
+    fn decltype(&mut self, ty: Type) -> (Type, String, bool) {
         let mut ty = ty;
+        let is_func: bool;
         while self.consume("*") {
             ty = new_ptr_to(ty);
         }
         let name = self.get_ident();
-        ty = self.type_suffix(ty);
-        return (ty, name);
+        (ty, is_func) = self.type_suffix(ty);
+        return (ty, name, is_func);
     }
 
     // 今は配列のみ
-    fn type_suffix(&mut self, ty: Type) -> Type {
+    // return (Type, is_function)
+    fn type_suffix(&mut self, ty: Type) -> (Type, bool) {
         if self.equal("[") {
             self.advance_one_tok();
             let size = self.get_and_skip_number();
             self.skip("]");
-            let ty = self.type_suffix(ty);
-            return new_array_ty(ty, size as usize);
+            let (ty, _) = self.type_suffix(ty);
+            return (new_array_ty(ty, size as usize), false);
         }
-        ty
+        if self.equal("(") {
+            return (ty, true);
+        }
+        (ty, false)
     }
 
     fn declaration(&mut self) -> Node {
         let base_ty = self.declspec();
         let mut body = Vec::new();
         while !self.equal(";") {
-            let (ty, name) = self.decltype(base_ty.clone());
+            let (ty, name, _) = self.decltype(base_ty.clone());
             let mut node = self.create_lvar(name.clone().as_str(), ty, false);
             if self.equal("=") {
                 self.advance_one_tok();
@@ -597,6 +604,20 @@ impl Ctx<'_> {
         }
     }
 
+    fn create_gvar(&mut self, name: &str, ty: Type) -> Node {
+        let var = Rc::new(RefCell::new(Var {
+            name: name.to_string(),
+            offset: self.global_variables.len() as isize, // Offset will be calculated later // あとで方を実装した際、そのsizeなりによって変更すべき。ここでやるか、codegenでやるかはあとで
+            ty: ty.clone(),
+            is_def_arg: false,
+            is_local: false,
+        }));
+
+        self.global_variables.push(var.clone());
+        let node = new_var(var);
+        return node;
+    }
+
     // 関数定義用の
     fn create_lvar(&mut self, name: &str, ty: Type, is_def_arg: bool) -> Node {
         let variables = &mut self
@@ -610,7 +631,14 @@ impl Ctx<'_> {
             offset: variables.len() as isize * 8, // Offset will be calculated later // あとで方を実装した際、そのsizeなりによって変更すべき。ここでやるか、codegenでやるかはあとで
             ty: ty.clone(),
             is_def_arg: is_def_arg,
+            is_local: true,
         }));
+
+        // if !self.is_processing_local {
+        //     var.borrow_mut().offset = self.global_variables.len() as isize;
+        //     self.global_variables.push(var.clone());
+        //     return new_var(var);
+        // }
         variables.push(var.clone());
         let node = new_var(var);
 
@@ -623,49 +651,6 @@ impl Ctx<'_> {
             func.args.push(node.clone());
         }
         return node;
-    }
-
-    // 今は関数だけ
-    // functionとかに切り出すべき
-    pub fn parse(&mut self) {
-        self.tokens = self.tokenize();
-        self.convert_keywords();
-        while !self.tokens.is_empty() {
-            let base_ty = self.declspec();
-            let (ty, name) = self.decltype(base_ty);
-            let variables: Vec<Rc<RefCell<Var>>> = Vec::new();
-            // set processing funcname environment variable
-            self.processing_funcname = name.clone();
-            let func = Function {
-                name: name.clone(),
-                variables,
-                args: Vec::new(),
-                body: None,
-                ty: ty,
-            };
-            self.functions.insert(name.clone(), func);
-
-            // 引数の処理
-            self.skip("(");
-            while !self.equal(")") {
-                let base_ty = self.declspec();
-                let (ty, name) = self.decltype(base_ty);
-                let mut node = self.create_lvar(name.as_str(), ty, true);
-                add_type(&mut node);
-                if self.equal(",") {
-                    self.advance_one_tok();
-                }
-            }
-            self.skip(")");
-            self.skip("{");
-            let mut node = self.compound_stmt();
-            add_type(&mut node);
-            if let Some(func) = self.functions.get_mut(&name) {
-                func.body = Some(node);
-            } else {
-                panic!("Function not found");
-            }
-        }
     }
 
     fn get_ident(&mut self) -> String {
@@ -720,6 +705,66 @@ impl Ctx<'_> {
         }
         return lhs;
     }
+
+    // 今は関数だけ
+    // functionとかに切り出すべき
+    pub fn parse(&mut self) {
+        self.tokens = self.tokenize();
+        self.convert_keywords();
+
+        while !self.tokens.is_empty() {
+            self.is_processing_local = false;
+            let base_ty = self.declspec();
+            let (ty, name, is_func) = self.decltype(base_ty.clone());
+            // 関数の場合
+            if is_func {
+                let variables: Vec<Rc<RefCell<Var>>> = Vec::new();
+                // set processing funcname environment variable
+                self.processing_funcname = name.clone();
+                let func = Function {
+                    name: name.clone(),
+                    variables,
+                    args: Vec::new(),
+                    body: None,
+                    ty: ty,
+                };
+                self.functions.insert(name.clone(), func);
+
+                // 引数の処理
+                self.skip("(");
+                while !self.equal(")") {
+                    let base_ty = self.declspec();
+                    let (ty, name, _) = self.decltype(base_ty);
+                    let mut node = self.create_lvar(name.as_str(), ty, true);
+                    add_type(&mut node);
+                    if self.equal(",") {
+                        self.advance_one_tok();
+                    }
+                }
+                self.skip(")");
+                self.skip("{");
+                self.is_processing_local = true;
+                let mut node = self.compound_stmt();
+                self.is_processing_local = false;
+                add_type(&mut node);
+                if let Some(func) = self.functions.get_mut(&name) {
+                    func.body = Some(node);
+                } else {
+                    panic!("Function not found");
+                }
+            } else {
+                // グローバル変数の場合
+                // 今は初期化のみ
+                self.create_gvar(name.as_str(), ty);
+                while self.consume(",") {
+                    let (ty, name, _) = self.decltype(base_ty.clone()); // なぜclone
+                    self.create_gvar(name.as_str(), ty);
+                }
+                self.skip(";");
+                continue;
+            }
+        }
+    }
 }
 
 impl Ctx<'_> {
@@ -732,6 +777,12 @@ impl Ctx<'_> {
             .iter();
         for var in variables {
             if var.borrow().name == name {
+                return Some(var.clone());
+            }
+        }
+        for var in &self.global_variables {
+            if var.borrow_mut().name == name {
+                // なぜborrow_mut()なのか
                 return Some(var.clone());
             }
         }

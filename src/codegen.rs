@@ -3,7 +3,7 @@ fn push16() {
     println!("      str x0, [sp, -16]!  // push"); // 16はハードコードだが、スタックのサイズを計算して動的にするべき
 }
 fn pop16() {
-    println!("      ldr x1, [sp], 16");
+    println!("      ldr x1, [sp], 16 // pop");
 }
 
 static mut IFIDX: usize = 0;
@@ -20,7 +20,12 @@ fn gen_addr(node: Node) {
     match node.kind {
         NodeKind::NdVar { var } => {
             let var = var.borrow();
-            println!("      add x0, x29, {}", var.offset);
+            if var.is_local {
+                println!("      add x0, x29, {}", var.offset);
+            } else {
+                println!("      adrp x0, _{}@PAGE", var.name); // what is PAGE?
+                println!("      add x0, x0, _{}@PAGEOFF;", var.name);
+            }
             return;
         }
         NodeKind::NdDeref { lhs } => {
@@ -38,8 +43,15 @@ fn gen_expr(node: Node) {
             return;
         }
         NodeKind::NdVar { var } => {
+            // let var = var.borrow();
+            // println!("      add x0, x29, {}", var.offset); // えいや
             let var = var.borrow();
-            println!("      add x0, x29, {}", var.offset); // えいや
+            if var.is_local {
+                println!("      add x0, x29, {}", var.offset);
+            } else {
+                println!("      adrp x0, _{}@PAGE", var.name); // what is PAGE?
+                println!("      add x0, x0, _{}@PAGEOFF;", var.name);
+            }
             load(&var.ty);
             return;
         }
@@ -248,6 +260,14 @@ fn align16(i: isize) -> isize {
 }
 
 pub fn codegen(ctx: Ctx) {
+    for var in &ctx.global_variables {
+        let var = var.borrow(); // なぜborrowするのか？
+        println!(".data");
+        println!(".global _{}", var.name);
+        println!("_{}:", var.name);
+        println!("      .zero {}", var.ty.size);
+    }
+
     for (name, func) in &ctx.functions {
         let mut stack_size = 16; // 少々余分に撮っていると思う
 

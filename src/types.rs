@@ -14,8 +14,9 @@ pub struct Ctx<'a> {
     pub input: &'a str,
     pub input_copy: &'a str,
     pub tokens: Vec<Token>,
-    // global_variables: Vec<Var>, いずれ
+    pub global_variables: Vec<Rc<RefCell<Var>>>, // find_varのために型をrefcellにしてみる。不適切の恐れあり
     pub processing_funcname: String,
+    pub is_processing_local: bool, // グローバル変数の定義をしているのか、ローカル変数の定義をしているのかどうか
     pub functions: HashMap<String, Function>,
 }
 
@@ -40,6 +41,7 @@ pub struct Var {
     pub offset: isize,
     pub ty: Type,
     pub is_def_arg: bool,
+    pub is_local: bool,
 }
 
 #[derive(Debug, Clone)]
