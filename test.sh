@@ -27,9 +27,20 @@ assert() {
 	fi
 }
 
+# このエラーメッセージおかしい。
+#|int main() { ({int i=0; while (i<10) i=i+1; return i;)} }
+#|                                                     ^ expected a number or ( expression )
+
 cargo build
 
-assert 0 "./main.c"
+assert 1 'int main() {char x21 = 1; x21;}'
+assert 2 'int main() {int a; int b; a = b = 1; a+b;}'
+
+assert 10 'int main() { ({int i=0; while (i<10) i=i+1; return i;});}'
+assert 3 'int main() { ({int x = 3; *&x;});}'
+assert 5 'int main() { ({int x=3; int y = 5; *(&x+1); });}'
+
+assert 97 'int main() { return "abc"[0]; }'
 assert 0 'int main() { return ({ 0; }); }'
 assert 2 'int main() { return ({ 0; 1; 2; }); }'
 assert 1 'int main() { ({ 0; return 1; 2; }); return 3; }'
@@ -108,7 +119,6 @@ assert 7 'int main() { return add2(3,4); } int add2(int x, int y) { return x+y; 
 assert 1 'int main() { return sub2(4,3); } int sub2(int x, int y) { return x-y; }'
 assert 55 'int main() { return fib(9); } int fib(int x) { if (x<=1) return 1; return fib(x-1) + fib(x-2); }'
 
-assert 0 'int main() { return 0; }'
 assert 42 'int main() { return 42; }'
 assert 21 'int main() { return 5+20-4; }'
 assert 41 'int main() { return  12 + 34 - 5 ; }'

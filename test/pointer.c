@@ -1,16 +1,4 @@
 #include "test.h"
-#define ASSERT(x, y) assert(x, y, #y)
-
-#include <stdio.h>
-#include <stdlib.h>
-void assert(int expected, int actual, char *code) {
-  if (expected == actual) {
-    printf("%s => %d\n", code, actual);
-  } else {
-    printf("%s => %d expected but got %d\n", code, expected, actual);
-    exit(1);
-  }
-}
 
 int main() {
   ASSERT(3, ({
@@ -72,7 +60,7 @@ int main() {
          }));
   ASSERT(3, ({
            int x12[2];
-           int *y12 = (int *)x12;
+           int *y12 = &x12;
            *y12 = 3;
            *x12;
          }));
@@ -99,37 +87,37 @@ int main() {
          }));
   ASSERT(0, ({
            int x16[2][3];
-           int *y16 = (int *)x16;
+           int *y16 = x16;
            *y16 = 0;
            **x16;
          }));
   ASSERT(1, ({
            int x17[2][3];
-           int *y17 = (int *)x17;
+           int *y17 = x17;
            *(y17 + 1) = 1;
            *(*x17 + 1);
          }));
   ASSERT(2, ({
            int x18[2][3];
-           int *y18 = (int *)x18;
+           int *y18 = x18;
            *(y18 + 2) = 2;
            *(*x18 + 2);
          }));
   ASSERT(3, ({
            int x19[2][3];
-           int *y19 = (int *)x19;
+           int *y19 = x19;
            *(y19 + 3) = 3;
            **(x19 + 1);
          }));
   ASSERT(4, ({
            int x20[2][3];
-           int *y20 = (int *)x20;
+           int *y20 = x20;
            *(y20 + 4) = 4;
            *(*(x20 + 1) + 1);
          }));
   ASSERT(5, ({
            int x21[2][3];
-           int *y21 = (int *)x21;
+           int *y21 = x21;
            *(y21 + 5) = 5;
            *(*(x21 + 1) + 2);
          }));
@@ -163,37 +151,37 @@ int main() {
          }));
   ASSERT(0, ({
            int x26[2][3];
-           int *y26 = (int *)x26;
+           int *y26 = x26;
            y26[0] = 0;
            x26[0][0];
          }));
   ASSERT(1, ({
            int x27[2][3];
-           int *y27 = (int *)x27;
+           int *y27 = x27;
            y27[1] = 1;
            x27[0][1];
          }));
   ASSERT(2, ({
            int x28[2][3];
-           int *y28 = (int *)x28;
+           int *y28 = x28;
            y28[2] = 2;
            x28[0][2];
          }));
   ASSERT(3, ({
            int x29[2][3];
-           int *y29 = (int *)x29;
+           int *y29 = x29;
            y29[3] = 3;
            x29[1][0];
          }));
   ASSERT(4, ({
            int x30[2][3];
-           int *y30 = (int *)x30;
+           int *y30 = x30;
            y30[4] = 4;
            x30[1][1];
          }));
   ASSERT(5, ({
            int x31[2][3];
-           int *y31 = (int *)x31;
+           int *y31 = x31;
            y31[5] = 5;
            x31[1][2];
          }));

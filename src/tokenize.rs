@@ -131,9 +131,29 @@ impl Ctx<'_> {
                 self.advance_input(1);
                 continue;
             }
-            //　あとでエラーメッセージように変更する
+
+            // 改行文字のスキップ
             if c == '\n' {
                 self.advance_input(1);
+                continue;
+            }
+
+            // 行コメントのスキップ
+            if self.input.starts_with("//") {
+                self.advance_input(2);
+                while !self.input.is_empty() && self.input.chars().next().unwrap() != '\n' {
+                    self.advance_input(1);
+                }
+                continue;
+            }
+
+            // ブロックコメントのスキップ
+            if self.input.starts_with("/*") {
+                self.advance_input(2);
+                while !self.input.starts_with("*/") {
+                    self.advance_input(1);
+                }
+                self.advance_input(2);
                 continue;
             }
 

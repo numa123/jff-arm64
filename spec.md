@@ -73,3 +73,7 @@ source: https://c-lang.sevendays-study.com/appendix4.html
                     };
 ```
 - Varのアドレスはこれのままで良いのか？？
+
+
+## レジスタの汚れにより、テストが単体だと動くのに対して、バグることがある！ ->　ブロックスコープの実装がまだだからだった
+![alt text](image.png)

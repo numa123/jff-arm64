@@ -273,11 +273,17 @@ pub fn codegen(ctx: Ctx) {
             Some(gval) => {
                 match gval {
                     InitGval::Str(s) => {
+                        let trimmed = s.trim_end_matches('\0'); // ヌル文字を除去
                         println!(".text");
                         println!(".cstring"); // なに?
                         println!(".align 3"); // なんの3?
                         println!("{}:", var.name);
-                        println!("      .ascii \"{}\"\0", s); // ascizみたいなのもある
+                        if trimmed.len() == 0 {
+                            println!("      .ascii \"\0\"");
+                        } else {
+                            println!("      .ascii \"{}\"", trimmed); // ascizみたいなのもある。最後に\0を書くとgccのwarningが出るから、ここで\0を書かないようにしている。
+                                                                      // でも""[0]とかがエラーになるから。その時だけ書いてる
+                        }
                     }
                     InitGval::Num(val) => {
                         println!(".data");
@@ -307,14 +313,16 @@ pub fn codegen(ctx: Ctx) {
             var.offset = stack_size;
             stack_size += var.ty.size as isize;
         }
-        stack_size = align16(stack_size);
+        stack_size = align16(stack_size); // なぜかtestでバグるから、メモリかレジスタが汚れているのかもしれないから余分に取ってみる
 
         // 関数名に基づくラベル
         println!(".text");
         // 関数の場合はアンダースコアがないとダメ。
         println!(".global _{}", name);
         println!("_{}:", name);
-        println!("      stp x29, x30, [sp, -{}]!", stack_size);
+        // println!("      stp x29, x30, [sp, -{}]!", stack_size); // −512~504までならこれで良いが、それ以上になるとsubとかを使わないといけない。単純化のためにsubを使う。
+        println!("      sub sp, sp, {}", stack_size); // −512~504までならこれで良いが、それ以上になるとsubとかを使わないといけない。単純化のためにsubを使う。
+        println!("      stp x29, x30, [sp]"); // −512~504までならこれで良いが、それ以上になるとsubとかを使わないといけない。単純化のためにsubを使う。
         println!("      mov x29, sp");
 
         // 引数の処理
@@ -336,7 +344,9 @@ pub fn codegen(ctx: Ctx) {
         }
 
         println!("end.{}:", name);
-        println!("      ldp x29, x30, [sp] ,{}", stack_size);
+        // println!("      ldp x29, x30, [sp] ,{}", stack_size); // stpと同様にサイズが大きくなった時も対応するためにaddを使う
+        println!("      ldp x29, x30, [sp]"); // stpと同様にサイズが大きくなった時も対応するためにaddを使う
+        println!("      add sp, sp, {}", stack_size);
         println!("      ret");
     }
 }
