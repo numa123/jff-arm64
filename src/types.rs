@@ -3,11 +3,13 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 // いずれ
 #[derive(Debug)]
 pub struct Function {
-    pub name: String,
+    #[allow(dead_code)]
+    pub name: String, // 一応つけている方が自然だと思ってつけている。
     pub variables: Vec<Rc<RefCell<Var>>>,
     pub body: Option<Node>, // {compound_stmt}
     pub args: Vec<Node>,    // Vec<Rc<RefCell<Var>>>にするかも。可変長引数の場合。
-    pub ty: Type,
+    #[allow(dead_code)]
+    pub ty: Type, // 一応つけている方が自然だと思ってつけている。関数の返り値の型が必要なケースがあるときに使うのではと思っている。includeしたやつとかがどういう扱いになっているのかわからないといけないと思う
 }
 #[derive(Debug)]
 pub struct Ctx<'a> {
@@ -26,6 +28,7 @@ pub enum TokenKind {
     TkNum { val: isize },
     TkIdent { name: String },
     TkKeyword { name: String },
+    TkStr { str: String },
 }
 
 #[derive(Debug)]
@@ -36,12 +39,20 @@ pub struct Token {
 }
 
 #[derive(Debug, Clone)]
+pub enum InitGval {
+    Str(String),
+    Num(isize),
+}
+
+#[derive(Debug, Clone)]
 pub struct Var {
     pub name: String,
     pub offset: isize,
     pub ty: Type,
-    pub is_def_arg: bool,
+    #[allow(dead_code)]
+    pub is_def_arg: bool, // 8個を超える引数を扱う際、スタックを利用して引数を渡すことになると思うので、その実装の際に必要になる想定
     pub is_local: bool,
+    pub init_gval: Option<InitGval>,
 }
 
 #[derive(Debug, Clone)]
@@ -144,8 +155,14 @@ pub struct Node {
 #[derive(Debug, Clone)]
 pub enum TypeKind {
     TyInt,
-    TyPtr { ptr_to: Box<Type> },
-    TyArray { ptr_to: Box<Type>, len: usize },
+    TyPtr {
+        ptr_to: Box<Type>,
+    },
+    #[allow(dead_code)]
+    TyArray {
+        ptr_to: Box<Type>,
+        len: usize, // <- これをまだ未使用だからdead_codeにしている
+    }, // lenがある方が自然だおと持っている
     TyChar,
 }
 
@@ -252,8 +269,8 @@ pub fn add_type(node: &mut Node) {
         | NodeKind::NdNum { .. } => {
             node.ty = Some(new_int());
         }
-        NodeKind::NdVar { .. } => {
-            node.ty = Some(new_int());
+        NodeKind::NdVar { var } => {
+            node.ty = Some(var.borrow().ty.clone());
         }
         NodeKind::NdAddr { lhs } => {
             add_type(lhs);

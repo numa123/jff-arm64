@@ -23,8 +23,8 @@ fn gen_addr(node: Node) {
             if var.is_local {
                 println!("      add x0, x29, {}", var.offset);
             } else {
-                println!("      adrp x0, _{}@PAGE", var.name); // what is PAGE?
-                println!("      add x0, x0, _{}@PAGEOFF;", var.name);
+                println!("      adrp x0, {}@PAGE", var.name); // what is PAGE?
+                println!("      add x0, x0, {}@PAGEOFF;", var.name);
             }
             return;
         }
@@ -49,8 +49,8 @@ fn gen_expr(node: Node) {
             if var.is_local {
                 println!("      add x0, x29, {}", var.offset);
             } else {
-                println!("      adrp x0, _{}@PAGE", var.name); // what is PAGE?
-                println!("      add x0, x0, _{}@PAGEOFF;", var.name);
+                println!("      adrp x0, {}@PAGE", var.name); // what is PAGE?
+                println!("      add x0, x0, {}@PAGEOFF;", var.name);
             }
             load(&var.ty);
             return;
@@ -262,10 +262,32 @@ fn align16(i: isize) -> isize {
 pub fn codegen(ctx: Ctx) {
     for var in &ctx.global_variables {
         let var = var.borrow(); // なぜborrowするのか？
-        println!(".data");
-        println!(".global _{}", var.name);
-        println!("_{}:", var.name);
-        println!("      .zero {}", var.ty.size);
+        match &var.init_gval {
+            // なぜ&をつけるのか？
+            Some(gval) => {
+                match gval {
+                    InitGval::Str(s) => {
+                        println!(".text");
+                        println!(".cstring"); // なに?
+                        println!(".align 3"); // なんの3?
+                        println!("{}:", var.name);
+                        println!("      .ascii \"{}\"\0", s); // ascizみたいなのもある
+                    }
+                    InitGval::Num(val) => {
+                        println!(".data");
+                        println!(".global {}", var.name);
+                        println!("{}:", var.name);
+                        println!("      .xword {}", val);
+                    }
+                }
+            }
+            None => {
+                println!(".data");
+                println!(".global {}", var.name);
+                println!("{}:", var.name);
+                println!("      .zero {}", var.ty.size);
+            }
+        }
     }
 
     for (name, func) in &ctx.functions {
@@ -277,12 +299,12 @@ pub fn codegen(ctx: Ctx) {
             let mut var = var.borrow_mut();
             var.offset = stack_size;
             stack_size += var.ty.size as isize;
-            eprintln!("{}: {:#?}", var.name, var);
         }
         stack_size = align16(stack_size);
 
         // 関数名に基づくラベル
         println!(".text");
+        // 関数の場合はアンダースコアがないとダメ。
         println!(".global _{}", name);
         println!("_{}:", name);
         println!("      stp x29, x30, [sp, -{}]!", stack_size);

@@ -1,4 +1,3 @@
-use core::error;
 use std::{cell::RefCell, mem::swap, rc::Rc};
 
 use crate::types::*;
@@ -224,17 +223,21 @@ fn new_deref(lhs: Node) -> Node {
 }
 
 fn new_num(val: isize) -> Node {
-    Node {
+    let mut node = Node {
         kind: NodeKind::NdNum { val },
         ty: None,
-    }
+    };
+    add_type(&mut node);
+    node
 }
 
 fn new_var(var: Rc<RefCell<Var>>) -> Node {
-    Node {
+    let mut node = Node {
         kind: NodeKind::NdVar { var },
         ty: None,
-    }
+    };
+    add_type(&mut node);
+    node
 }
 
 impl Ctx<'_> {
@@ -594,6 +597,16 @@ impl Ctx<'_> {
                 add_type(&mut node);
                 return new_num(node.ty.as_ref().unwrap().size as isize);
             }
+            TokenKind::TkStr { str } => {
+                let name = format!("lC{}", self.global_variables.len());
+                let var = self.create_gvar(
+                    name.as_str(),
+                    new_array_ty(new_char(), str.len()),
+                    Some(InitGval::Str(str.clone())),
+                );
+                self.advance_one_tok();
+                return var;
+            }
             TokenKind::TkIdent { name } => {
                 let name = name.clone();
                 self.advance_one_tok();
@@ -619,13 +632,14 @@ impl Ctx<'_> {
         }
     }
 
-    fn create_gvar(&mut self, name: &str, ty: Type) -> Node {
+    fn create_gvar(&mut self, name: &str, ty: Type, init_gval: Option<InitGval>) -> Node {
         let var = Rc::new(RefCell::new(Var {
             name: name.to_string(),
             offset: self.global_variables.len() as isize, // Offset will be calculated later // あとで方を実装した際、そのsizeなりによって変更すべき。ここでやるか、codegenでやるかはあとで
             ty: ty.clone(),
             is_def_arg: false,
             is_local: false,
+            init_gval: init_gval,
         }));
 
         self.global_variables.push(var.clone());
@@ -643,10 +657,12 @@ impl Ctx<'_> {
 
         let var = Rc::new(RefCell::new(Var {
             name: name.to_string(),
-            offset: variables.len() as isize * 8, // Offset will be calculated later // あとで方を実装した際、そのsizeなりによって変更すべき。ここでやるか、codegenでやるかはあとで
+            offset: 0, // Offset will be calculated later // あとで方を実装した際、そのsizeなりによって変更すべき。ここでやるか、codegenでやるかはあとで
+            // ここcodegenで改めてoffsetを割り当てているから意味ない説。グローバル変数はまた別で使えるかも。名前とか
             ty: ty.clone(),
             is_def_arg: is_def_arg,
             is_local: true,
+            init_gval: None,
         }));
 
         // if !self.is_processing_local {
@@ -770,10 +786,10 @@ impl Ctx<'_> {
             } else {
                 // グローバル変数の場合
                 // 今は初期化のみ
-                self.create_gvar(name.as_str(), ty);
+                self.create_gvar(name.as_str(), ty, None);
                 while self.consume(",") {
                     let (ty, name, _) = self.decltype(base_ty.clone()); // なぜclone
-                    self.create_gvar(name.as_str(), ty);
+                    self.create_gvar(name.as_str(), ty, None);
                 }
                 self.skip(";");
                 continue;

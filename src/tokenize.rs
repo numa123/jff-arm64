@@ -156,6 +156,23 @@ impl Ctx<'_> {
                 continue;
             }
 
+            if c == '"' {
+                let mut str = String::new();
+                self.advance_input(1);
+                while self.input.chars().next().unwrap() != '"' {
+                    str.push(self.input.chars().next().unwrap());
+                    self.advance_input(1);
+                }
+                str.push_str("\0");
+                self.advance_input(1);
+                tokens.push(Token {
+                    kind: TokenKind::TkStr { str: str.clone() },
+                    start: self.current_input_position() - str.len(),
+                    len: str.len(),
+                });
+                continue;
+            }
+
             // identifier
             if is_ident(c) {
                 let name: String = self.input.chars().take_while(|c| is_ident2(*c)).collect();
