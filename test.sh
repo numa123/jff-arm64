@@ -1,3 +1,4 @@
+#!/bin/bash
 cat <<EOF | gcc -xc -c -o tmp2.o -
 int ret3() { return 3; }
 int ret5() { return 5; }
@@ -14,7 +15,7 @@ EOF
 assert() {
 	expected="$1"
 	input="$2"
-	./target/debug/jff "$input" > tmp.s
+	./target/debug/jff "$input" > tmp.s || exit
 	gcc-14 -o tmp tmp.s tmp2.o
 	./tmp
 	actual="$?"
@@ -28,6 +29,7 @@ assert() {
 
 cargo build
 
+assert 0 "./main.c"
 assert 0 'int main() { return ({ 0; }); }'
 assert 2 'int main() { return ({ 0; 1; 2; }); }'
 assert 1 'int main() { ({ 0; return 1; 2; }); return 3; }'

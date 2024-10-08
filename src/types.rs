@@ -18,6 +18,7 @@ pub struct Ctx<'a> {
     pub tokens: Vec<Token>,
     pub global_variables: Vec<Rc<RefCell<Var>>>, // find_varのために型をrefcellにしてみる。不適切の恐れあり
     pub processing_funcname: String,
+    pub processing_filename: String,
     pub is_processing_local: bool, // グローバル変数の定義をしているのか、ローカル変数の定義をしているのかどうか
     pub functions: HashMap<String, Function>,
 }

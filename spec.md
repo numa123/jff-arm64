@@ -60,6 +60,9 @@ source: https://c-lang.sevendays-study.com/appendix4.html
 - .zerofill __DATA,__common,_x,16,2, .zero, の違い
 - .globalと.globlの違い。経緯
 - RefCellわからず使っている
+- ただのpanicで処理しているところ、tokenを持てるようにして、エラーを出そう
+- index out of boundsでpanicでエラーにしているところも多々ある
+- 今は入力文字列がファイル名でファイルが開ければファイルから値を取得。そうでなければ、入力文字列をコンパイルすることにしている
 
 
 # 注意

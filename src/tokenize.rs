@@ -81,9 +81,34 @@ impl Ctx<'_> {
     }
 
     pub fn error_tok(&self, tok: &Token, msg: &str) -> ! {
-        eprintln!("{}", self.input_copy);
-        eprintln!("{}{}", " ".repeat(tok.start), "^".repeat(tok.len)); // 後々該当箇所のinput_copyを色付けして表す
-        eprintln!("jff_error: {}", msg);
+        let mut idx = 0;
+        let mut line_idx = 1;
+        let mut line_string_before = String::new();
+        let mut line_string = String::new();
+        for line in self.input_copy.lines() {
+            if idx + line.len() >= tok.start {
+                line_string = line.to_string();
+                break;
+            }
+            idx += line.len() + 1;
+            line_idx += 1;
+            line_string_before = line.to_string();
+        }
+
+        // eprintln!("{}", self.input_copy);
+        eprintln!("{}:{}: error", self.processing_filename, line_idx);
+        eprintln!();
+        eprintln!("|");
+        eprintln!("|{}", line_string_before);
+        eprintln!("|{}", line_string);
+        eprintln!(
+            "|{}{} {}",
+            " ".repeat(tok.start - idx),
+            "^".repeat(tok.len),
+            msg
+        ); // 後々該当箇所のinput_copyを色付けして表す
+        eprintln!("|");
+        eprintln!();
         panic!();
     }
 
@@ -106,6 +131,12 @@ impl Ctx<'_> {
                 self.advance_input(1);
                 continue;
             }
+            //　あとでエラーメッセージように変更する
+            if c == '\n' {
+                self.advance_input(1);
+                continue;
+            }
+
             if c.is_digit(10) {
                 let num = self.parse_and_skip_number();
                 tokens.push(Token {
