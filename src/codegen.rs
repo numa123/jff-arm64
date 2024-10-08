@@ -8,6 +8,7 @@ fn pop16() {
 
 static mut IFIDX: usize = 0;
 static mut FORIDX: usize = 0;
+static mut CURRENTFN: String = String::new();
 
 fn load(ty: &Type) {
     if let TypeKind::TyArray { .. } = ty.kind {
@@ -174,12 +175,17 @@ fn gen_expr(node: Node) {
             println!("      bl _{}", name);
             return;
         }
+        NodeKind::NdGNUStmtExpr { body } => {
+            for stmt in body {
+                gen_stmt(stmt);
+            }
+            return;
+        }
         _ => panic!("not expected node: {:#?}", node),
     }
 }
 
-fn gen_stmt(node: Node, funcname: &str) {
-    // eprintln!("gen_stmt: {:#?}", node);
+fn gen_stmt(node: Node) {
     match node.kind {
         NodeKind::NdExprStmt { lhs } => {
             gen_expr(*lhs);
@@ -187,12 +193,12 @@ fn gen_stmt(node: Node, funcname: &str) {
         }
         NodeKind::NdReturn { lhs } => {
             gen_expr(*lhs);
-            println!("      b end.{}", funcname);
+            println!("      b end.{}", unsafe { CURRENTFN.clone() });
             return;
         }
         NodeKind::NdBlock { body } => {
             for stmt in body {
-                gen_stmt(stmt, funcname);
+                gen_stmt(stmt);
             }
             return;
         }
@@ -203,13 +209,13 @@ fn gen_stmt(node: Node, funcname: &str) {
             println!("	  cmp x0, 1");
             if let Some(els) = els {
                 println!("	  b.ne else.{}", idx);
-                gen_stmt(*then, funcname);
+                gen_stmt(*then);
                 println!("	  b endif.{}", idx);
                 println!("else.{}:", idx);
-                gen_stmt(*els, funcname);
+                gen_stmt(*els);
             } else {
                 println!("	  b.ne endif.{}", idx);
-                gen_stmt(*then, funcname);
+                gen_stmt(*then);
             }
             println!("endif.{}:", idx);
             return;
@@ -222,10 +228,10 @@ fn gen_stmt(node: Node, funcname: &str) {
         } => {
             let idx = unsafe { FORIDX };
             unsafe { FORIDX += 1 };
-            gen_stmt(*init, funcname);
+            gen_stmt(*init);
             println!("	  b cond.{}", idx);
             println!("startfor.{}:", idx);
-            gen_stmt(*body, funcname);
+            gen_stmt(*body);
             if let Some(inc) = inc {
                 gen_expr(*inc);
             }
@@ -246,7 +252,7 @@ fn gen_stmt(node: Node, funcname: &str) {
             gen_expr(*cond);
             println!("	  cmp x0, 1");
             println!("	  b.ne endwhile.{}", idx);
-            gen_stmt(*body, funcname);
+            gen_stmt(*body);
             println!("	  b startwhile.{}", idx);
             println!("endwhile.{}:", idx);
             return;
@@ -291,6 +297,7 @@ pub fn codegen(ctx: Ctx) {
     }
 
     for (name, func) in &ctx.functions {
+        unsafe { CURRENTFN = name.clone() };
         let mut stack_size = 16; // 少々余分に撮っていると思う
 
         // 各関数の変数に対してスタックサイズを計算
@@ -325,7 +332,7 @@ pub fn codegen(ctx: Ctx) {
 
         // 関数のbodyに対して`gen_stmt`を呼び出す
         if let Some(body) = &func.body {
-            gen_stmt(body.clone(), name);
+            gen_stmt(body.clone());
         }
 
         println!("end.{}:", name);

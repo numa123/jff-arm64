@@ -7,7 +7,7 @@
   - Optionを使って、後で再帰的に型をつける <- 今回はこっち(chibiccも)
   - Nodeを作成する際にtyをつけて、Nodeを生成する際に毎回tyをつける。
 
-## EBNF
+## EBNF(書き直す必要ある)
 - declspec = "int"
 - decltype = "*"* 
   - 入力: declaration_specifierとtoken。出力: type

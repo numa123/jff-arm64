@@ -587,6 +587,23 @@ impl Ctx<'_> {
             }
             TokenKind::TkPunct { str } if str == "(" => {
                 self.advance_one_tok();
+                // gnu statement expression
+                if self.equal("{") {
+                    self.advance_one_tok();
+                    let compound_stmt = self.compound_stmt();
+                    let body = if let NodeKind::NdBlock { body } = compound_stmt.kind {
+                        body
+                    } else {
+                        panic!("gnu statement expression body is not block");
+                    };
+                    let mut node = Node {
+                        kind: NodeKind::NdGNUStmtExpr { body: body },
+                        ty: None,
+                    };
+                    add_type(&mut node);
+                    self.skip(")");
+                    return node;
+                }
                 let node = self.expr();
                 self.skip(")");
                 return node;
@@ -665,11 +682,6 @@ impl Ctx<'_> {
             init_gval: None,
         }));
 
-        // if !self.is_processing_local {
-        //     var.borrow_mut().offset = self.global_variables.len() as isize;
-        //     self.global_variables.push(var.clone());
-        //     return new_var(var);
-        // }
         variables.push(var.clone());
         let node = new_var(var);
 
@@ -781,7 +793,7 @@ impl Ctx<'_> {
                 if let Some(func) = self.functions.get_mut(&name) {
                     func.body = Some(node);
                 } else {
-                    panic!("Function not found");
+                    panic!("Function not found: {}", name);
                 }
             } else {
                 // グローバル変数の場合

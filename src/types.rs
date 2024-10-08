@@ -41,7 +41,8 @@ pub struct Token {
 #[derive(Debug, Clone)]
 pub enum InitGval {
     Str(String),
-    Num(isize),
+    #[allow(dead_code)]
+    Num(isize), // 初期化の際に必要だけど./test.shとかで少し邪魔だからdead_codeにしている
 }
 
 #[derive(Debug, Clone)]
@@ -143,6 +144,9 @@ pub enum NodeKind {
     NdFuncCall {
         name: String,
         args: Vec<Node>,
+    },
+    NdGNUStmtExpr {
+        body: Vec<Node>, // compound_stmt
     },
 }
 
@@ -294,6 +298,10 @@ pub fn add_type(node: &mut Node) {
         NodeKind::NdReturn { lhs } | NodeKind::NdExprStmt { lhs } | NodeKind::NdNeg { lhs } => {
             add_type(lhs);
             node.ty = lhs.ty.clone();
+        }
+        NodeKind::NdGNUStmtExpr { body } => {
+            let last_node = body.last().unwrap();
+            node.ty = last_node.ty.clone();
         }
         _ => {} // Block, If, For, While
     }
