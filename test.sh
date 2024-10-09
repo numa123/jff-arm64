@@ -33,6 +33,26 @@ assert() {
 
 cargo build
 
+assert 1 'int main() { char x = 1; char y = 2; x; }'
+assert 1 'int main() { ({char x = 1; char y = 2; x;}); }'
+
+assert 10 'int main() {int first = ({int x = 3; int y = 5; *(&x+1);}); return ({ int x = 10; return 10;});}'
+
+assert 55 'int main() {   ({int i = 0; while (i < 10) i = i + 1; i;}); return ({int i = 0; int j = 0; while (i<=10) { j = i + j; i = i + 1;} j; });   }'
+
+assert 3 'int main() {int x = 3; int *y = &x; int **z = &y; **z;}'
+
+assert 3 'int main(int a) {({ int x = 3; *&x; }); ( {int x = 3; int *y = &x; int **z = &y; **z;});  }'
+
+assert 3 'int main() {({ int x2; if (1 - 1) x2 = 2; else x2 = 3; x2; });}'
+
+assert 2 'int main() { char x = 1; char y = 2; y; }'
+assert 1 'int main() { char x; sizeof(x); }'
+assert 10 'int main() { char x[10]; sizeof(x); }'
+assert 2 'int main() { int x = 2; { int x = 3; } x; }'
+assert 2 'int main() { int x = 2; { int x = 3; } int y = 4; x; }'
+assert 3 'int main() { int x = 2; { x = 3; } x; }'
+
 assert 1 'int main() {char x21 = 1; x21;}'
 assert 2 'int main() {int a; int b; a = b = 1; a+b;}'
 

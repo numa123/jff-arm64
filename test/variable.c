@@ -2,91 +2,91 @@
 int g1, g2[4];
 int main() {
   ASSERT(3, ({
-           int a1;
-           a1 = 3;
-           a1;
+           int a;
+           a = 3;
+           a;
          }));
   ASSERT(3, ({
-           int a2 = 3;
-           a2;
+           int a = 3;
+           a;
          }));
   ASSERT(8, ({
-           int a3 = 3;
-           int z3 = 5;
-           a3 + z3;
+           int a = 3;
+           int z = 5;
+           a + z;
          }));
   ASSERT(3, ({
-           int a4 = 3;
-           a4;
+           int a = 3;
+           a;
          }));
   ASSERT(8, ({
-           int a5 = 3;
-           int z5 = 5;
-           a5 + z5;
+           int a = 3;
+           int z = 5;
+           a + z;
          }));
   ASSERT(6, ({
-           int a6;
-           int b6;
-           a6 = b6 = 3;
-           a6 + b6;
+           int a;
+           int b;
+           a = b = 3;
+           a + b;
          }));
   ASSERT(3, ({
-           int foo7 = 3;
-           foo7;
+           int foo = 3;
+           foo;
          }));
   ASSERT(8, ({
            int foo123 = 3;
-           int bar8 = 5;
-           foo123 + bar8;
+           int bar = 5;
+           foo123 + bar;
          }));
   ASSERT(8, ({
-           int x9;
-           sizeof(x9);
+           int x;
+           sizeof(x);
          }));
   ASSERT(8, ({
-           int x10;
-           sizeof x10;
+           int x;
+           sizeof x;
          }));
   ASSERT(8, ({
-           int *x11;
-           sizeof(x11);
+           int *x;
+           sizeof(x);
          }));
   ASSERT(32, ({
-           int x12[4];
-           sizeof(x12);
+           int x[4];
+           sizeof(x);
          }));
   ASSERT(96, ({
-           int x13[3][4];
-           sizeof(x13);
+           int x[3][4];
+           sizeof(x);
          }));
   ASSERT(32, ({
-           int x14[3][4];
-           sizeof(*x14);
+           int x[3][4];
+           sizeof(*x);
          }));
   ASSERT(8, ({
-           int x15[3][4];
-           sizeof(**x15);
+           int x[3][4];
+           sizeof(**x);
          }));
   ASSERT(9, ({
-           int x16[3][4];
-           sizeof(**x16) + 1;
+           int x[3][4];
+           sizeof(**x) + 1;
          }));
   ASSERT(9, ({
-           int x17[3][4];
-           sizeof **x17 + 1;
+           int x[3][4];
+           sizeof **x + 1;
          }));
   ASSERT(8, ({
-           int x18[3][4];
-           sizeof(**x18 + 1);
+           int x[3][4];
+           sizeof(**x + 1);
          }));
   ASSERT(8, ({
-           int x19 = 1;
-           sizeof(x19 = 2);
+           int x = 1;
+           sizeof(x = 2);
          }));
   ASSERT(1, ({
-           int x20 = 1;
-           sizeof(x20 = 2);
-           x20;
+           int x = 1;
+           sizeof(x = 2);
+           x;
          }));
   ASSERT(0, g1);
   ASSERT(3, ({
@@ -123,46 +123,45 @@ int main() {
          }));
   ASSERT(8, sizeof(g1));
   ASSERT(32, sizeof(g2));
-  ASSERT(1, ({
-           char x21 = 1;
-           x21;
-         }));
-  // 通ったり通らなかったり。。。
 
-  // ASSERT(1, ({
-  //          char x22 = 1;
-  //          char y22 = 2;
-  //          x22;
-  //        }));
-  // なぜこれが513になるんだ
-  ASSERT(2, ({
-           char x23 = 1;
-           char y23 = 2;
-           y23;
+  // これ、alignを8でやらず、ldrでロードすると、xを読み込むと同時にyも読み込んでしまい、513になってしまう。
+  ASSERT(1, ({
+           char x = 1;
+           char y = 2;
+           x;
          }));
   ASSERT(1, ({
-           char x24;
-           sizeof(x24);
+           char x = 1;
+           x;
+         }));
+  ASSERT(2, ({
+           char x = 1;
+           char y = 2;
+           y;
+         }));
+  ASSERT(1, ({
+           char x;
+           sizeof(x);
          }));
   ASSERT(10, ({
-           char x25[10];
-           sizeof(x25);
+           char x[10];
+           sizeof(x);
          }));
   ASSERT(2, ({
-           int x26 = 2;
-           { int x27 = 3; }
-           x26;
+           int x = 2;
+           { int x = 3; }
+           x;
          }));
   ASSERT(2, ({
-           int x28 = 2;
-           { int x29 = 3; }
-           int y28 = 4;
-           x28;
+           int x = 2;
+           { int x = 3; }
+           int y = 4;
+           x;
          }));
   ASSERT(3, ({
-           int x30 = 2;
-           { x30 = 3; }
-           x30;
+           int x = 2;
+           { x = 3; }
+           x;
          }));
   printf("OK\n");
   return 0;

@@ -83,6 +83,7 @@ for src_file in $src_files; do
 
   # 自作コンパイラでアセンブリコードを生成
   ./target/debug/jff "$tmp/${base_name}_preprocessed.c" > "$tmp/${base_name}.s" || exit
+    # cat "$tmp/${base_name}.s"  # .sファイルの内容を出力
 
   # システムコンパイラでリンクして実行ファイルを作成
   $CC -o "$tmp/$base_name" "$tmp/${base_name}.s" "$tmp/common.o" || exit
@@ -92,8 +93,8 @@ for src_file in $src_files; do
   echo "Running $base_name"
   if ! "$tmp/$base_name"; then
     echo "Test failed for $base_name"
-    # echo "=== Assembly output ==="
-    # cat "$tmp/${base_name}.s"  # .sファイルの内容を出力
+    echo "=== Assembly output ==="
+    cat "$tmp/${base_name}.s"  # .sファイルの内容を出力
     exit 1
   fi
   echo

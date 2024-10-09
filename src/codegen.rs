@@ -264,6 +264,9 @@ fn gen_stmt(node: Node) {
 fn align16(i: isize) -> isize {
     (i + 15) & !15
 }
+fn align8(i: isize) -> isize {
+    (i + 7) & !7
+}
 
 pub fn codegen(ctx: Ctx) {
     for var in &ctx.global_variables {
@@ -279,10 +282,11 @@ pub fn codegen(ctx: Ctx) {
                         println!(".align 3"); // なんの3?
                         println!("{}:", var.name);
                         if trimmed.len() == 0 {
-                            println!("      .ascii \"\0\"");
+                            println!("      .asciz \"\"");
                         } else {
-                            println!("      .ascii \"{}\"", trimmed); // ascizみたいなのもある。最後に\0を書くとgccのwarningが出るから、ここで\0を書かないようにしている。
+                            println!("      .asciz \"{}\"", trimmed); // ascizみたいなのもある。最後に\0を書くとgccのwarningが出るから、ここで\0を書かないようにしている。
                                                                       // でも""[0]とかがエラーになるから。その時だけ書いてる
+                                                                      // ascizは終端文字を追加してくれるらしい。
                         }
                     }
                     InitGval::Num(val) => {
@@ -308,10 +312,12 @@ pub fn codegen(ctx: Ctx) {
 
         // 各関数の変数に対してスタックサイズを計算
         // どうやってアラインメントすれば良いのか正直わからん
-        for var in &func.variables {
-            let mut var = var.borrow_mut();
-            var.offset = stack_size;
-            stack_size += var.ty.size as isize;
+        for scope in &func.archive_variables {
+            for var in scope {
+                let mut var = var.borrow_mut();
+                var.offset = stack_size;
+                stack_size += align8(var.ty.size as isize); // 無駄使い。ただ、charを連続して書き込み、ldrすると他のやつが巻き込まれてしまう。あとでstrb, ldrbとかを使うように変更し、ここはalign8を外すように変更したいところ
+            }
         }
         stack_size = align16(stack_size); // なぜかtestでバグるから、メモリかレジスタが汚れているのかもしれないから余分に取ってみる
 

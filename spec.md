@@ -4,7 +4,7 @@
 - 変数のオフセット計算をしっかりして、多次元配列もきちんと実装する
 - intの方が良い気がしなくもないけど一旦longのままでやる
 - 型の追加は以下の2パターンが考えられる
-  - Optionを使って、後で再帰的に型をつける <- 今回はこっち(chibiccも)
+  - Optionを使って、後で再帰的に型をつける <- 今回はこっち(chibiccも):w
   - Nodeを作成する際にtyをつけて、Nodeを生成する際に毎回tyをつける。
 
 ## EBNF(書き直す必要ある)
@@ -31,11 +31,12 @@
 ## 現在サポート中の演算子の優先順位
 低
 1. ==, !=
-2. <, <=, >, >=
-3. +, -
-4. *, /
-5. 単項+, 単項-, 単項*, 単項&
-6. ()
+2. <, <=, >, >=:w
+3. 
+4. +, -
+5. *, /
+6. 単項+, 単項-, 単項*, 単項&
+7. ()
 
 ## 演算子の優先順位
 ![alt text](operator-priority.png)
@@ -63,6 +64,7 @@ source: https://c-lang.sevendays-study.com/appendix4.html
 - ただのpanicで処理しているところ、tokenを持てるようにして、エラーを出そう
 - index out of boundsでpanicでエラーにしているところも多々ある
 - 今は入力文字列がファイル名でファイルが開ければファイルから値を取得。そうでなければ、入力文字列をコンパイルすることにしている
+- ascii, ascizの違い。
 
 
 # 注意
@@ -77,3 +79,42 @@ source: https://c-lang.sevendays-study.com/appendix4.html
 
 ## レジスタの汚れにより、テストが単体だと動くのに対して、バグることがある！ ->　ブロックスコープの実装がまだだからだった
 ![alt text](image.png)
+
+
+### ブロックスコープの実装
+- enter_scope関数で、self.processing_funcnameをキーとして、functionsからFunction構造体を取得して、そのvariablesに、新しく配列を足して、その中に追加していく。
+- find_varでは、そのvariablesを逆順に走査して、見つけていく。
+- ブロックを抜けたら、popする
+- まず関数定義の際、引数に書いてある変数は、最初のスコープに追加する。そのためにvariables[0]でアクセスできるようにする。このときscope_idxは0だから、それでアクセスする
+- 次に{}では、新しくスコープを追加する。そうするとscope_idxは1になり、それ以降はvariables[1]に
+- 今スコープ管理のidxがわかりにくい感じになっている
+
+
+しかし、まだ以下のリンカ警告が表示されているようです：
+
+csharp
+コードをコピーする
+ld: warning: c-string symbol 'lC1' ("OK\n") is located within another string, the entire string "({ char x = 1; char y = 2; x; })OK\n" will be used instead
+この警告は、文字列シンボル lC1（"OK\n"）が別の文字列（"({ char x = 1; char y = 2; x; })OK\n"）の中に位置しており、リンカがそれらを一つの連続した文字列として扱っているために発生しています。
+
+原因：
+
+文字列リテラルがメモリ上で連続して配置され、適切な区切りやアライメントがないため、リンカがそれらを一つの文字列として認識しています。
+解決策：
+
+文字列間に明示的な終端文字を追加する：
+
+.ascii は文字列をそのまま配置しますが、終端文字（ヌル文字）を付加しません。これにより、文字列が連結される可能性があります。代わりに .asciz を使用すると、自動的に終端文字が追加されます。
+
+assembly
+コードをコピーする
+.text
+.cstring
+.align 3
+lC0:
+      .asciz "({ char x = 1; char y = 2; x; })"
+.text
+.cstring
+.align 3
+lC1:
+      .asciz "OK\n"

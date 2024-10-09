@@ -95,7 +95,6 @@ impl Ctx<'_> {
             line_string_before = line.to_string();
         }
 
-        // eprintln!("{}", self.input_copy);
         eprintln!("{}:{}: error", self.processing_filename, line_idx);
         eprintln!();
         eprintln!("|");
@@ -124,7 +123,6 @@ impl Ctx<'_> {
     pub fn tokenize(&mut self) -> Vec<Token> {
         let mut tokens = Vec::new();
         while !self.input.is_empty() {
-            // eprintln!("{:#?}", self.tokens);
             let c = self.input.chars().next().unwrap();
 
             if c == ' ' {

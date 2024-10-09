@@ -1,50 +1,53 @@
 #include "test.h"
+/*
+ * This is a block comment.
+ */
 int main() {
   ASSERT(3, ({
-           int x1;
+           int x;
            if (0)
-             x1 = 2;
+             x = 2;
            else
-             x1 = 3;
-           x1;
+             x = 3;
+           x;
          }));
   ASSERT(3, ({
-           int x2;
+           int x;
            if (1 - 1)
-             x2 = 2;
+             x = 2;
            else
-             x2 = 3;
-           x2;
+             x = 3;
+           x;
          }));
   ASSERT(2, ({
-           int x3;
+           int x;
            if (1)
-             x3 = 2;
+             x = 2;
            else
-             x3 = 3;
-           x3;
+             x = 3;
+           x;
          }));
   ASSERT(2, ({
-           int x4;
+           int x;
            if (2 - 1)
-             x4 = 2;
+             x = 2;
            else
-             x4 = 3;
-           x4;
+             x = 3;
+           x;
          }));
   ASSERT(55, ({
-           int i1 = 0;
-           int j1 = 0;
-           for (i1 = 0; i1 <= 10; i1 = i1 + 1)
-             j1 = i1 + j1;
-           j1;
+           int i = 0;
+           int j = 0;
+           for (i = 0; i <= 10; i = i + 1)
+             j = i + j;
+           j;
          }));
-  ASSERT(10, ({
-           int i2 = 0;
-           while (i2 < 10)
-             i2 = i2 + 1;
-           i2;
-         }));
+  // ASSERT(10, ({
+  //          int i = 0;
+  //          while (i < 10)
+  //            i = i + 1;
+  //          i;
+  //        }));
   ASSERT(3, ({
            1;
            { 2; }
@@ -56,15 +59,22 @@ int main() {
            ;
            5;
          }));
-  ASSERT(55, ({
-           int i3 = 0;
-           int j3 = 0;
-           while (i3 <= 10) {
-             j3 = i3 + j3;
-             i3 = i3 + 1;
-           }
-           j3;
+  ASSERT(10, ({
+           int i = 0;
+           while (i < 10)
+             i = i + 1;
+           i;
          }));
+  ASSERT(55, ({
+           int i = 0;
+           int j = 0;
+           while (i <= 10) {
+             j = i + j;
+             i = i + 1;
+           }
+           j;
+         }));
+
   printf("OK\n");
   return 0;
 }

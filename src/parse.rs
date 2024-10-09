@@ -285,6 +285,7 @@ impl Ctx<'_> {
         while !self.equal(";") {
             let (ty, name, _) = self.decltype(base_ty.clone());
             let mut node = self.create_lvar(name.clone().as_str(), ty, false);
+
             if self.equal("=") {
                 self.advance_one_tok();
                 node = new_assign(node, self.expr());
@@ -374,6 +375,7 @@ impl Ctx<'_> {
 
     fn compound_stmt(&mut self) -> Node {
         let mut body = Vec::new();
+        self.enter_scope();
         while !self.consume("}") {
             if self.is_typename() {
                 let mut node = self.declaration();
@@ -385,6 +387,7 @@ impl Ctx<'_> {
                 body.push(stmt);
             }
         }
+        self.leave_scope();
         let node = new_block(body);
         return node;
     }
@@ -641,59 +644,13 @@ impl Ctx<'_> {
                         ty: Some(var.borrow().clone().ty),
                     };
                 } else {
-                    self.error_tok(&self.tokens[0], "undefined variable");
+                    eprintln!("searched var: {}", name);
+                    self.error_tok(&self.tokens[0], "undefined variable"); // -1しないといけない
                 }
                 return node;
             }
             _ => self.error_tok(&self.tokens[0], "expected a number or ( expression )"),
         }
-    }
-
-    fn create_gvar(&mut self, name: &str, ty: Type, init_gval: Option<InitGval>) -> Node {
-        let var = Rc::new(RefCell::new(Var {
-            name: name.to_string(),
-            offset: self.global_variables.len() as isize, // Offset will be calculated later // あとで方を実装した際、そのsizeなりによって変更すべき。ここでやるか、codegenでやるかはあとで
-            ty: ty.clone(),
-            is_def_arg: false,
-            is_local: false,
-            init_gval: init_gval,
-        }));
-
-        self.global_variables.push(var.clone());
-        let node = new_var(var);
-        return node;
-    }
-
-    // 関数定義用の
-    fn create_lvar(&mut self, name: &str, ty: Type, is_def_arg: bool) -> Node {
-        let variables = &mut self
-            .functions
-            .get_mut(&self.processing_funcname)
-            .unwrap()
-            .variables;
-
-        let var = Rc::new(RefCell::new(Var {
-            name: name.to_string(),
-            offset: 0, // Offset will be calculated later // あとで方を実装した際、そのsizeなりによって変更すべき。ここでやるか、codegenでやるかはあとで
-            // ここcodegenで改めてoffsetを割り当てているから意味ない説。グローバル変数はまた別で使えるかも。名前とか
-            ty: ty.clone(),
-            is_def_arg: is_def_arg,
-            is_local: true,
-            init_gval: None,
-        }));
-
-        variables.push(var.clone());
-        let node = new_var(var);
-
-        // 関数定義の引数の場合、関数のargsにも追加
-        if is_def_arg {
-            let func = self.functions.get_mut(&self.processing_funcname).unwrap();
-            if func.args.len() >= 8 {
-                self.error_tok(&self.tokens[0], "too many arguments");
-            }
-            func.args.push(node.clone());
-        }
-        return node;
     }
 
     fn get_ident(&mut self) -> String {
@@ -761,17 +718,22 @@ impl Ctx<'_> {
             let (ty, name, is_func) = self.decltype(base_ty.clone());
             // 関数の場合
             if is_func {
-                let variables: Vec<Rc<RefCell<Var>>> = Vec::new();
+                let variables: Vec<Vec<Rc<RefCell<Var>>>> = vec![];
+
                 // set processing funcname environment variable
                 self.processing_funcname = name.clone();
                 let func = Function {
                     name: name.clone(),
                     variables,
+                    archive_variables: vec![],
                     args: Vec::new(),
                     body: None,
                     ty: ty,
+                    scope_idx: -1, // 最初のスコープは-1にすることで、enter_scopeで良い感じに辻褄合わせ。でも、普通にわかりづらいから後で直す
                 };
                 self.functions.insert(name.clone(), func);
+
+                self.enter_scope();
 
                 // 引数の処理
                 self.skip("(");
@@ -784,12 +746,16 @@ impl Ctx<'_> {
                         self.advance_one_tok();
                     }
                 }
+
                 self.skip(")");
                 self.skip("{");
                 self.is_processing_local = true;
                 let mut node = self.compound_stmt();
                 self.is_processing_local = false;
                 add_type(&mut node);
+
+                self.leave_scope();
+
                 if let Some(func) = self.functions.get_mut(&name) {
                     func.body = Some(node);
                 } else {
@@ -811,16 +777,41 @@ impl Ctx<'_> {
 }
 
 impl Ctx<'_> {
-    pub fn find_var(&mut self, name: &str) -> Option<Rc<RefCell<Var>>> {
+    fn get_function(&mut self) -> &mut Function {
+        return self.functions.get_mut(&self.processing_funcname).unwrap();
+    }
+    fn get_func_variables(&mut self) -> &mut Vec<Vec<Rc<RefCell<Var>>>> {
         let variables = &mut self
             .functions
             .get_mut(&self.processing_funcname)
             .unwrap()
-            .variables
-            .iter();
-        for var in variables {
-            if var.borrow().name == name {
-                return Some(var.clone());
+            .variables;
+        return variables;
+    }
+    pub fn enter_scope(&mut self) {
+        let function = self.get_function();
+        function.variables.push(Vec::new());
+        // if function.scope_idx != 0 {
+        //     function.scope_idx += 1;
+        // }
+        function.scope_idx += 1;
+    }
+    pub fn leave_scope(&mut self) {
+        let function = self.get_function();
+        let poped_scope = function.variables.pop();
+        function.archive_variables.push(poped_scope.unwrap());
+        function.scope_idx -= 1;
+    }
+    pub fn find_var(&mut self, name: &str) -> Option<Rc<RefCell<Var>>> {
+        let function = self.get_function();
+        let variables = &function.variables; // なぜ&が必要なのか。
+                                             // eprintln!("variables: {:#?}", variables);
+                                             // idx版目から遡る
+        for scope in variables.iter().rev() {
+            for var in scope {
+                if var.borrow().name == name {
+                    return Some(var.clone());
+                }
             }
         }
         for var in &self.global_variables {
@@ -830,6 +821,49 @@ impl Ctx<'_> {
             }
         }
         None
+    }
+    fn create_gvar(&mut self, name: &str, ty: Type, init_gval: Option<InitGval>) -> Node {
+        let var = Rc::new(RefCell::new(Var {
+            name: name.to_string(),
+            offset: self.global_variables.len() as isize, // Offset will be calculated later // あとで方を実装した際、そのsizeなりによって変更すべき。ここでやるか、codegenでやるかはあとで
+            ty: ty.clone(),
+            is_def_arg: false,
+            is_local: false,
+            init_gval: init_gval,
+        }));
+
+        self.global_variables.push(var.clone());
+        let node = new_var(var);
+        return node;
+    }
+
+    // 関数定義用の
+    fn create_lvar(&mut self, name: &str, ty: Type, is_def_arg: bool) -> Node {
+        let function = self.get_function();
+
+        let var = Rc::new(RefCell::new(Var {
+            name: name.to_string(),
+            offset: 0, // Offset will be calculated later // あとで方を実装した際、そのsizeなりによって変更すべき。ここでやるか、codegenでやるかはあとで
+            // ここcodegenで改めてoffsetを割り当てているから意味ない説。グローバル変数はまた別で使えるかも。名前とか
+            ty: ty.clone(),
+            is_def_arg: is_def_arg,
+            is_local: true,
+            init_gval: None,
+        }));
+
+        function.variables[function.scope_idx as usize].push(var.clone()); // コードがひどいが、まあ想定ではここが-になることはないはず
+
+        let node = new_var(var);
+
+        // 関数定義の引数の場合、関数のargsにも追加
+        if is_def_arg {
+            let func = self.functions.get_mut(&self.processing_funcname).unwrap();
+            if func.args.len() >= 8 {
+                self.error_tok(&self.tokens[0], "too many arguments");
+            }
+            func.args.push(node.clone());
+        }
+        return node;
     }
 }
 
