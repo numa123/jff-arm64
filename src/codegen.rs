@@ -1,6 +1,6 @@
 use crate::types::*;
 fn push16() {
-    println!("      str x0, [sp, -16]!  // push"); // 16はハードコードだが、スタックのサイズを計算して動的にするべき
+    println!("      str x0, [sp, -16]!  // push"); // 16はハードコードだが、スタックのサイズを計算して動的にするべき?
 }
 fn pop16() {
     println!("      ldr x1, [sp], 16 // pop");
@@ -30,7 +30,7 @@ fn store(ty: &Type) {
     } else {
         println!("      str x0, [x1]");
     }
-    // 4だったらwとかね 今の8を4にしてintにしたら良いかもね
+    // 4だったらwとかね 今の8を4にしてintにしたら良いかも
 }
 
 fn gen_addr(node: Node) {
@@ -45,7 +45,7 @@ fn gen_addr(node: Node) {
             }
             return;
         }
-        NodeKind::NdDeref { lhs } => {
+        NodeKind::NdDeref { lhs, .. } => {
             gen_expr(*lhs);
             return;
         }
@@ -59,17 +59,10 @@ fn gen_expr(node: Node) {
             println!("      mov x0, {}", val);
             return;
         }
-        NodeKind::NdVar { var } => {
-            // let var = var.borrow();
-            // println!("      add x0, x29, {}", var.offset); // えいや
-            let var = var.borrow();
-            if var.is_local {
-                println!("      add x0, x29, {}", var.offset);
-            } else {
-                println!("      adrp x0, {}@PAGE", var.name); // what is PAGE?
-                println!("      add x0, x0, {}@PAGEOFF;", var.name);
-            }
-            load(&var.ty);
+        NodeKind::NdVar { ref var } => {
+            let ty = var.borrow().ty.clone();
+            gen_addr(node);
+            load(&ty);
             return;
         }
         NodeKind::NdAdd { lhs, rhs } => {
@@ -175,7 +168,7 @@ fn gen_expr(node: Node) {
             gen_addr(*lhs);
             return;
         }
-        NodeKind::NdDeref { lhs } => {
+        NodeKind::NdDeref { lhs, .. } => {
             gen_expr(*lhs);
             load(node.ty.as_ref().unwrap()); // 正しいか？
             return;
@@ -202,7 +195,6 @@ fn gen_expr(node: Node) {
 }
 
 fn gen_stmt(node: Node) {
-    // eprintln!("gen_stmt: {:#?}", node);
     match node.kind {
         NodeKind::NdExprStmt { lhs } => {
             gen_expr(*lhs);
@@ -284,16 +276,15 @@ fn align16(i: isize) -> isize {
 
 pub fn codegen(ctx: Ctx) {
     for var in &ctx.global_variables {
-        let var = var.borrow(); // なぜborrowするのか？
+        let var = var.borrow();
         match &var.init_gval {
-            // なぜ&をつけるのか？
             Some(gval) => {
                 match gval {
                     InitGval::Str(s) => {
                         let trimmed = s.trim_end_matches('\0'); // ヌル文字を除去
                         println!(".text");
-                        println!(".cstring"); // なに?
-                        println!(".align 3"); // なんの3?
+                        println!(".cstring"); // セクションの指定
+                        println!(".align 3"); // ポインタは8byte。align 3 は　2^3 = 8byteでアラインメント
                         println!("{}:", var.name);
                         if trimmed.len() == 0 {
                             println!("      .asciz \"\"");
@@ -322,7 +313,7 @@ pub fn codegen(ctx: Ctx) {
         unsafe { CURRENTFN = name.clone() };
         let mut stack_size = 16;
         // arm64のアラインメントのポリシーはまだ未確認
-        for scope in &func.archive_variables {
+        for scope in &func.exited_scope_variables {
             for var in scope {
                 let mut var = var.borrow_mut();
                 var.offset = stack_size;

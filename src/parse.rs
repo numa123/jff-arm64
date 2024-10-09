@@ -3,255 +3,248 @@ use std::{cell::RefCell, mem::swap, rc::Rc};
 use crate::type_utils::*;
 use crate::types::*;
 
-fn create_func(name: &str, ty: Type) -> Function {
-    let func = Function {
-        name: name.to_string(),
-        variables: vec![],
-        archive_variables: vec![],
-        args: Vec::new(),
-        body: None,
-        ty: ty,
-        scope_idx: -1, // 最初のスコープは-1にすることで、enter_scopeで良い感じに辻褄合わせ。でも、普通にわかりづらいから後で直す
-    };
-    return func;
-}
+impl Ctx<'_> {
+    fn create_func(&mut self, name: &str, ty: Type) -> Function {
+        let func = Function {
+            name: name.to_string(),
+            variables: vec![],
+            exited_scope_variables: vec![],
+            args: Vec::new(),
+            body: None,
+            ty: ty,
+            scope_idx: -1, // 最初のスコープは-1にすることで、enter_scopeで良い感じに辻褄合わせ。でも、普通にわかりづらいから後で直す
+        };
+        return func;
+    }
 
-fn new_if(cond: Node, then: Node, els: Option<Node>) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdIf {
-            cond: Box::new(cond),
-            then: Box::new(then),
-            els: els.map(Box::new),
-        },
-        ty: None,
-    };
-    add_type(&mut node);
-    return node;
-}
+    fn new_if(&mut self, cond: Node, then: Node, els: Option<Node>) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdIf {
+                cond: Box::new(cond),
+                then: Box::new(then),
+                els: els.map(Box::new),
+            },
+            ty: None,
+        };
+        self.add_type(&mut node);
+        return node;
+    }
 
-fn new_for(init: Node, cond: Option<Node>, inc: Option<Node>, body: Node) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdFor {
-            init: Box::new(init),
-            cond: cond.map(Box::new),
-            inc: inc.map(Box::new),
-            body: Box::new(body),
-        },
-        ty: None,
-    };
-    add_type(&mut node);
-    return node;
-}
+    fn new_for(&mut self, init: Node, cond: Option<Node>, inc: Option<Node>, body: Node) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdFor {
+                init: Box::new(init),
+                cond: cond.map(Box::new),
+                inc: inc.map(Box::new),
+                body: Box::new(body),
+            },
+            ty: None,
+        };
+        self.add_type(&mut node);
+        return node;
+    }
 
-fn new_while(cond: Node, body: Node) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdWhile {
-            cond: Box::new(cond),
-            body: Box::new(body),
-        },
-        ty: None,
-    };
-    add_type(&mut node);
-    return node;
-}
+    fn new_while(&mut self, cond: Node, body: Node) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdWhile {
+                cond: Box::new(cond),
+                body: Box::new(body),
+            },
+            ty: None,
+        };
+        self.add_type(&mut node);
+        return node;
+    }
 
-fn new_block(body: Vec<Node>) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdBlock { body },
-        ty: None,
-    };
-    add_type(&mut node);
-    return node;
-}
+    fn new_block(&mut self, body: Vec<Node>) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdBlock { body },
+            ty: None,
+        };
+        self.add_type(&mut node);
+        return node;
+    }
 
-fn null_stmt() -> Node {
-    return Node {
-        kind: NodeKind::NdBlock { body: Vec::new() },
-        ty: None,
-    };
-}
+    fn null_stmt(&self) -> Node {
+        return Node {
+            kind: NodeKind::NdBlock { body: Vec::new() },
+            ty: None,
+        };
+    }
 
-fn new_expr_stmt(lhs: Node) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdExprStmt { lhs: Box::new(lhs) },
-        ty: None,
-    };
-    add_type(&mut node);
-    return node;
-}
+    fn new_expr_stmt(&mut self, lhs: Node) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdExprStmt { lhs: Box::new(lhs) },
+            ty: None,
+        };
+        self.add_type(&mut node);
+        return node;
+    }
 
-fn new_assign(lhs: Node, rhs: Node) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdAssign {
-            lhs: Box::new(lhs),
-            rhs: Box::new(rhs),
-        },
-        ty: None,
-    };
-    add_type(&mut node);
-    return node;
-}
+    fn new_assign(&mut self, lhs: Node, rhs: Node) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdAssign {
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+            ty: None,
+        };
+        self.add_type(&mut node);
+        return node;
+    }
 
-fn new_return(lhs: Node) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdReturn { lhs: Box::new(lhs) },
-        ty: None,
-    };
-    add_type(&mut node);
-    return node;
-}
+    fn new_return(&mut self, lhs: Node) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdReturn { lhs: Box::new(lhs) },
+            ty: None,
+        };
+        self.add_type(&mut node);
+        return node;
+    }
 
-fn new_eq(lhs: Node, rhs: Node) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdEq {
-            lhs: Box::new(lhs),
-            rhs: Box::new(rhs),
-        },
-        ty: None,
-    };
-    add_type(&mut node);
-    return node;
-}
+    fn new_eq(&mut self, lhs: Node, rhs: Node) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdEq {
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+            ty: None,
+        };
+        self.add_type(&mut node);
+        return node;
+    }
 
-fn new_ne(lhs: Node, rhs: Node) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdNe {
-            lhs: Box::new(lhs),
-            rhs: Box::new(rhs),
-        },
-        ty: None,
-    };
-    add_type(&mut node);
-    return node;
-}
+    fn new_ne(&mut self, lhs: Node, rhs: Node) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdNe {
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+            ty: None,
+        };
+        self.add_type(&mut node);
+        return node;
+    }
 
-fn new_lt(lhs: Node, rhs: Node) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdLt {
-            lhs: Box::new(lhs),
-            rhs: Box::new(rhs),
-        },
-        ty: None,
-    };
-    add_type(&mut node);
-    return node;
-}
+    fn new_lt(&mut self, lhs: Node, rhs: Node) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdLt {
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+            ty: None,
+        };
+        self.add_type(&mut node);
+        return node;
+    }
 
-fn new_le(lhs: Node, rhs: Node) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdLe {
-            lhs: Box::new(lhs),
-            rhs: Box::new(rhs),
-        },
-        ty: None,
-    };
-    add_type(&mut node);
-    return node;
-}
+    fn new_le(&mut self, lhs: Node, rhs: Node) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdLe {
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+            ty: None,
+        };
+        self.add_type(&mut node);
+        return node;
+    }
 
-fn new_gt(lhs: Node, rhs: Node) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdGt {
-            lhs: Box::new(lhs),
-            rhs: Box::new(rhs),
-        },
-        ty: None,
-    };
-    add_type(&mut node);
-    return node;
-}
+    fn new_gt(&mut self, lhs: Node, rhs: Node) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdGt {
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+            ty: None,
+        };
+        self.add_type(&mut node);
+        return node;
+    }
 
-fn new_ge(lhs: Node, rhs: Node) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdGe {
-            lhs: Box::new(lhs),
-            rhs: Box::new(rhs),
-        },
-        ty: None,
-    };
-    add_type(&mut node);
-    return node;
-}
+    fn new_ge(&mut self, lhs: Node, rhs: Node) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdGe {
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+            ty: None,
+        };
+        self.add_type(&mut node);
+        return node;
+    }
 
-fn new_neg(lhs: Node) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdNeg { lhs: Box::new(lhs) },
-        ty: None,
-    };
-    add_type(&mut node);
-    return node;
-}
+    fn new_neg(&mut self, lhs: Node) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdNeg { lhs: Box::new(lhs) },
+            ty: None,
+        };
+        self.add_type(&mut node);
+        return node;
+    }
 
-fn new_addr(lhs: Node) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdAddr { lhs: Box::new(lhs) },
-        ty: None,
-    };
-    add_type(&mut node);
-    return node;
-}
+    fn new_addr(&mut self, lhs: Node) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdAddr { lhs: Box::new(lhs) },
+            ty: None,
+        };
+        self.add_type(&mut node);
+        return node;
+    }
 
-fn new_deref(lhs: Node) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdDeref { lhs: Box::new(lhs) },
-        ty: None,
-    };
-    add_type(&mut node);
-    return node;
-}
+    fn new_deref(&mut self, lhs: Node, tok: Token) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdDeref {
+                lhs: Box::new(lhs),
+                tok: tok,
+            },
+            ty: None,
+        };
+        self.add_type(&mut node);
+        return node;
+    }
 
-fn new_sub(lhs: Node, rhs: Node) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdSub {
-            lhs: Box::new(lhs),
-            rhs: Box::new(rhs),
-        },
-        ty: None,
-    };
-    add_type(&mut node);
-    return node;
-}
+    fn new_mul(&mut self, lhs: Node, rhs: Node) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdMul {
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+            ty: None,
+        };
+        self.add_type(&mut node);
+        return node;
+    }
 
-fn new_mul(lhs: Node, rhs: Node) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdMul {
-            lhs: Box::new(lhs),
-            rhs: Box::new(rhs),
-        },
-        ty: None,
-    };
-    add_type(&mut node);
-    return node;
-}
+    fn new_div(&mut self, lhs: Node, rhs: Node) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdDiv {
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+            ty: Some(new_int()),
+        };
+        self.add_type(&mut node);
+        return node;
+    }
 
-fn new_div(lhs: Node, rhs: Node) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdDiv {
-            lhs: Box::new(lhs),
-            rhs: Box::new(rhs),
-        },
-        ty: Some(new_int()),
-    };
-    add_type(&mut node);
-    return node;
-}
+    fn new_num(&mut self, val: isize) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdNum { val },
+            ty: None,
+        };
+        self.add_type(&mut node);
+        return node;
+    }
 
-fn new_num(val: isize) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdNum { val },
-        ty: None,
-    };
-    add_type(&mut node);
-    return node;
-}
-
-fn new_var(var: Rc<RefCell<Var>>) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdVar { var },
-        ty: None,
-    };
-    add_type(&mut node);
-    return node;
+    fn new_var(&mut self, var: Rc<RefCell<Var>>) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdVar { var },
+            ty: None,
+        };
+        self.add_type(&mut node);
+        return node;
+    }
 }
 
 impl Ctx<'_> {
@@ -302,16 +295,17 @@ impl Ctx<'_> {
 
             if self.equal("=") {
                 self.advance_one_tok();
-                node = new_assign(node, self.expr());
+                let rhs = self.expr();
+                node = self.new_assign(node, rhs);
             }
-            let node = new_expr_stmt(node);
+            let node = self.new_expr_stmt(node);
             body.push(node);
             if self.equal(",") {
                 self.advance_one_tok();
                 continue;
             }
         }
-        let node = new_block(body);
+        let node = self.new_block(body);
         self.skip(";");
         return node;
     }
@@ -343,7 +337,8 @@ impl Ctx<'_> {
         match &self.tokens[0].kind {
             TokenKind::TkKeyword { name } if name == "return" => {
                 self.advance_one_tok();
-                let node = new_return(self.expr());
+                let expr = self.expr();
+                let node = self.new_return(expr);
                 self.skip(";");
                 return node;
             }
@@ -359,7 +354,7 @@ impl Ctx<'_> {
                     self.advance_one_tok();
                     els = Some(self.stmt());
                 }
-                node = new_if(cond, then, els);
+                node = self.new_if(cond, then, els);
                 return node;
             }
             TokenKind::TkKeyword { name } if name == "for" => {
@@ -377,7 +372,7 @@ impl Ctx<'_> {
                 }
                 self.skip(")");
                 let body = self.stmt();
-                let node = new_for(init, cond, inc, body);
+                let node = self.new_for(init, cond, inc, body);
                 return node;
             }
             TokenKind::TkKeyword { name } if name == "while" => {
@@ -386,7 +381,7 @@ impl Ctx<'_> {
                 let cond = self.expr();
                 self.skip(")");
                 let body = self.stmt();
-                let node = new_while(cond, body);
+                let node = self.new_while(cond, body);
                 return node;
             }
             TokenKind::TkPunct { str } if str == "{" => {
@@ -406,25 +401,26 @@ impl Ctx<'_> {
         while !self.consume("}") {
             if self.is_typename() {
                 let mut node = self.declaration();
-                add_type(&mut node);
+                self.add_type(&mut node);
                 body.push(node);
             } else {
                 let mut stmt = self.stmt();
-                add_type(&mut stmt);
+                self.add_type(&mut stmt);
                 body.push(stmt);
             }
         }
         self.leave_scope();
-        let node = new_block(body);
+        let node = self.new_block(body);
         return node;
     }
 
     fn expr_stmt(&mut self) -> Node {
         if self.equal(";") {
             self.advance_one_tok();
-            return null_stmt();
+            return self.null_stmt();
         }
-        let node = new_expr_stmt(self.expr());
+        let expr = self.expr();
+        let node = self.new_expr_stmt(expr);
         self.skip(";");
         return node;
     }
@@ -439,7 +435,8 @@ impl Ctx<'_> {
             match &self.tokens[0].kind {
                 TokenKind::TkPunct { str } if str == "=" => {
                     self.advance_one_tok();
-                    node = new_assign(node, self.assign());
+                    let assign = self.assign();
+                    node = self.new_assign(node, assign);
                 }
                 _ => break,
             }
@@ -453,11 +450,13 @@ impl Ctx<'_> {
             match &self.tokens[0].kind {
                 TokenKind::TkPunct { str } if str == "==" => {
                     self.advance_one_tok();
-                    node = new_eq(node, self.relational());
+                    let relational = self.relational();
+                    node = self.new_eq(node, relational);
                 }
                 TokenKind::TkPunct { str } if str == "!=" => {
                     self.advance_one_tok();
-                    node = new_ne(node, self.relational());
+                    let relational = self.relational();
+                    node = self.new_ne(node, relational);
                 }
                 _ => break,
             }
@@ -471,19 +470,23 @@ impl Ctx<'_> {
             match &self.tokens[0].kind {
                 TokenKind::TkPunct { str } if str == "<" => {
                     self.advance_one_tok();
-                    node = new_lt(node, self.add());
+                    let add = self.add();
+                    node = self.new_lt(node, add);
                 }
                 TokenKind::TkPunct { str } if str == "<=" => {
                     self.advance_one_tok();
-                    node = new_le(node, self.add());
+                    let add = self.add();
+                    node = self.new_le(node, add);
                 }
                 TokenKind::TkPunct { str } if str == ">" => {
                     self.advance_one_tok();
-                    node = new_gt(node, self.add());
+                    let add = self.add();
+                    node = self.new_gt(node, add);
                 }
                 TokenKind::TkPunct { str } if str == ">=" => {
                     self.advance_one_tok();
-                    node = new_ge(node, self.add());
+                    let add = self.add();
+                    node = self.new_ge(node, add);
                 }
                 _ => break,
             }
@@ -514,8 +517,8 @@ impl Ctx<'_> {
     fn new_add(&mut self, lhs: Node, rhs: Node) -> Node {
         let mut lhs = lhs;
         let mut rhs = rhs;
-        add_type(&mut lhs);
-        add_type(&mut rhs);
+        self.add_type(&mut lhs);
+        self.add_type(&mut rhs);
         // num + num
         if is_integer_node(&lhs) && is_integer_node(&rhs) {
             let mut node = Node {
@@ -525,11 +528,11 @@ impl Ctx<'_> {
                 },
                 ty: None,
             };
-            add_type(&mut node);
+            self.add_type(&mut node);
             return node;
         }
         if is_pointer_node(&lhs) && is_pointer_node(&rhs) {
-            self.error_tok(&self.tokens[0], "invalid operands");
+            self.error_tok(&self.tokens[0], "cannot add pointers to pointers");
         }
         // canonicalize num + ptr -> ptr + num
         if is_integer_node(&lhs) && is_pointer_node(&rhs) {
@@ -539,7 +542,8 @@ impl Ctx<'_> {
         if is_pointer_node(&lhs) && is_integer_node(&rhs) {
             // node.tyのkindのptr_toのsizeを取得してvalに足す
             let size = get_pointer_or_array_size(&lhs);
-            let r = new_mul(rhs, new_num(size as isize));
+            let num = self.new_num(size as isize);
+            let r = self.new_mul(rhs, num);
             let node = Node {
                 kind: NodeKind::NdAdd {
                     lhs: Box::new(lhs.clone()),
@@ -555,8 +559,8 @@ impl Ctx<'_> {
     fn new_sub(&mut self, lhs: Node, rhs: Node) -> Node {
         let mut lhs = lhs;
         let mut rhs = rhs;
-        add_type(&mut lhs);
-        add_type(&mut rhs);
+        self.add_type(&mut lhs);
+        self.add_type(&mut rhs);
         // num - num
         if is_integer_node(&lhs) && is_integer_node(&rhs) {
             let mut node = Node {
@@ -566,13 +570,14 @@ impl Ctx<'_> {
                 },
                 ty: None,
             };
-            add_type(&mut node);
+            self.add_type(&mut node);
             return node;
         }
         // ptr - num
         if is_pointer_node(&lhs) && is_integer_node(&rhs) {
             let size = get_pointer_or_array_size(&lhs);
-            let r = new_mul(rhs, new_num(size as isize));
+            let num = self.new_num(size as isize);
+            let r = self.new_mul(rhs, num);
             let node = Node {
                 kind: NodeKind::NdSub {
                     lhs: Box::new(lhs.clone()),
@@ -584,10 +589,18 @@ impl Ctx<'_> {
         }
         // ptr - ptr
         if is_pointer_node(&lhs) && is_pointer_node(&rhs) {
-            let mut n = new_sub(lhs, rhs);
-            add_type(&mut n);
-            let mut node = new_div(n, new_num(8)); // 8 is size of pointer
-            node.ty = Some(new_int());
+            let mut n = Node {
+                kind: NodeKind::NdSub {
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                },
+                ty: None,
+            };
+            self.add_type(&mut n);
+            let num = self.new_num(8);
+            let mut node = self.new_div(n, num); // 8 is size of pointer
+            let ty = new_int();
+            node.ty = Some(ty);
             return node;
         }
         self.error_tok(&self.tokens[0], "invalid operands");
@@ -599,11 +612,13 @@ impl Ctx<'_> {
             match &self.tokens[0].kind {
                 TokenKind::TkPunct { str } if str == "*" => {
                     self.advance_one_tok();
-                    node = new_mul(node, self.unary());
+                    let unary = self.unary();
+                    node = self.new_mul(node, unary);
                 }
                 TokenKind::TkPunct { str } if str == "/" => {
                     self.advance_one_tok();
-                    return new_div(node, self.unary());
+                    let unary = self.unary();
+                    return self.new_div(node, unary);
                 }
                 _ => break,
             }
@@ -618,15 +633,18 @@ impl Ctx<'_> {
         }
         if self.equal("-") {
             self.advance_one_tok();
-            return new_neg(self.unary());
+            let unary = self.unary();
+            return self.new_neg(unary);
         }
         if self.equal("&") {
             self.advance_one_tok();
-            return new_addr(self.unary());
+            let unary = self.unary();
+            return self.new_addr(unary);
         }
         if self.equal("*") {
             self.advance_one_tok();
-            return new_deref(self.unary());
+            let unary = self.unary();
+            return self.new_deref(unary, self.tokens[0].clone());
         }
         self.postfix()
     }
@@ -637,16 +655,18 @@ impl Ctx<'_> {
             self.advance_one_tok();
             let idx = self.expr();
             self.skip("]");
-            node = new_deref(self.new_add(node, idx));
+            let add = self.new_add(node, idx);
+            node = self.new_deref(add, self.tokens[0].clone());
         }
-        add_type(&mut node);
+        self.add_type(&mut node);
         return node;
     }
 
     fn primary(&mut self) -> Node {
         match &self.tokens[0].kind {
             TokenKind::TkNum { .. } => {
-                return new_num(self.get_and_skip_number());
+                let num = self.get_and_skip_number();
+                return self.new_num(num);
             }
             TokenKind::TkPunct { str } if str == "(" => {
                 self.advance_one_tok();
@@ -663,7 +683,7 @@ impl Ctx<'_> {
                         kind: NodeKind::NdGNUStmtExpr { body: body },
                         ty: None,
                     };
-                    add_type(&mut node);
+                    self.add_type(&mut node);
                     self.skip(")");
                     return node;
                 }
@@ -674,8 +694,8 @@ impl Ctx<'_> {
             TokenKind::TkKeyword { name } if name == "sizeof" => {
                 self.advance_one_tok();
                 let mut node = self.unary();
-                add_type(&mut node);
-                return new_num(node.ty.as_ref().unwrap().size as isize);
+                self.add_type(&mut node);
+                return self.new_num(node.ty.as_ref().unwrap().size as isize);
             }
             TokenKind::TkStr { str } => {
                 let name = format!("lC{}", self.global_variables.len());
@@ -704,12 +724,16 @@ impl Ctx<'_> {
                         ty: Some(var.borrow().clone().ty),
                     };
                 } else {
-                    eprintln!("searched var: {}", name);
-                    self.error_tok(&self.tokens[0], "undefined variable"); // -1しないといけない
+                    self.error_tok(&self.tokens[0], "undefined variable");
+                    // -1しないといけない
                 }
                 return node;
             }
-            _ => self.error_tok(&self.tokens[0], "expected a number or ( expression )"),
+
+            _ => self.error_tok(
+                &self.tokens[0],
+                r#"expected a value-returning expression. Maybe a "}" was left out? "#,
+            ),
         }
     }
 
@@ -723,8 +747,12 @@ impl Ctx<'_> {
             }
             args.push(self.assign());
         }
+        // これは巻き戻さないといけないエラー
         if args.len() > 8 {
-            self.error_tok(&self.tokens[0], "too many arguments");
+            self.error_tok(
+                &self.tokens[0],
+                "too many arguments. 8 arguments are allowed at most",
+            );
         }
         let node = Node {
             kind: NodeKind::NdFuncCall {
@@ -751,7 +779,7 @@ impl Ctx<'_> {
     pub fn leave_scope(&mut self) {
         let function = self.get_function();
         let poped_scope = function.variables.pop();
-        function.archive_variables.push(poped_scope.unwrap());
+        function.exited_scope_variables.push(poped_scope.unwrap());
         function.scope_idx -= 1;
     }
 
@@ -766,7 +794,7 @@ impl Ctx<'_> {
         }));
 
         self.global_variables.push(var.clone());
-        return new_var(var);
+        return self.new_var(var);
     }
 
     // 関数定義用の
@@ -785,16 +813,19 @@ impl Ctx<'_> {
 
         function.variables[function.scope_idx as usize].push(var.clone()); // コードがひどいが、まあ想定ではここが-になることはないはず
 
-        let mut node = new_var(var);
+        let mut node = self.new_var(var);
         // 関数定義の引数の場合、関数のargsにも追加
         if is_def_arg {
             let func = self.functions.get_mut(&self.processing_funcname).unwrap();
             if func.args.len() >= 8 {
-                self.error_tok(&self.tokens[0], "too many arguments");
+                self.error_tok(
+                    &self.tokens[0],
+                    "too many arguments. 8 arguments are allowed at most",
+                );
             }
             func.args.push(node.clone());
         }
-        add_type(&mut node);
+        self.add_type(&mut node);
         return node;
     }
 
@@ -823,7 +854,7 @@ impl Ctx<'_> {
         // 関数の場合
         // これから処理する関数名をセット。create_lvar, find_varで使用
         self.processing_funcname = name.to_string();
-        let func = create_func(name, ty);
+        let func = self.create_func(name, ty);
         self.functions.insert(name.to_string(), func);
 
         self.enter_scope();

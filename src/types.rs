@@ -17,15 +17,15 @@ pub struct Function {
     #[allow(dead_code)]
     pub name: String, // 一応つけている方が自然だと思ってつけている。
     pub variables: Vec<Vec<Rc<RefCell<Var>>>>,
-    pub archive_variables: Vec<Vec<Rc<RefCell<Var>>>>, // スコープが外れたらここに保存する
-    pub body: Option<Node>,                            // {compound_stmt}
+    pub exited_scope_variables: Vec<Vec<Rc<RefCell<Var>>>>, // スコープが外れたらここに保存する
+    pub body: Option<Node>,                                 // {compound_stmt}
     pub args: Vec<Node>, // Vec<Rc<RefCell<Var>>>にするかも。可変長引数の場合。
     #[allow(dead_code)]
     pub ty: Type, // 一応つけている方が自然だと思ってつけている。関数の返り値の型が必要なケースがあるときに使うのではと思っている。includeしたやつとかがどういう扱いになっているのかわからないといけないと思う
     pub scope_idx: isize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TokenKind {
     TkPunct { str: String },
     TkNum { val: isize },
@@ -34,7 +34,7 @@ pub enum TokenKind {
     TkStr { str: String },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token {
     pub kind: TokenKind,
     pub start: usize,
@@ -143,6 +143,7 @@ pub enum NodeKind {
     },
     NdDeref {
         lhs: Box<Node>,
+        tok: Token,
     },
     NdFuncCall {
         name: String,

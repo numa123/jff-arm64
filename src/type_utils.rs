@@ -83,60 +83,62 @@ pub fn get_pointer_or_array_size(node: &Node) -> usize {
     }
 }
 
-pub fn add_type(node: &mut Node) {
-    if node.ty.is_some() {
-        return;
-    }
+impl Ctx<'_> {
+    pub fn add_type(&mut self, node: &mut Node) {
+        if node.ty.is_some() {
+            return;
+        }
 
-    match &mut node.kind {
-        NodeKind::NdAdd { lhs, rhs }
-        | NodeKind::NdSub { lhs, rhs }
-        | NodeKind::NdMul { lhs, rhs }
-        | NodeKind::NdDiv { lhs, rhs }
-        | NodeKind::NdAssign { lhs, rhs } => {
-            add_type(lhs);
-            add_type(rhs);
-            node.ty = lhs.ty.clone();
-        }
-        NodeKind::NdEq { .. }
-        | NodeKind::NdNe { .. }
-        | NodeKind::NdLt { .. }
-        | NodeKind::NdLe { .. }
-        | NodeKind::NdGt { .. }
-        | NodeKind::NdGe { .. }
-        | NodeKind::NdNum { .. } => {
-            node.ty = Some(new_int());
-        }
-        NodeKind::NdVar { var } => {
-            node.ty = Some(var.borrow().ty.clone());
-        }
-        NodeKind::NdAddr { lhs } => {
-            add_type(lhs);
-            if let Some(ty) = &lhs.ty {
-                node.ty = Some(new_ptr_to(ty.clone()));
+        match &mut node.kind {
+            NodeKind::NdAdd { lhs, rhs }
+            | NodeKind::NdSub { lhs, rhs }
+            | NodeKind::NdMul { lhs, rhs }
+            | NodeKind::NdDiv { lhs, rhs }
+            | NodeKind::NdAssign { lhs, rhs } => {
+                self.add_type(lhs);
+                self.add_type(rhs);
+                node.ty = lhs.ty.clone();
             }
-        }
-        NodeKind::NdDeref { lhs } => {
-            add_type(lhs);
-            if let Some(ty) = &lhs.ty {
-                match &ty.kind {
-                    TypeKind::TyPtr { ptr_to } | TypeKind::TyArray { ptr_to, .. } => {
-                        node.ty = Some((**ptr_to).clone());
-                    }
-                    _ => panic!("not a pointer or array"),
+            NodeKind::NdEq { .. }
+            | NodeKind::NdNe { .. }
+            | NodeKind::NdLt { .. }
+            | NodeKind::NdLe { .. }
+            | NodeKind::NdGt { .. }
+            | NodeKind::NdGe { .. }
+            | NodeKind::NdNum { .. } => {
+                node.ty = Some(new_int());
+            }
+            NodeKind::NdVar { var } => {
+                node.ty = Some(var.borrow().ty.clone());
+            }
+            NodeKind::NdAddr { lhs } => {
+                self.add_type(lhs);
+                if let Some(ty) = &lhs.ty {
+                    node.ty = Some(new_ptr_to(ty.clone()));
                 }
-            } else {
-                panic!("no type information");
             }
+            NodeKind::NdDeref { lhs, tok } => {
+                self.add_type(lhs);
+                if let Some(ty) = &lhs.ty {
+                    match &ty.kind {
+                        TypeKind::TyPtr { ptr_to } | TypeKind::TyArray { ptr_to, .. } => {
+                            node.ty = Some((**ptr_to).clone());
+                        }
+                        _ => self.error_tok(&tok, "not a pointer or array"),
+                    }
+                } else {
+                    panic!("no type information");
+                }
+            }
+            NodeKind::NdReturn { lhs } | NodeKind::NdExprStmt { lhs } | NodeKind::NdNeg { lhs } => {
+                self.add_type(lhs);
+                node.ty = lhs.ty.clone();
+            }
+            NodeKind::NdGNUStmtExpr { body } => {
+                let last_node = body.last().unwrap();
+                node.ty = last_node.ty.clone();
+            }
+            _ => {} // Block, If, For, While
         }
-        NodeKind::NdReturn { lhs } | NodeKind::NdExprStmt { lhs } | NodeKind::NdNeg { lhs } => {
-            add_type(lhs);
-            node.ty = lhs.ty.clone();
-        }
-        NodeKind::NdGNUStmtExpr { body } => {
-            let last_node = body.last().unwrap();
-            node.ty = last_node.ty.clone();
-        }
-        _ => {} // Block, If, For, While
     }
 }
