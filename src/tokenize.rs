@@ -209,6 +209,12 @@ impl Ctx<'_> {
                 let mut str = String::new();
                 self.advance_input(1);
                 while self.input.chars().next().unwrap() != '"' {
+                    // 取り急ぎの実装。後でなんとかしないと。string.cのテストに対応したいがために実装したもの。
+                    if self.input.starts_with("\\\"") {
+                        str.push_str("\\\"");
+                        self.advance_input(2); // \"が入るとstrのlenがずれて、tok.startもずれるかも
+                        continue;
+                    }
                     str.push(self.input.chars().next().unwrap());
                     self.advance_input(1);
                 }

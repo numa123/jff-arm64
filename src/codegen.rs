@@ -14,7 +14,26 @@ fn load(ty: &Type) {
     if let TypeKind::TyArray { .. } = ty.kind {
         return;
     }
-    println!("      ldr x0, [x0]");
+    match ty.kind {
+        TypeKind::TyArray { .. } => {
+            return;
+        }
+        TypeKind::TyChar => {
+            println!("      ldrsb x0, [x0]");
+        }
+        _ => {
+            println!("      ldr x0, [x0]");
+        }
+    }
+}
+
+fn store(ty: &Type) {
+    if ty.size == 1 {
+        println!("      strb w0, [x1]");
+    } else {
+        println!("      str x0, [x1]");
+    }
+    // 4だったらwとかね 今の8を4にしてintにしたら良いかもね
 }
 
 fn gen_addr(node: Node) {
@@ -152,7 +171,7 @@ fn gen_expr(node: Node) {
             push16();
             gen_expr(*rhs);
             pop16();
-            println!("      str x0, [x1]");
+            store(node.ty.as_ref().unwrap()); // unwrap使わずにいけないかな
             return;
         }
         NodeKind::NdAddr { lhs } => {
@@ -316,7 +335,7 @@ pub fn codegen(ctx: Ctx) {
             for var in scope {
                 let mut var = var.borrow_mut();
                 var.offset = stack_size;
-                stack_size += align8(var.ty.size as isize); // 無駄使い。ただ、charを連続して書き込み、ldrすると他のやつが巻き込まれてしまう。あとでstrb, ldrbとかを使うように変更し、ここはalign8を外すように変更したいところ
+                stack_size += var.ty.size as isize;
             }
         }
         stack_size = align16(stack_size); // なぜかtestでバグるから、メモリかレジスタが汚れているのかもしれないから余分に取ってみる

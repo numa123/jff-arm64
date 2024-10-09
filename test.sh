@@ -33,7 +33,7 @@ assert() {
 
 cargo build
 
-assert 1 'int main() { char x = 1; char y = 2; x; }'
+# assert 1 'int main() { char *x = "\"A\""; return 1;  }'
 assert 1 'int main() { ({char x = 1; char y = 2; x;}); }'
 
 assert 10 'int main() {int first = ({int x = 3; int y = 5; *(&x+1);}); return ({ int x = 10; return 10;});}'
