@@ -2,6 +2,8 @@
 - ドキュメントの整理
 - コードの整理
 - エラーメッセージの修正。Nodeにtokenの付与の検討
+- for (int i = 0;)って感じで定義できるように。この場合のスコープってどうなってるんだ
+- トークンを数個巻き戻ってエラーを出すことができる関数も必要かも
 
 ## 前回の反省点
 - tokenの受け渡しを構造体経由にしたらもっと良さそう
@@ -13,13 +15,12 @@
   - Nodeを作成する際にtyをつけて、Nodeを生成する際に毎回tyをつける。
 
 ## EBNF(書き直す必要ある)
-- declspec = "int"
-- decltype = "*"* 
-  - 入力: declaration_specifierとtoken。出力: type
-- declaration = declspec ( decltype ident ("=" expr)? ("," decltype ("=" expr)?)* )? ";"
+- declspec = "int" | "char"
+- declaration = declspec ( declarator ("=" expr)? ("," declarator ("=" expr)?)* )? ";"
+- declarator = "*"* ident type_suffix
+- type_suffix = "[" expr "]" | ε
 
-- program = stmt*
-  - 気持ちとしては、今の段階のプログラムは、stmtが0個以上あるものとしてコンパイラを作成している、というものだと思う
+- program = declaration*
 - stmt = "return" expr ";" | expr-stmt | "{" compound-stmt | "if" "(" expr ")" stmt ("else" stmt)? | "for" "(" expr-stmt expr? ";" expr? ")" stmt | "while" "(" expr ")" stmt
 - compound-stmt = (declaration | stmt)* "}"
 - expr-stmt = expr? ";"
@@ -31,7 +32,7 @@
 - mul = unary ("*" unary | "/" unary)*
 - unary = ("+" | "-" | "*" | "&") unary | primary
 - primary = num | "(" expr ")" | ident args? | "sizeof" unary
-- args = "(" (declspec decltype ident ("," declspec decltype ident)*)? ")"
+- args = "(" (declspec declrator ("," declspec declarator)*)? ")"
 
 ## 現在サポート中の演算子の優先順位
 低
@@ -70,6 +71,7 @@ source: https://c-lang.sevendays-study.com/appendix4.html
 - index out of boundsでpanicでエラーにしているところも多々ある
 - 今は入力文字列がファイル名でファイルが開ければファイルから値を取得。そうでなければ、入力文字列をコンパイルすることにしている
 - ascii, ascizの違い。
+- ポインタ +|- num はポインタ。ポインタ-ポインタは数値。
 
 
 # 注意

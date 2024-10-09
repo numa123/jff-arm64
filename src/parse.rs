@@ -1,5 +1,6 @@
 use std::{cell::RefCell, mem::swap, rc::Rc};
 
+use crate::type_utils::*;
 use crate::types::*;
 
 fn new_assign(lhs: Node, rhs: Node) -> Node {
@@ -189,7 +190,7 @@ fn new_div(lhs: Node, rhs: Node) -> Node {
             lhs: Box::new(lhs),
             rhs: Box::new(rhs),
         },
-        ty: None,
+        ty: Some(new_int()),
     };
     add_type(&mut node);
     node
@@ -252,7 +253,7 @@ impl Ctx<'_> {
 
     // return (Type, name, is_function)
     // グローバル変数か、関数かの判定に使う。parseのはじめ以外では使用しない
-    fn decltype(&mut self, ty: Type) -> (Type, String, bool) {
+    fn declarator(&mut self, ty: Type) -> (Type, String, bool) {
         let mut ty = ty;
         let is_func: bool;
         while self.consume("*") {
@@ -283,7 +284,7 @@ impl Ctx<'_> {
         let base_ty = self.declspec();
         let mut body = Vec::new();
         while !self.equal(";") {
-            let (ty, name, _) = self.decltype(base_ty.clone());
+            let (ty, name, _) = self.declarator(base_ty.clone());
             let mut node = self.create_lvar(name.clone().as_str(), ty, false);
 
             if self.equal("=") {
@@ -302,6 +303,29 @@ impl Ctx<'_> {
         return node;
     }
 
+    fn is_typename(&mut self) -> bool {
+        match &self.tokens[0].kind {
+            TokenKind::TkKeyword { name } => match name.as_str() {
+                "int" | "char" => return true,
+                _ => return false,
+            },
+            _ => return false,
+        }
+    }
+
+    fn get_ident(&mut self) -> String {
+        let n: String;
+        if let TokenKind::TkIdent { name } = &self.tokens[0].kind {
+            n = name.clone();
+        } else {
+            self.error_tok(&self.tokens[0], "expected identifier");
+        }
+        self.advance_one_tok();
+        return n;
+    }
+}
+
+impl Ctx<'_> {
     fn stmt(&mut self) -> Node {
         match &self.tokens[0].kind {
             TokenKind::TkKeyword { name } if name == "return" => {
@@ -361,16 +385,6 @@ impl Ctx<'_> {
         }
 
         return self.expr_stmt();
-    }
-
-    fn is_typename(&mut self) -> bool {
-        match &self.tokens[0].kind {
-            TokenKind::TkKeyword { name } => match name.as_str() {
-                "int" | "char" => return true,
-                _ => return false,
-            },
-            _ => return false,
-        }
     }
 
     fn compound_stmt(&mut self) -> Node {
@@ -475,38 +489,95 @@ impl Ctx<'_> {
                 }
                 TokenKind::TkPunct { str } if str == "-" => {
                     self.advance_one_tok();
-                    let mut rhs = self.mul();
-                    add_type(&mut node);
-                    add_type(&mut rhs);
-                    // num - num
-                    if is_integer_node(&node) && is_integer_node(&rhs) {
-                        node = new_sub(node, rhs);
-                        continue;
-                    }
-                    // ptr - num
-                    if is_pointer_node(&node) && is_integer_node(&rhs) {
-                        let r = new_mul(rhs, new_num(get_pointer_or_array_size(&node) as isize));
-                        node = new_sub(node, r);
-                        continue;
-                    }
-                    // ptr - ptr, which returns how many elements are between the two pointers
-                    if is_pointer_node(&node) && is_pointer_node(&rhs) {
-                        let l = Node {
-                            kind: NodeKind::NdSub {
-                                lhs: Box::new(node.clone()),
-                                rhs: Box::new(rhs),
-                            },
-                            ty: Some(new_int()),
-                        };
-                        node = new_div(l, new_num(get_pointer_or_array_size(&node) as isize));
-                        continue;
-                    }
-                    self.error_tok(&self.tokens[0], "invalid operands"); // ここの引数は正しいのか？
+                    let rhs = self.mul();
+                    node = self.new_sub(node, rhs);
                 }
                 _ => break,
             }
         }
         node
+    }
+
+    fn new_add(&mut self, lhs: Node, rhs: Node) -> Node {
+        let mut lhs = lhs;
+        let mut rhs = rhs;
+        add_type(&mut lhs);
+        add_type(&mut rhs);
+        // num + num
+        if is_integer_node(&lhs) && is_integer_node(&rhs) {
+            let mut node = Node {
+                kind: NodeKind::NdAdd {
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                },
+                ty: None,
+            };
+            add_type(&mut node);
+            return node;
+        }
+        if is_pointer_node(&lhs) && is_pointer_node(&rhs) {
+            self.error_tok(&self.tokens[0], "invalid operands");
+        }
+        // canonicalize num + ptr -> ptr + num
+        if is_integer_node(&lhs) && is_pointer_node(&rhs) {
+            swap(&mut lhs, &mut rhs);
+        }
+        // ptr + num
+        if is_pointer_node(&lhs) && is_integer_node(&rhs) {
+            // node.tyのkindのptr_toのsizeを取得してvalに足す
+            let size = get_pointer_or_array_size(&lhs);
+            let r = new_mul(rhs, new_num(size as isize));
+            let node = Node {
+                kind: NodeKind::NdAdd {
+                    lhs: Box::new(lhs.clone()),
+                    rhs: Box::new(r),
+                },
+                ty: Some(lhs.ty.clone().unwrap()),
+            };
+            return node;
+        }
+        self.error_tok(&self.tokens[0], "invalid operands");
+    }
+
+    fn new_sub(&mut self, lhs: Node, rhs: Node) -> Node {
+        let mut lhs = lhs;
+        let mut rhs = rhs;
+        add_type(&mut lhs);
+        add_type(&mut rhs);
+        // num - num
+        if is_integer_node(&lhs) && is_integer_node(&rhs) {
+            let mut node = Node {
+                kind: NodeKind::NdSub {
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                },
+                ty: None,
+            };
+            add_type(&mut node);
+            return node;
+        }
+        // ptr - num
+        if is_pointer_node(&lhs) && is_integer_node(&rhs) {
+            let size = get_pointer_or_array_size(&lhs);
+            let r = new_mul(rhs, new_num(size as isize));
+            let node = Node {
+                kind: NodeKind::NdSub {
+                    lhs: Box::new(lhs.clone()),
+                    rhs: Box::new(r),
+                },
+                ty: Some(lhs.ty.clone().unwrap()),
+            };
+            return node;
+        }
+        // ptr - ptr
+        if is_pointer_node(&lhs) && is_pointer_node(&rhs) {
+            let mut n = new_sub(lhs, rhs);
+            add_type(&mut n);
+            let mut node = new_div(n, new_num(8)); // 8 is size of pointer
+            node.ty = Some(new_int());
+            return node;
+        }
+        self.error_tok(&self.tokens[0], "invalid operands");
     }
 
     fn mul(&mut self) -> Node {
@@ -556,30 +627,6 @@ impl Ctx<'_> {
             node = new_deref(self.new_add(node, idx));
         }
         add_type(&mut node);
-        return node;
-    }
-
-    // ここ、関数のtyも返すようにしたいが、自分で定義したものだけで、includeしたものをどうするかわからん
-    fn funccall(&mut self, name: &str) -> Node {
-        self.advance_one_tok();
-        let mut args = Vec::new();
-        while !self.equal(")") {
-            if self.equal(",") {
-                self.advance_one_tok();
-            }
-            args.push(self.assign());
-        }
-        if args.len() > 8 {
-            self.error_tok(&self.tokens[0], "too many arguments");
-        }
-        let node = Node {
-            kind: NodeKind::NdFuncCall {
-                name: name.to_string(),
-                args: args,
-            },
-            ty: Some(new_int()), // 自分で定義するようになったら、また変数リストから、型を取り出して入れる。includeの場合はどうする？足し算とかできないよな。まあ後で考えるか
-        };
-        self.skip(")");
         return node;
     }
 
@@ -653,57 +700,28 @@ impl Ctx<'_> {
         }
     }
 
-    fn get_ident(&mut self) -> String {
-        let n: String;
-        if let TokenKind::TkIdent { name } = &self.tokens[0].kind {
-            n = name.clone();
-        } else {
-            self.error_tok(&self.tokens[0], "expected identifier");
-        }
+    // ここ、関数のtyも返すようにしたいが、自分で定義したものだけで、includeしたものをどうするかわからん
+    fn funccall(&mut self, name: &str) -> Node {
         self.advance_one_tok();
-        return n;
-    }
-
-    fn new_add(&mut self, lhs: Node, rhs: Node) -> Node {
-        let mut lhs = lhs;
-        let mut rhs = rhs;
-        // self.advance_one_tok();
-        // let mut rhs = self.mul();
-        add_type(&mut lhs);
-        add_type(&mut rhs);
-        // num + num
-        if is_integer_node(&lhs) && is_integer_node(&rhs) {
-            let node = Node {
-                kind: NodeKind::NdAdd {
-                    lhs: Box::new(lhs),
-                    rhs: Box::new(rhs),
-                },
-                ty: Some(new_int()),
-            };
-            return node;
+        let mut args = Vec::new();
+        while !self.equal(")") {
+            if self.equal(",") {
+                self.advance_one_tok();
+            }
+            args.push(self.assign());
         }
-        if is_pointer_node(&lhs) && is_pointer_node(&rhs) {
-            self.error_tok(&self.tokens[0], "invalid operands");
+        if args.len() > 8 {
+            self.error_tok(&self.tokens[0], "too many arguments");
         }
-        // canonicalize num + ptr -> ptr + num
-        if is_integer_node(&lhs) && is_pointer_node(&rhs) {
-            swap(&mut lhs, &mut rhs);
-        }
-        // ptr + num
-        if is_pointer_node(&lhs) && is_integer_node(&rhs) {
-            // node.tyのkindのptr_toのsizeを取得してvalに足す
-            let size = get_pointer_or_array_size(&lhs);
-            let r = new_mul(rhs, new_num(size as isize));
-            let node = Node {
-                kind: NodeKind::NdAdd {
-                    lhs: Box::new(lhs.clone()),
-                    rhs: Box::new(r),
-                },
-                ty: Some(lhs.ty.clone().unwrap()),
-            };
-            return node;
-        }
-        return lhs;
+        let node = Node {
+            kind: NodeKind::NdFuncCall {
+                name: name.to_string(),
+                args: args,
+            },
+            ty: Some(new_int()), // 自分で定義するようになったら、また変数リストから、型を取り出して入れる。includeの場合はどうする？足し算とかできないよな。まあ後で考えるか
+        };
+        self.skip(")");
+        return node;
     }
 
     // 今は関数だけ
@@ -715,7 +733,7 @@ impl Ctx<'_> {
         while !self.tokens.is_empty() {
             self.is_processing_local = false;
             let base_ty = self.declspec();
-            let (ty, name, is_func) = self.decltype(base_ty.clone());
+            let (ty, name, is_func) = self.declarator(base_ty.clone());
             // 関数の場合
             if is_func {
                 let variables: Vec<Vec<Rc<RefCell<Var>>>> = vec![];
@@ -739,7 +757,7 @@ impl Ctx<'_> {
                 self.skip("(");
                 while !self.equal(")") {
                     let base_ty = self.declspec();
-                    let (ty, name, _) = self.decltype(base_ty);
+                    let (ty, name, _) = self.declarator(base_ty);
                     let mut node = self.create_lvar(name.as_str(), ty, true);
                     add_type(&mut node);
                     if self.equal(",") {
@@ -766,7 +784,7 @@ impl Ctx<'_> {
                 // 今は初期化のみ
                 self.create_gvar(name.as_str(), ty, None);
                 while self.consume(",") {
-                    let (ty, name, _) = self.decltype(base_ty.clone()); // なぜclone
+                    let (ty, name, _) = self.declarator(base_ty.clone()); // なぜclone
                     self.create_gvar(name.as_str(), ty, None);
                 }
                 self.skip(";");
@@ -780,20 +798,10 @@ impl Ctx<'_> {
     fn get_function(&mut self) -> &mut Function {
         return self.functions.get_mut(&self.processing_funcname).unwrap();
     }
-    fn get_func_variables(&mut self) -> &mut Vec<Vec<Rc<RefCell<Var>>>> {
-        let variables = &mut self
-            .functions
-            .get_mut(&self.processing_funcname)
-            .unwrap()
-            .variables;
-        return variables;
-    }
+
     pub fn enter_scope(&mut self) {
         let function = self.get_function();
         function.variables.push(Vec::new());
-        // if function.scope_idx != 0 {
-        //     function.scope_idx += 1;
-        // }
         function.scope_idx += 1;
     }
     pub fn leave_scope(&mut self) {
@@ -802,26 +810,7 @@ impl Ctx<'_> {
         function.archive_variables.push(poped_scope.unwrap());
         function.scope_idx -= 1;
     }
-    pub fn find_var(&mut self, name: &str) -> Option<Rc<RefCell<Var>>> {
-        let function = self.get_function();
-        let variables = &function.variables; // なぜ&が必要なのか。
-                                             // eprintln!("variables: {:#?}", variables);
-                                             // idx版目から遡る
-        for scope in variables.iter().rev() {
-            for var in scope {
-                if var.borrow().name == name {
-                    return Some(var.clone());
-                }
-            }
-        }
-        for var in &self.global_variables {
-            if var.borrow_mut().name == name {
-                // なぜborrow_mut()なのか
-                return Some(var.clone());
-            }
-        }
-        None
-    }
+
     fn create_gvar(&mut self, name: &str, ty: Type, init_gval: Option<InitGval>) -> Node {
         let var = Rc::new(RefCell::new(Var {
             name: name.to_string(),
@@ -865,14 +854,25 @@ impl Ctx<'_> {
         }
         return node;
     }
-}
 
-fn get_pointer_or_array_size(node: &Node) -> usize {
-    match &node.ty {
-        Some(ty) => match &ty.kind {
-            TypeKind::TyPtr { ptr_to } | TypeKind::TyArray { ptr_to, .. } => ptr_to.size,
-            _ => panic!("not a pointer or array"),
-        },
-        None => panic!("no type information"),
+    pub fn find_var(&mut self, name: &str) -> Option<Rc<RefCell<Var>>> {
+        let function = self.get_function();
+        let variables = &function.variables; // なぜ&が必要なのか。
+                                             // eprintln!("variables: {:#?}", variables);
+                                             // idx版目から遡る
+        for scope in variables.iter().rev() {
+            for var in scope {
+                if var.borrow().name == name {
+                    return Some(var.clone());
+                }
+            }
+        }
+        for var in &self.global_variables {
+            if var.borrow_mut().name == name {
+                // なぜborrow_mut()なのか
+                return Some(var.clone());
+            }
+        }
+        None
     }
 }

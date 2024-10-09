@@ -1,8 +1,17 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-//
+#[derive(Debug)]
+pub struct Ctx<'a> {
+    pub input: &'a str,
+    pub input_copy: &'a str,
+    pub tokens: Vec<Token>,
+    pub global_variables: Vec<Rc<RefCell<Var>>>, // find_varのために型をrefcellにしてみる。不適切の恐れあり
+    pub processing_funcname: String,
+    pub processing_filename: String,
+    pub is_processing_local: bool, // グローバル変数の定義をしているのか、ローカル変数の定義をしているのかどうか
+    pub functions: HashMap<String, Function>,
+}
 
-// いずれ
 #[derive(Debug)]
 pub struct Function {
     #[allow(dead_code)]
@@ -14,17 +23,6 @@ pub struct Function {
     #[allow(dead_code)]
     pub ty: Type, // 一応つけている方が自然だと思ってつけている。関数の返り値の型が必要なケースがあるときに使うのではと思っている。includeしたやつとかがどういう扱いになっているのかわからないといけないと思う
     pub scope_idx: isize,
-}
-#[derive(Debug)]
-pub struct Ctx<'a> {
-    pub input: &'a str,
-    pub input_copy: &'a str,
-    pub tokens: Vec<Token>,
-    pub global_variables: Vec<Rc<RefCell<Var>>>, // find_varのために型をrefcellにしてみる。不適切の恐れあり
-    pub processing_funcname: String,
-    pub processing_filename: String,
-    pub is_processing_local: bool, // グローバル変数の定義をしているのか、ローカル変数の定義をしているのかどうか
-    pub functions: HashMap<String, Function>,
 }
 
 #[derive(Debug)]
@@ -179,135 +177,4 @@ pub enum TypeKind {
 pub struct Type {
     pub kind: TypeKind,
     pub size: usize,
-}
-
-pub fn new_ptr_to(ty: Type) -> Type {
-    Type {
-        kind: TypeKind::TyPtr {
-            ptr_to: Box::new(ty),
-        },
-        size: 8,
-    }
-}
-
-pub fn new_int() -> Type {
-    Type {
-        kind: TypeKind::TyInt,
-        size: 8, // long?
-    }
-}
-
-pub fn new_char() -> Type {
-    Type {
-        kind: TypeKind::TyChar,
-        size: 1,
-    }
-}
-
-pub fn new_array_ty(ty: Type, len: usize) -> Type {
-    Type {
-        kind: TypeKind::TyArray {
-            ptr_to: Box::new(ty.clone()),
-            len,
-        },
-        size: ty.size * len,
-    }
-}
-
-pub fn is_integer_node(node: &Node) -> bool {
-    if let Some(ty) = &node.ty {
-        match ty.kind {
-            TypeKind::TyInt => true,
-            TypeKind::TyChar => true, // charと数値は足せる
-            _ => false,
-        }
-    } else {
-        false
-    }
-}
-
-pub fn is_pointer_node(node: &Node) -> bool {
-    match &node.ty {
-        Some(ty) => match &ty.kind {
-            TypeKind::TyPtr { .. } | TypeKind::TyArray { .. } => true,
-            _ => false,
-        },
-        None => false,
-    }
-}
-
-#[allow(dead_code)]
-pub fn is_integer(ty: &Type) -> bool {
-    if let TypeKind::TyInt = ty.kind {
-        true
-    } else {
-        false
-    }
-}
-
-#[allow(dead_code)]
-pub fn is_pointer(ty: &Type) -> bool {
-    if let TypeKind::TyPtr { .. } = ty.kind {
-        true
-    } else {
-        false
-    }
-}
-
-pub fn add_type(node: &mut Node) {
-    if node.ty.is_some() {
-        return;
-    }
-
-    match &mut node.kind {
-        NodeKind::NdAdd { lhs, rhs }
-        | NodeKind::NdSub { lhs, rhs }
-        | NodeKind::NdMul { lhs, rhs }
-        | NodeKind::NdDiv { lhs, rhs }
-        | NodeKind::NdAssign { lhs, rhs } => {
-            add_type(lhs);
-            add_type(rhs);
-            node.ty = lhs.ty.clone();
-        }
-        NodeKind::NdEq { .. }
-        | NodeKind::NdNe { .. }
-        | NodeKind::NdLt { .. }
-        | NodeKind::NdLe { .. }
-        | NodeKind::NdGt { .. }
-        | NodeKind::NdGe { .. }
-        | NodeKind::NdNum { .. } => {
-            node.ty = Some(new_int());
-        }
-        NodeKind::NdVar { var } => {
-            node.ty = Some(var.borrow().ty.clone());
-        }
-        NodeKind::NdAddr { lhs } => {
-            add_type(lhs);
-            if let Some(ty) = &lhs.ty {
-                node.ty = Some(new_ptr_to(ty.clone()));
-            }
-        }
-        NodeKind::NdDeref { lhs } => {
-            add_type(lhs);
-            if let Some(ty) = &lhs.ty {
-                match &ty.kind {
-                    TypeKind::TyPtr { ptr_to } | TypeKind::TyArray { ptr_to, .. } => {
-                        node.ty = Some((**ptr_to).clone());
-                    }
-                    _ => panic!("not a pointer or array"),
-                }
-            } else {
-                panic!("no type information");
-            }
-        }
-        NodeKind::NdReturn { lhs } | NodeKind::NdExprStmt { lhs } | NodeKind::NdNeg { lhs } => {
-            add_type(lhs);
-            node.ty = lhs.ty.clone();
-        }
-        NodeKind::NdGNUStmtExpr { body } => {
-            let last_node = body.last().unwrap();
-            node.ty = last_node.ty.clone();
-        }
-        _ => {} // Block, If, For, While
-    }
 }

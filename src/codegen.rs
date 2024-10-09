@@ -11,9 +11,6 @@ static mut FORIDX: usize = 0;
 static mut CURRENTFN: String = String::new();
 
 fn load(ty: &Type) {
-    if let TypeKind::TyArray { .. } = ty.kind {
-        return;
-    }
     match ty.kind {
         TypeKind::TyArray { .. } => {
             return;
@@ -205,6 +202,7 @@ fn gen_expr(node: Node) {
 }
 
 fn gen_stmt(node: Node) {
+    // eprintln!("gen_stmt: {:#?}", node);
     match node.kind {
         NodeKind::NdExprStmt { lhs } => {
             gen_expr(*lhs);
@@ -282,9 +280,6 @@ fn gen_stmt(node: Node) {
 
 fn align16(i: isize) -> isize {
     (i + 15) & !15
-}
-fn align8(i: isize) -> isize {
-    (i + 7) & !7
 }
 
 pub fn codegen(ctx: Ctx) {

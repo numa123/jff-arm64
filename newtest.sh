@@ -93,8 +93,8 @@ for src_file in $src_files; do
   echo "Running $base_name"
   if ! "$tmp/$base_name"; then
     echo "Test failed for $base_name"
-    echo "=== Assembly output ==="
-    cat "$tmp/${base_name}.s"  # .sファイルの内容を出力
+    # echo "=== Assembly output ==="
+    # cat "$tmp/${base_name}.s"  # .sファイルの内容を出力
     exit 1
   fi
   echo
