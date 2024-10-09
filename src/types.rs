@@ -168,8 +168,8 @@ pub enum TypeKind {
     #[allow(dead_code)]
     TyArray {
         ptr_to: Box<Type>,
-        len: usize, // <- これをまだ未使用だからdead_codeにしている
-    }, // lenがある方が自然だおと持っている
+        len: usize, // <- これをまだ未使用だからdead_codeにしている, lenがある方が自然だおと持っている
+    },
     TyChar,
 }
 

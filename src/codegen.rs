@@ -298,9 +298,7 @@ pub fn codegen(ctx: Ctx) {
                         if trimmed.len() == 0 {
                             println!("      .asciz \"\"");
                         } else {
-                            println!("      .asciz \"{}\"", trimmed); // ascizみたいなのもある。最後に\0を書くとgccのwarningが出るから、ここで\0を書かないようにしている。
-                                                                      // でも""[0]とかがエラーになるから。その時だけ書いてる
-                                                                      // ascizは終端文字を追加してくれるらしい。
+                            println!("      .asciz \"{}\"", trimmed);
                         }
                     }
                     InitGval::Num(val) => {
@@ -322,10 +320,8 @@ pub fn codegen(ctx: Ctx) {
 
     for (name, func) in &ctx.functions {
         unsafe { CURRENTFN = name.clone() };
-        let mut stack_size = 16; // 少々余分に撮っていると思う
-
-        // 各関数の変数に対してスタックサイズを計算
-        // どうやってアラインメントすれば良いのか正直わからん
+        let mut stack_size = 16;
+        // arm64のアラインメントのポリシーはまだ未確認
         for scope in &func.archive_variables {
             for var in scope {
                 let mut var = var.borrow_mut();
@@ -333,39 +329,34 @@ pub fn codegen(ctx: Ctx) {
                 stack_size += var.ty.size as isize;
             }
         }
-        stack_size = align16(stack_size); // なぜかtestでバグるから、メモリかレジスタが汚れているのかもしれないから余分に取ってみる
+        stack_size = align16(stack_size);
 
-        // 関数名に基づくラベル
         println!(".text");
-        // 関数の場合はアンダースコアがないとダメ。
-        println!(".global _{}", name);
+        println!(".global _{}", name); // 関数はアンダースコアをつけるのが慣例
         println!("_{}:", name);
-        // println!("      stp x29, x30, [sp, -{}]!", stack_size); // −512~504までならこれで良いが、それ以上になるとsubとかを使わないといけない。単純化のためにsubを使う。
-        println!("      sub sp, sp, {}", stack_size); // −512~504までならこれで良いが、それ以上になるとsubとかを使わないといけない。単純化のためにsubを使う。
-        println!("      stp x29, x30, [sp]"); // −512~504までならこれで良いが、それ以上になるとsubとかを使わないといけない。単純化のためにsubを使う。
+        println!("      sub sp, sp, {}", stack_size);
+        println!("      stp x29, x30, [sp]");
         println!("      mov x29, sp");
 
         // 引数の処理
         for (i, arg) in func.args.iter().enumerate() {
-            // 他のアドレスを計算する際、x0を使うので、最初の引数のみ特別扱いして対比する
+            // 他のアドレスを計算する際にx0を使うので、最初の引数のみ特別扱いして対比する
             if i == 0 {
                 println!("      mov x9, x0");
-                gen_addr(arg.clone()); // x0にアドレスが入る
+                gen_addr(arg.clone());
                 println!("      str x9, [x0]");
                 continue;
             }
-            gen_addr(arg.clone()); // x0にアドレスが入る
+            gen_addr(arg.clone());
             println!("      str x{}, [x0]", i);
         }
 
-        // 関数のbodyに対して`gen_stmt`を呼び出す
         if let Some(body) = &func.body {
             gen_stmt(body.clone());
         }
 
         println!("end.{}:", name);
-        // println!("      ldp x29, x30, [sp] ,{}", stack_size); // stpと同様にサイズが大きくなった時も対応するためにaddを使う
-        println!("      ldp x29, x30, [sp]"); // stpと同様にサイズが大きくなった時も対応するためにaddを使う
+        println!("      ldp x29, x30, [sp]");
         println!("      add sp, sp, {}", stack_size);
         println!("      ret");
     }

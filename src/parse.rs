@@ -3,50 +3,17 @@ use std::{cell::RefCell, mem::swap, rc::Rc};
 use crate::type_utils::*;
 use crate::types::*;
 
-fn new_assign(lhs: Node, rhs: Node) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdAssign {
-            lhs: Box::new(lhs),
-            rhs: Box::new(rhs),
-        },
-        ty: None,
+fn create_func(name: &str, ty: Type) -> Function {
+    let func = Function {
+        name: name.to_string(),
+        variables: vec![],
+        archive_variables: vec![],
+        args: Vec::new(),
+        body: None,
+        ty: ty,
+        scope_idx: -1, // 最初のスコープは-1にすることで、enter_scopeで良い感じに辻褄合わせ。でも、普通にわかりづらいから後で直す
     };
-    add_type(&mut node);
-    node
-}
-
-fn new_block(body: Vec<Node>) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdBlock { body },
-        ty: None,
-    };
-    add_type(&mut node);
-    node
-}
-
-fn null_stmt() -> Node {
-    Node {
-        kind: NodeKind::NdBlock { body: Vec::new() },
-        ty: None,
-    }
-}
-
-fn new_expr_stmt(lhs: Node) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdExprStmt { lhs: Box::new(lhs) },
-        ty: None,
-    };
-    add_type(&mut node);
-    node
-}
-
-fn new_return(lhs: Node) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdReturn { lhs: Box::new(lhs) },
-        ty: None,
-    };
-    add_type(&mut node);
-    node
+    return func;
 }
 
 fn new_if(cond: Node, then: Node, els: Option<Node>) -> Node {
@@ -59,7 +26,7 @@ fn new_if(cond: Node, then: Node, els: Option<Node>) -> Node {
         ty: None,
     };
     add_type(&mut node);
-    node
+    return node;
 }
 
 fn new_for(init: Node, cond: Option<Node>, inc: Option<Node>, body: Node) -> Node {
@@ -73,7 +40,7 @@ fn new_for(init: Node, cond: Option<Node>, inc: Option<Node>, body: Node) -> Nod
         ty: None,
     };
     add_type(&mut node);
-    node
+    return node;
 }
 
 fn new_while(cond: Node, body: Node) -> Node {
@@ -85,7 +52,53 @@ fn new_while(cond: Node, body: Node) -> Node {
         ty: None,
     };
     add_type(&mut node);
-    node
+    return node;
+}
+
+fn new_block(body: Vec<Node>) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdBlock { body },
+        ty: None,
+    };
+    add_type(&mut node);
+    return node;
+}
+
+fn null_stmt() -> Node {
+    return Node {
+        kind: NodeKind::NdBlock { body: Vec::new() },
+        ty: None,
+    };
+}
+
+fn new_expr_stmt(lhs: Node) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdExprStmt { lhs: Box::new(lhs) },
+        ty: None,
+    };
+    add_type(&mut node);
+    return node;
+}
+
+fn new_assign(lhs: Node, rhs: Node) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdAssign {
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        },
+        ty: None,
+    };
+    add_type(&mut node);
+    return node;
+}
+
+fn new_return(lhs: Node) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdReturn { lhs: Box::new(lhs) },
+        ty: None,
+    };
+    add_type(&mut node);
+    return node;
 }
 
 fn new_eq(lhs: Node, rhs: Node) -> Node {
@@ -97,7 +110,7 @@ fn new_eq(lhs: Node, rhs: Node) -> Node {
         ty: None,
     };
     add_type(&mut node);
-    node
+    return node;
 }
 
 fn new_ne(lhs: Node, rhs: Node) -> Node {
@@ -109,7 +122,7 @@ fn new_ne(lhs: Node, rhs: Node) -> Node {
         ty: None,
     };
     add_type(&mut node);
-    node
+    return node;
 }
 
 fn new_lt(lhs: Node, rhs: Node) -> Node {
@@ -121,7 +134,7 @@ fn new_lt(lhs: Node, rhs: Node) -> Node {
         ty: None,
     };
     add_type(&mut node);
-    node
+    return node;
 }
 
 fn new_le(lhs: Node, rhs: Node) -> Node {
@@ -133,7 +146,7 @@ fn new_le(lhs: Node, rhs: Node) -> Node {
         ty: None,
     };
     add_type(&mut node);
-    node
+    return node;
 }
 
 fn new_gt(lhs: Node, rhs: Node) -> Node {
@@ -145,7 +158,7 @@ fn new_gt(lhs: Node, rhs: Node) -> Node {
         ty: None,
     };
     add_type(&mut node);
-    node
+    return node;
 }
 
 fn new_ge(lhs: Node, rhs: Node) -> Node {
@@ -157,7 +170,34 @@ fn new_ge(lhs: Node, rhs: Node) -> Node {
         ty: None,
     };
     add_type(&mut node);
-    node
+    return node;
+}
+
+fn new_neg(lhs: Node) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdNeg { lhs: Box::new(lhs) },
+        ty: None,
+    };
+    add_type(&mut node);
+    return node;
+}
+
+fn new_addr(lhs: Node) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdAddr { lhs: Box::new(lhs) },
+        ty: None,
+    };
+    add_type(&mut node);
+    return node;
+}
+
+fn new_deref(lhs: Node) -> Node {
+    let mut node = Node {
+        kind: NodeKind::NdDeref { lhs: Box::new(lhs) },
+        ty: None,
+    };
+    add_type(&mut node);
+    return node;
 }
 
 fn new_sub(lhs: Node, rhs: Node) -> Node {
@@ -169,7 +209,7 @@ fn new_sub(lhs: Node, rhs: Node) -> Node {
         ty: None,
     };
     add_type(&mut node);
-    node
+    return node;
 }
 
 fn new_mul(lhs: Node, rhs: Node) -> Node {
@@ -181,7 +221,7 @@ fn new_mul(lhs: Node, rhs: Node) -> Node {
         ty: None,
     };
     add_type(&mut node);
-    node
+    return node;
 }
 
 fn new_div(lhs: Node, rhs: Node) -> Node {
@@ -193,34 +233,7 @@ fn new_div(lhs: Node, rhs: Node) -> Node {
         ty: Some(new_int()),
     };
     add_type(&mut node);
-    node
-}
-
-fn new_neg(lhs: Node) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdNeg { lhs: Box::new(lhs) },
-        ty: None,
-    };
-    add_type(&mut node);
-    node
-}
-
-fn new_addr(lhs: Node) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdAddr { lhs: Box::new(lhs) },
-        ty: None,
-    };
-    add_type(&mut node);
-    node
-}
-
-fn new_deref(lhs: Node) -> Node {
-    let mut node = Node {
-        kind: NodeKind::NdDeref { lhs: Box::new(lhs) },
-        ty: None,
-    };
-    add_type(&mut node);
-    node
+    return node;
 }
 
 fn new_num(val: isize) -> Node {
@@ -229,7 +242,7 @@ fn new_num(val: isize) -> Node {
         ty: None,
     };
     add_type(&mut node);
-    node
+    return node;
 }
 
 fn new_var(var: Rc<RefCell<Var>>) -> Node {
@@ -238,7 +251,7 @@ fn new_var(var: Rc<RefCell<Var>>) -> Node {
         ty: None,
     };
     add_type(&mut node);
-    node
+    return node;
 }
 
 impl Ctx<'_> {
@@ -277,7 +290,7 @@ impl Ctx<'_> {
         if self.equal("(") {
             return (ty, true);
         }
-        (ty, false)
+        return (ty, false);
     }
 
     fn declaration(&mut self) -> Node {
@@ -495,7 +508,7 @@ impl Ctx<'_> {
                 _ => break,
             }
         }
-        node
+        return node;
     }
 
     fn new_add(&mut self, lhs: Node, rhs: Node) -> Node {
@@ -723,75 +736,6 @@ impl Ctx<'_> {
         self.skip(")");
         return node;
     }
-
-    // 今は関数だけ
-    // functionとかに切り出すべき
-    pub fn parse(&mut self) {
-        self.tokens = self.tokenize();
-        self.convert_keywords();
-
-        while !self.tokens.is_empty() {
-            self.is_processing_local = false;
-            let base_ty = self.declspec();
-            let (ty, name, is_func) = self.declarator(base_ty.clone());
-            // 関数の場合
-            if is_func {
-                let variables: Vec<Vec<Rc<RefCell<Var>>>> = vec![];
-
-                // set processing funcname environment variable
-                self.processing_funcname = name.clone();
-                let func = Function {
-                    name: name.clone(),
-                    variables,
-                    archive_variables: vec![],
-                    args: Vec::new(),
-                    body: None,
-                    ty: ty,
-                    scope_idx: -1, // 最初のスコープは-1にすることで、enter_scopeで良い感じに辻褄合わせ。でも、普通にわかりづらいから後で直す
-                };
-                self.functions.insert(name.clone(), func);
-
-                self.enter_scope();
-
-                // 引数の処理
-                self.skip("(");
-                while !self.equal(")") {
-                    let base_ty = self.declspec();
-                    let (ty, name, _) = self.declarator(base_ty);
-                    let mut node = self.create_lvar(name.as_str(), ty, true);
-                    add_type(&mut node);
-                    if self.equal(",") {
-                        self.advance_one_tok();
-                    }
-                }
-
-                self.skip(")");
-                self.skip("{");
-                self.is_processing_local = true;
-                let mut node = self.compound_stmt();
-                self.is_processing_local = false;
-                add_type(&mut node);
-
-                self.leave_scope();
-
-                if let Some(func) = self.functions.get_mut(&name) {
-                    func.body = Some(node);
-                } else {
-                    panic!("Function not found: {}", name);
-                }
-            } else {
-                // グローバル変数の場合
-                // 今は初期化のみ
-                self.create_gvar(name.as_str(), ty, None);
-                while self.consume(",") {
-                    let (ty, name, _) = self.declarator(base_ty.clone()); // なぜclone
-                    self.create_gvar(name.as_str(), ty, None);
-                }
-                self.skip(";");
-                continue;
-            }
-        }
-    }
 }
 
 impl Ctx<'_> {
@@ -822,8 +766,7 @@ impl Ctx<'_> {
         }));
 
         self.global_variables.push(var.clone());
-        let node = new_var(var);
-        return node;
+        return new_var(var);
     }
 
     // 関数定義用の
@@ -842,8 +785,7 @@ impl Ctx<'_> {
 
         function.variables[function.scope_idx as usize].push(var.clone()); // コードがひどいが、まあ想定ではここが-になることはないはず
 
-        let node = new_var(var);
-
+        let mut node = new_var(var);
         // 関数定義の引数の場合、関数のargsにも追加
         if is_def_arg {
             let func = self.functions.get_mut(&self.processing_funcname).unwrap();
@@ -852,14 +794,13 @@ impl Ctx<'_> {
             }
             func.args.push(node.clone());
         }
+        add_type(&mut node);
         return node;
     }
 
     pub fn find_var(&mut self, name: &str) -> Option<Rc<RefCell<Var>>> {
         let function = self.get_function();
         let variables = &function.variables; // なぜ&が必要なのか。
-                                             // eprintln!("variables: {:#?}", variables);
-                                             // idx版目から遡る
         for scope in variables.iter().rev() {
             for var in scope {
                 if var.borrow().name == name {
@@ -873,6 +814,67 @@ impl Ctx<'_> {
                 return Some(var.clone());
             }
         }
-        None
+        return None;
+    }
+}
+
+impl Ctx<'_> {
+    pub fn new_function(&mut self, name: &str, ty: Type) {
+        // 関数の場合
+        // これから処理する関数名をセット。create_lvar, find_varで使用
+        self.processing_funcname = name.to_string();
+        let func = create_func(name, ty);
+        self.functions.insert(name.to_string(), func);
+
+        self.enter_scope();
+
+        // 引数の処理
+        self.skip("(");
+        while !self.equal(")") {
+            let base_ty = self.declspec();
+            let (ty, name, _) = self.declarator(base_ty);
+            self.create_lvar(name.as_str(), ty, true);
+            self.consume(","); // ,があればスキップ、なければ何もしないで、whileの条件分で終了
+        }
+        self.skip(")");
+        self.skip("{");
+
+        // 関数の中身の処理
+        // これからはローカル変数の処理という意味合い
+        self.is_processing_local = true;
+        self.functions.get_mut(name).unwrap().body = Some(self.compound_stmt());
+    }
+
+    pub fn new_gvar(&mut self, name: &str, base_ty: Type, ty: Type) {
+        self.create_gvar(name, ty, None);
+        while self.consume(",") {
+            let (ty, name, _) = self.declarator(base_ty.clone()); // なぜclone
+            self.create_gvar(name.as_str(), ty, None);
+        }
+        self.skip(";");
+    }
+
+    pub fn parse(&mut self) {
+        // inputをトークンに変換
+        self.tokens = self.tokenize();
+        self.convert_keywords();
+
+        // グローバル変数の定義文をwhileで回す
+        while !self.tokens.is_empty() {
+            // これからグローバル変数の定義を行うという意味合い
+            self.is_processing_local = false;
+
+            let base_ty = self.declspec();
+            let (ty, name, is_func) = self.declarator(base_ty.clone());
+
+            // 関数ではない場合
+            if !is_func {
+                self.new_gvar(name.as_str(), base_ty, ty);
+                continue;
+            }
+            // 関数の場合
+            self.new_function(name.as_str(), ty);
+            self.leave_scope();
+        }
     }
 }
