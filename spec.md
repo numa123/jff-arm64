@@ -29,7 +29,7 @@
 - compound-stmt = (declaration | stmt)* "}"
 - expr-stmt = expr? ";"
 - expr = assign
-- assign = bit ("=" assign)?
+- assign = bit ( ("=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "^=" | "|=") assign)?
 - bit = equality ("|" equality | "^" equality | "&" equality)*
 - equality = relational ("||" relational | "&&" relational | "==" relational | "!=" relational)*
 - relational = add ("<" add | "<=" add | ">" add | ">=" add)*
@@ -42,7 +42,7 @@
 ## 現在サポート中の演算子の優先順位
 低
 1. ,
-2. =
+2. =, +=, -=, *=, /=, %=, &=, ^=, |=
 3. ==, !=, &&, ||
 4. <, <=, >, >=
 5. +, -

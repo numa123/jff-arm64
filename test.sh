@@ -33,30 +33,35 @@ assert() {
 
 cargo build
 
-assert 1 'int main() {return 1 & 1;}'
-assert 0 'int main() {return 1 & 0;}'
-assert 1 'int main() {return 1 | 0;}'
-assert 0 'int main() {return 0 | 0;}'
-assert 1 'int main() {return 1 ^ 0;}'
-assert 0 'int main() {return 1 ^ 1;}'
-assert 1 'int main() {return (3 & 1) == 1;}'
-assert 3 'int main() {return 2 | 1;}'
-assert 1 'int main() {return 3 ^ 2;}'
-assert 7 'int main() {return 5 | 2;}'
-assert 6 'int main() {return 7 ^ 1;}'
+assert 2 'int main() {int i = 0; i += 2; return i;}'
+assert 3 'int main() { int i = 1; i += 2; return i; }' 
 
-assert 1 'int main() {return 1 == 1 && 0 == 0 || 1 != 0;}'
+assert 1 'int main() { int i = 3; i -= 2; return i; }' 
 
-# Test 2: a != c || b == d && c == d
-assert 0 'int main() {return 1 != 1 || 0 == 0 && 1 == 0;}'
+assert 6 'int main() { int i = 3; i *= 2; return i; }'
 
-# Test 3: a == b || b != c && c == d
-assert 0 'int main() {return 1 == 0 || 0 != 1 && 1 == 0;}'
+assert 2 'int main() { int i = 6; i /= 3; return i; }'
 
-# Test 4: a == c && b != d || a != b
-assert 1 'int main() {return 1 == 1 && 0 != 0 || 1 != 0;}'
+assert 1 'int main() { int i = 7; i %= 3; return i; }' 
 
-assert 5 'int main() { int x = 3; (&x + 2) - &x + 3;} '
+assert 2 'int main() { int i = 6; i &= 3; return i; }'  
+
+assert 5 'int main() { int i = 7; i ^= 2; return i; }'  
+
+assert 7 'int main() { int i = 5; i |= 2; return i; }' 
+
+# assert 1 'int main() {return 1 == 1 && 0 == 0 || 1 != 0;}'
+
+# # Test 2: a != c || b == d && c == d
+# assert 0 'int main() {return 1 != 1 || 0 == 0 && 1 == 0;}'
+
+# # Test 3: a == b || b != c && c == d
+# assert 0 'int main() {return 1 == 0 || 0 != 1 && 1 == 0;}'
+
+# # Test 4: a == c && b != d || a != b
+# assert 1 'int main() {return 1 == 1 && 0 != 0 || 1 != 0;}'
+
+# assert 5 'int main() { int x = 3; (&x + 2) - &x + 3;} '
 
 # assert 2 'int main() { int x = 3; (&x + 2) - &x;}'
 

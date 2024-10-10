@@ -510,6 +510,54 @@ impl Ctx<'_> {
                     let assign = self.assign();
                     node = self.new_assign(node, assign);
                 }
+                TokenKind::TkPunct { str } if str == "+=" => {
+                    self.advance_one_tok();
+                    let assign = self.assign();
+                    let add = self.new_add(node.clone(), assign);
+                    node = self.new_assign(node, add);
+                }
+                TokenKind::TkPunct { str } if str == "-=" => {
+                    self.advance_one_tok();
+                    let assign = self.assign();
+                    let sub = self.new_sub(node.clone(), assign);
+                    node = self.new_assign(node, sub);
+                }
+                TokenKind::TkPunct { str } if str == "*=" => {
+                    self.advance_one_tok();
+                    let assign = self.assign();
+                    let mul = self.new_mul(node.clone(), assign);
+                    node = self.new_assign(node, mul);
+                }
+                TokenKind::TkPunct { str } if str == "/=" => {
+                    self.advance_one_tok();
+                    let assign = self.assign();
+                    let div = self.new_div(node.clone(), assign);
+                    node = self.new_assign(node, div);
+                }
+                TokenKind::TkPunct { str } if str == "%=" => {
+                    self.advance_one_tok();
+                    let assign = self.assign();
+                    let mod_ = self.new_mod(node.clone(), assign);
+                    node = self.new_assign(node, mod_);
+                }
+                TokenKind::TkPunct { str } if str == "&=" => {
+                    self.advance_one_tok();
+                    let assign = self.assign();
+                    let bit_and = self.new_bit_and(node.clone(), assign);
+                    node = self.new_assign(node, bit_and);
+                }
+                TokenKind::TkPunct { str } if str == "^=" => {
+                    self.advance_one_tok();
+                    let assign = self.assign();
+                    let bit_xor = self.new_bit_xor(node.clone(), assign);
+                    node = self.new_assign(node, bit_xor);
+                }
+                TokenKind::TkPunct { str } if str == "|=" => {
+                    self.advance_one_tok();
+                    let assign = self.assign();
+                    let bit_or = self.new_bit_or(node.clone(), assign);
+                    node = self.new_assign(node, bit_or);
+                }
                 _ => break,
             }
         }

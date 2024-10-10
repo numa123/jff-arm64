@@ -170,6 +170,14 @@ impl Ctx<'_> {
                 || self.input.starts_with("<=")
                 || self.input.starts_with("&&")
                 || self.input.starts_with("||")
+                || self.input.starts_with("+=")
+                || self.input.starts_with("-=")
+                || self.input.starts_with("*=")
+                || self.input.starts_with("/=")
+                || self.input.starts_with("%=")
+                || self.input.starts_with("&=")
+                || self.input.starts_with("^=")
+                || self.input.starts_with("|=")
             {
                 tokens.push(Token {
                     kind: TokenKind::TkPunct {
