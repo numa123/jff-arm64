@@ -164,6 +164,18 @@ pub enum NodeKind {
     NdGNUStmtExpr {
         body: Vec<Node>, // compound_stmt
     },
+    NdBitAnd {
+        lhs: Box<Node>,
+        rhs: Box<Node>,
+    },
+    NdBitXor {
+        lhs: Box<Node>,
+        rhs: Box<Node>,
+    },
+    NdBitOr {
+        lhs: Box<Node>,
+        rhs: Box<Node>,
+    },
 }
 
 #[derive(Debug, Clone)]

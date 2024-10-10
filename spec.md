@@ -29,8 +29,9 @@
 - compound-stmt = (declaration | stmt)* "}"
 - expr-stmt = expr? ";"
 - expr = assign
-- assign = equality ("=" assign)?
-- equality = relational ("==" relational | "!=" relational)*
+- assign = bit ("=" assign)?
+- bit = equality ("|" equality | "^" equality | "&" equality)*
+- equality = relational ("||" relational | "&&" relational | "==" relational | "!=" relational)*
 - relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 - add = mul ("+" mul | "-" mul)*
 - mul = unary ("*" unary | "/" unary)*

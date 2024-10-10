@@ -191,6 +191,30 @@ fn gen_expr(node: Node) {
             println!("  orr x0, x0, x2");
             return;
         }
+        NodeKind::NdBitAnd { lhs, rhs } => {
+            gen_expr(*lhs);
+            push16();
+            gen_expr(*rhs);
+            pop16();
+            println!("      and x0, x1, x0");
+            return;
+        }
+        NodeKind::NdBitXor { lhs, rhs } => {
+            gen_expr(*lhs);
+            push16();
+            gen_expr(*rhs);
+            pop16();
+            println!("      eor x0, x1, x0");
+            return;
+        }
+        NodeKind::NdBitOr { lhs, rhs } => {
+            gen_expr(*lhs);
+            push16();
+            gen_expr(*rhs);
+            pop16();
+            println!("      orr x0, x1, x0");
+            return;
+        }
         NodeKind::NdAssign { lhs, rhs } => {
             gen_addr(*lhs);
             push16();

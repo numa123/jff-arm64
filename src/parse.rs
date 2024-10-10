@@ -281,6 +281,42 @@ impl Ctx<'_> {
         self.add_type(&mut node);
         return node;
     }
+
+    fn new_bit_and(&mut self, lhs: Node, rhs: Node) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdBitAnd {
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+            ty: None,
+        };
+        self.add_type(&mut node);
+        return node;
+    }
+
+    fn new_bit_xor(&mut self, lhs: Node, rhs: Node) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdBitXor {
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+            ty: None,
+        };
+        self.add_type(&mut node);
+        return node;
+    }
+
+    fn new_bit_or(&mut self, lhs: Node, rhs: Node) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdBitOr {
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+            ty: None,
+        };
+        self.add_type(&mut node);
+        return node;
+    }
 }
 
 impl Ctx<'_> {
@@ -466,13 +502,38 @@ impl Ctx<'_> {
     }
 
     fn assign(&mut self) -> Node {
-        let mut node = self.equality();
+        let mut node = self.bit();
         while !self.tokens.is_empty() {
             match &self.tokens[0].kind {
                 TokenKind::TkPunct { str } if str == "=" => {
                     self.advance_one_tok();
                     let assign = self.assign();
                     node = self.new_assign(node, assign);
+                }
+                _ => break,
+            }
+        }
+        return node;
+    }
+
+    fn bit(&mut self) -> Node {
+        let mut node = self.equality();
+        while !self.tokens.is_empty() {
+            match &self.tokens[0].kind {
+                TokenKind::TkPunct { str } if str == "&" => {
+                    self.advance_one_tok();
+                    let equality = self.equality();
+                    node = self.new_bit_and(node, equality);
+                }
+                TokenKind::TkPunct { str } if str == "^" => {
+                    self.advance_one_tok();
+                    let equality = self.equality();
+                    node = self.new_bit_xor(node, equality);
+                }
+                TokenKind::TkPunct { str } if str == "|" => {
+                    self.advance_one_tok();
+                    let equality = self.equality();
+                    node = self.new_bit_or(node, equality);
                 }
                 _ => break,
             }

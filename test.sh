@@ -33,6 +33,18 @@ assert() {
 
 cargo build
 
+assert 1 'int main() {return 1 & 1;}'
+assert 0 'int main() {return 1 & 0;}'
+assert 1 'int main() {return 1 | 0;}'
+assert 0 'int main() {return 0 | 0;}'
+assert 1 'int main() {return 1 ^ 0;}'
+assert 0 'int main() {return 1 ^ 1;}'
+assert 1 'int main() {return (3 & 1) == 1;}'
+assert 3 'int main() {return 2 | 1;}'
+assert 1 'int main() {return 3 ^ 2;}'
+assert 7 'int main() {return 5 | 2;}'
+assert 6 'int main() {return 7 ^ 1;}'
+
 assert 1 'int main() {return 1 == 1 && 0 == 0 || 1 != 0;}'
 
 # Test 2: a != c || b == d && c == d
