@@ -7,6 +7,8 @@ int main() {
   ASSERT(47, 5 + 6 * 7);
   ASSERT(15, 5 * (9 - 6));
   ASSERT(4, (3 + 5) / 2);
+  ASSERT(0, 15 % 5);
+  ASSERT(3, 15 % 4);
   ASSERT(10, -10 + 20);
   ASSERT(10, - -10);
   ASSERT(10, - -+10);

@@ -228,6 +228,18 @@ impl Ctx<'_> {
         return node;
     }
 
+    fn new_mod(&mut self, lhs: Node, rhs: Node) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdMod {
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+            ty: Some(new_int()),
+        };
+        self.add_type(&mut node);
+        return node;
+    }
+
     fn new_num(&mut self, val: isize) -> Node {
         let mut node = Node {
             kind: NodeKind::NdNum { val },
@@ -619,6 +631,11 @@ impl Ctx<'_> {
                     self.advance_one_tok();
                     let unary = self.unary();
                     return self.new_div(node, unary);
+                }
+                TokenKind::TkPunct { str } if str == "%" => {
+                    self.advance_one_tok();
+                    let unary = self.unary();
+                    return self.new_mod(node, unary);
                 }
                 _ => break,
             }

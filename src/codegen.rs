@@ -97,6 +97,15 @@ fn gen_expr(node: Node) {
             println!("      sdiv x0, x1, x0");
             return;
         }
+        NodeKind::NdMod { lhs, rhs } => {
+            gen_expr(*lhs);
+            push16();
+            gen_expr(*rhs);
+            pop16();
+            println!("      sdiv x2, x1, x0");
+            println!("      msub x0, x2, x0, x1");
+            return;
+        }
         NodeKind::NdNeg { lhs } => {
             gen_expr(*lhs);
             println!("      neg x0, x0");

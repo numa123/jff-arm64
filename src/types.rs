@@ -77,6 +77,10 @@ pub enum NodeKind {
         lhs: Box<Node>,
         rhs: Box<Node>,
     },
+    NdMod {
+        lhs: Box<Node>,
+        rhs: Box<Node>,
+    },
     NdNeg {
         lhs: Box<Node>,
     },

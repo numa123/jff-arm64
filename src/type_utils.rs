@@ -94,6 +94,7 @@ impl Ctx<'_> {
             | NodeKind::NdSub { lhs, rhs }
             | NodeKind::NdMul { lhs, rhs }
             | NodeKind::NdDiv { lhs, rhs }
+            | NodeKind::NdMod { lhs, rhs }
             | NodeKind::NdAssign { lhs, rhs } => {
                 self.add_type(lhs);
                 self.add_type(rhs);
