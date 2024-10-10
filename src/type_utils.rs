@@ -106,6 +106,8 @@ impl Ctx<'_> {
             | NodeKind::NdLe { .. }
             | NodeKind::NdGt { .. }
             | NodeKind::NdGe { .. }
+            | NodeKind::NdAnd { .. }
+            | NodeKind::NdOr { .. }
             | NodeKind::NdNum { .. } => {
                 node.ty = Some(new_int());
             }

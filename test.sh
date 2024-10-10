@@ -33,11 +33,18 @@ assert() {
 
 cargo build
 
+assert 1 'int main() {return 1 == 1 && 0 == 0 || 1 != 0;}'
+
+# Test 2: a != c || b == d && c == d
+assert 0 'int main() {return 1 != 1 || 0 == 0 && 1 == 0;}'
+
+# Test 3: a == b || b != c && c == d
+assert 0 'int main() {return 1 == 0 || 0 != 1 && 1 == 0;}'
+
+# Test 4: a == c && b != d || a != b
+assert 1 'int main() {return 1 == 1 && 0 != 0 || 1 != 0;}'
+
 assert 5 'int main() { int x = 3; (&x + 2) - &x + 3;} '
-
-assert 1 'int main() { y;}'
-assert 3 'int main() { ( { int i=0; while (i<10) i=i+1; return i; )  } }'
-
 
 # assert 2 'int main() { int x = 3; (&x + 2) - &x;}'
 

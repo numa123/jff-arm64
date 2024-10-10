@@ -108,6 +108,14 @@ pub enum NodeKind {
         lhs: Box<Node>,
         rhs: Box<Node>,
     },
+    NdAnd {
+        lhs: Box<Node>,
+        rhs: Box<Node>,
+    },
+    NdOr {
+        lhs: Box<Node>,
+        rhs: Box<Node>,
+    },
     NdExprStmt {
         lhs: Box<Node>,
     },

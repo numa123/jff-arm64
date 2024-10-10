@@ -174,6 +174,30 @@ impl Ctx<'_> {
         return node;
     }
 
+    fn new_and(&mut self, lhs: Node, rhs: Node) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdAnd {
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+            ty: None,
+        };
+        self.add_type(&mut node);
+        return node;
+    }
+
+    fn new_or(&mut self, lhs: Node, rhs: Node) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdOr {
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+            ty: None,
+        };
+        self.add_type(&mut node);
+        return node;
+    }
+
     fn new_neg(&mut self, lhs: Node) -> Node {
         let mut node = Node {
             kind: NodeKind::NdNeg { lhs: Box::new(lhs) },
@@ -460,6 +484,16 @@ impl Ctx<'_> {
         let mut node = self.relational();
         while !self.tokens.is_empty() {
             match &self.tokens[0].kind {
+                TokenKind::TkPunct { str } if str == "||" => {
+                    self.advance_one_tok();
+                    let add = self.add();
+                    node = self.new_or(node, add);
+                }
+                TokenKind::TkPunct { str } if str == "&&" => {
+                    self.advance_one_tok();
+                    let add = self.add();
+                    node = self.new_and(node, add);
+                }
                 TokenKind::TkPunct { str } if str == "==" => {
                     self.advance_one_tok();
                     let relational = self.relational();

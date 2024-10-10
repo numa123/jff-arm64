@@ -28,6 +28,13 @@ int main() {
   ASSERT(1, 1 >= 0);
   ASSERT(1, 1 >= 1);
   ASSERT(0, 1 >= 2);
+  ASSERT(1, 5 && 2);
+  ASSERT(1, 1 && 1);
+  ASSERT(0, 0 && 1);
+  ASSERT(1, 0 || 2);
+  ASSERT(0, 0 || 0);
+  ASSERT(0, 1 != 1 || 0 == 0 && 1 == 0);
+  ASSERT(1, 1 == 1 && 0 != 0 || 1 != 0);
   printf("OK\n");
   return 0;
 }

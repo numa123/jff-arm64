@@ -165,6 +165,32 @@ fn gen_expr(node: Node) {
             println!("      cset x0, ge");
             return;
         }
+        NodeKind::NdAnd { lhs, rhs } => {
+            gen_expr(*lhs);
+            push16();
+            gen_expr(*rhs);
+            pop16();
+            println!("  mov x2, 0");
+            println!("  cmp x1, 0");
+            println!("  cset x2, ne");
+            println!("  cmp x0, 0");
+            println!("  cset x0, ne");
+            println!("  and x0, x0, x2");
+            return;
+        }
+        NodeKind::NdOr { lhs, rhs } => {
+            gen_expr(*lhs);
+            push16();
+            gen_expr(*rhs);
+            pop16();
+            println!("  mov x2, 0");
+            println!("  cmp x1, 0");
+            println!("  cset x2, ne");
+            println!("  cmp x0, 0");
+            println!("  cset x0, ne");
+            println!("  orr x0, x0, x2");
+            return;
+        }
         NodeKind::NdAssign { lhs, rhs } => {
             gen_addr(*lhs);
             push16();
