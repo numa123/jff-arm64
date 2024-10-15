@@ -319,12 +319,54 @@ impl Ctx<'_> {
     }
 }
 
+// struct relation
+// 今は、struct {int a;} x;  みたいな宣言の仕方
+impl Ctx<'_> {
+    fn struct_decl(&mut self) -> Type {
+        self.skip("{");
+        let mut members = self.struct_members();
+        let mut offset = 0;
+        for member in &mut members {
+            member.offset = offset;
+            offset += member.ty.size;
+        }
+        let ty = Type {
+            kind: TypeKind::TyStruct { members: members },
+            size: offset,
+        };
+        return ty;
+    }
+
+    fn struct_members(&mut self) -> Vec<Member> {
+        let mut members: Vec<Member> = Vec::new();
+        while !self.consume("}") {
+            let base_ty = self.declspec();
+            while !self.consume(";") {
+                let (ty, name, _) = self.declarator(base_ty.clone());
+                let member = Member {
+                    name: name,
+                    ty: ty,
+                    offset: 0, // あとでstruct_declで更新する
+                };
+                members.push(member);
+                if self.equal(",") {
+                    self.advance_one_tok();
+                    continue;
+                }
+            }
+        }
+        return members;
+    }
+}
+
 impl Ctx<'_> {
     fn declspec(&mut self) -> Type {
         if self.consume("int") {
             return new_int();
         } else if self.consume("char") {
             return new_char();
+        } else if self.consume("struct") {
+            return self.struct_decl();
         }
         self.error_tok(&self.tokens[0], "int or char expected");
     }
@@ -385,7 +427,7 @@ impl Ctx<'_> {
     fn is_typename(&mut self) -> bool {
         match &self.tokens[0].kind {
             TokenKind::TkKeyword { name } => match name.as_str() {
-                "int" | "char" => return true,
+                "int" | "char" | "struct" => return true,
                 _ => return false,
             },
             _ => return false,
@@ -708,6 +750,8 @@ impl Ctx<'_> {
             };
             return node;
         }
+        eprintln!("lhs type: {:#?}", lhs.ty); // ここはaが入っていなければならないのに
+        eprintln!("rhs type: {:#?}", rhs.ty);
         self.error_tok(&self.tokens[0], "invalid operands");
     }
 
@@ -809,14 +853,62 @@ impl Ctx<'_> {
         self.postfix()
     }
 
+    // tyはTyStruct限定の想定
+    fn get_struct_member(&mut self, ty: Type, name: String) -> Member {
+        if let TypeKind::TyStruct { members } = ty.kind {
+            for member in &members {
+                if member.name == name {
+                    return member.clone();
+                }
+            }
+            self.error_tok(&self.tokens[0], "no such member");
+        } else {
+            self.error_tok(&self.tokens[0], "no such member");
+        }
+    }
+
+    fn struct_ref(&mut self, lhs: Node) -> Node {
+        let mut lhs = lhs.clone();
+        self.add_type(&mut lhs); // 必要か?
+        if let TypeKind::TyStruct { .. } = lhs.ty.as_ref().unwrap().kind {
+            // nameを取り出す
+            let name = if let TokenKind::TkIdent { name } = self.advance_one_tok().kind {
+                name
+            } else {
+                self.error_tok(&self.tokens[0], "expected identifier");
+            };
+            // nodeを作る。lhsがx.aのxの方。lhsのoffsetから、memberのoffsetを足したところのデータを取得する形になる
+            let member = self.get_struct_member(lhs.clone().ty.unwrap().clone(), name); // 可読性ゴミ
+            let node = Node {
+                kind: NodeKind::NdMember {
+                    lhs: Box::new(lhs.clone()),
+                    member: member.clone(),
+                },
+                ty: Some(member.ty),
+            };
+            return node;
+        } else {
+            self.error_tok(&self.tokens[0], "not a struct");
+        }
+    }
+
     fn postfix(&mut self) -> Node {
         let mut node = self.primary();
-        while self.equal("[") {
-            self.advance_one_tok();
-            let idx = self.expr();
-            self.skip("]");
-            let add = self.new_add(node, idx);
-            node = self.new_deref(add, self.tokens[0].clone());
+        loop {
+            if self.equal("[") {
+                self.advance_one_tok();
+                let idx = self.expr();
+                self.skip("]");
+                let add = self.new_add(node, idx);
+                node = self.new_deref(add, self.tokens[0].clone());
+                continue;
+            }
+            if self.equal(".") {
+                self.advance_one_tok();
+                node = self.struct_ref(node);
+                continue;
+            }
+            break;
         }
         self.add_type(&mut node);
         return node;

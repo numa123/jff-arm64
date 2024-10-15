@@ -5,6 +5,7 @@
 - ブロックは、`enter_scope`によって、variablesにベクタを追加し、`scope_idx`をインクリメントする。ブロックから抜ける際は`leave_scope`によってvariablesの最後尾(以前まで処理していたブロックスコープで管理していた変数が入っているベクタ)をpopして、`exited_scope_variables`に入れていく。最終的に`variables`は空になり、`exited_scope_variables`に変数がスコープを抜けた順に格納される。それを対象に`codegen.rs`で各変数のアドレス(offset)を決め, stack_sizeも計算している
 - 関数は、`Ctx`の`functions`に、関数名をキーとした`Function`構造体をinsertすることで追加。追加の際に、`Ctx`の`processing_funcname`を更新する。`processing_funcname`は、parse中の`create_lvar`, `find_var`によって使用される。例えば`main`関数をパースしている間は、変数の追加や、変数の探索を、`Ctx.functions`から関数名で取得した`Function.variables`を参照して、そこに追加したり、探索するようにしている
 - `.align`は3で決め打ちしている。2の方が適切なものもあるだろうが多めに取ってる
+- `clone`多用しているけど何が何だかわからなくなってきた
 
 ## やること
 - ドキュメントの整理
@@ -15,7 +16,7 @@
 - 各種変数名の修正、冗長、不適切さの除去
 
 ## EBNF
-- declspec = "int" | "char"
+- declspec = "int" | "char" | "struct"
 - declaration = declspec ( declarator type_suffix ("=" expr)? ("," declarator ("=" expr)?)* )? ";"
 - declarator = "*"* ident type_suffix
 - type_suffix = "[" expr "]" | ε
@@ -23,9 +24,11 @@
 - not_func_declaration =  declarator type_suffix ("," declarator typesuffix)* ";"
 - func_declaration = declarator "(" (declspec declarator ("," declspec declarator)* )? ")"
 
+### struct関連
+- struct_decl = "{" struct-members
 
 - program = (  declspec  ( no_func_declaration | func_declaration )  )*
-- stmt = "return" expr ";" | expr-stmt | "{" compound-stmt | "if" "(" expr ")" stmt ("else" stmt)? | "for" "(" expr-stmt expr? ";" expr? ")" stmt | "while" "(" expr ")" stmt
+- stmt = "return" expr ";" | expr-stmt | "{" compound-stmt | "if" "(" expr ")" stmt ("else" stmt)? | "for" "(" expr-stmt expr? ";" expr? ")" stmt | "while" "(" expr ")" stm        t
 - compound-stmt = (declaration | stmt)* "}"
 - expr-stmt = expr? ";"
 - expr = assign
@@ -35,7 +38,9 @@
 - relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 - add = mul ("+" mul | "-" mul)*
 - mul = unary ("*" unary | "/" unary)*
-- unary = ("+" | "-" | "*" | "&") unary | primary
+- unary = ("+" | "-" | "*" | "&") unary | postfix
+- postfix = primary ("[" expr "]" | "." ident)?
+
 - primary = num | "(" expr ")" | ident args? | "sizeof" unary
 - args = "(" (declspec declrator ("," declspec declarator)*)? ")"
 

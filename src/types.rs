@@ -176,6 +176,17 @@ pub enum NodeKind {
         lhs: Box<Node>,
         rhs: Box<Node>,
     },
+    NdMember {
+        lhs: Box<Node>,
+        member: Member,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub struct Member {
+    pub name: String,
+    pub ty: Type,
+    pub offset: usize, // 構造体からの相対オフセット
 }
 
 #[derive(Debug, Clone)]
@@ -196,6 +207,9 @@ pub enum TypeKind {
         len: usize, // <- これをまだ未使用だからdead_codeにしている, lenがある方が自然だおと持っている
     },
     TyChar,
+    TyStruct {
+        members: Vec<Member>,
+    },
 }
 
 #[derive(Debug, Clone)]

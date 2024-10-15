@@ -208,6 +208,7 @@ impl Ctx<'_> {
                 || c == '%'
                 || c == '^'
                 || c == '|'
+                || c == '.'
             {
                 tokens.push(Token {
                     kind: TokenKind::TkPunct { str: c.to_string() },
@@ -262,7 +263,7 @@ impl Ctx<'_> {
 
     pub fn convert_keywords(&mut self) {
         let keywords = vec![
-            "return", "if", "else", "for", "while", "int", "sizeof", "char",
+            "return", "if", "else", "for", "while", "int", "sizeof", "char", "struct",
         ];
         for token in &mut self.tokens {
             if let TokenKind::TkIdent { name } = &token.kind {

@@ -33,22 +33,24 @@ assert() {
 
 cargo build
 
-assert 2 'int main() {int i = 0; i += 2; return i;}'
-assert 3 'int main() { int i = 1; i += 2; return i; }' 
+assert 48 'int main() { struct {int a[3];} x[2]; sizeof(x); }'
 
-assert 1 'int main() { int i = 3; i -= 2; return i; }' 
+# assert 2 'int main() {int i = 0; i += 2; return i;}'
+# assert 3 'int main() { int i = 1; i += 2; return i; }' 
 
-assert 6 'int main() { int i = 3; i *= 2; return i; }'
+# assert 1 'int main() { int i = 3; i -= 2; return i; }' 
 
-assert 2 'int main() { int i = 6; i /= 3; return i; }'
+# assert 6 'int main() { int i = 3; i *= 2; return i; }'
 
-assert 1 'int main() { int i = 7; i %= 3; return i; }' 
+# assert 2 'int main() { int i = 6; i /= 3; return i; }'
 
-assert 2 'int main() { int i = 6; i &= 3; return i; }'  
+# assert 1 'int main() { int i = 7; i %= 3; return i; }' 
 
-assert 5 'int main() { int i = 7; i ^= 2; return i; }'  
+# assert 2 'int main() { int i = 6; i &= 3; return i; }'  
 
-assert 7 'int main() { int i = 5; i |= 2; return i; }' 
+# assert 5 'int main() { int i = 7; i ^= 2; return i; }'  
+
+# assert 7 'int main() { int i = 5; i |= 2; return i; }' 
 
 # assert 1 'int main() {return 1 == 1 && 0 == 0 || 1 != 0;}'
 

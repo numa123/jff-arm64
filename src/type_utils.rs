@@ -23,6 +23,13 @@ pub fn new_char() -> Type {
     }
 }
 
+pub fn new_struct(members: Vec<Member>, size: usize) -> Type {
+    Type {
+        kind: TypeKind::TyStruct { members: members },
+        size: size,
+    }
+}
+
 pub fn new_array_ty(ty: Type, len: usize) -> Type {
     Type {
         kind: TypeKind::TyArray {
@@ -140,6 +147,9 @@ impl Ctx<'_> {
             NodeKind::NdGNUStmtExpr { body } => {
                 let last_node = body.last().unwrap();
                 node.ty = last_node.ty.clone();
+            }
+            NodeKind::NdMember { member, .. } => {
+                node.ty = Some(member.ty.clone()); // よくわからん
             }
             _ => {} // Block, If, For, While
         }

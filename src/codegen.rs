@@ -43,11 +43,13 @@ fn gen_addr(node: Node) {
                 println!("      adrp x0, {}@PAGE", var.name); // what is PAGE?
                 println!("      add x0, x0, {}@PAGEOFF;", var.name);
             }
-            return;
         }
         NodeKind::NdDeref { lhs, .. } => {
             gen_expr(*lhs);
-            return;
+        }
+        NodeKind::NdMember { lhs, member } => {
+            gen_addr(*lhs);
+            println!("      add x0, x0, {}", member.offset);
         }
         _ => panic!("not expected node: {:#?}", node),
     }
@@ -62,6 +64,12 @@ fn gen_expr(node: Node) {
         NodeKind::NdVar { ref var } => {
             let ty = var.borrow().ty.clone();
             gen_addr(node);
+            load(&ty);
+            return;
+        }
+        NodeKind::NdMember { .. } => {
+            let ty = node.clone().ty.unwrap();
+            gen_addr(node); // x.valとかだったら、xのアドレスをx0に入れる。
             load(&ty);
             return;
         }
@@ -336,34 +344,35 @@ fn align16(i: isize) -> isize {
 pub fn codegen(ctx: Ctx) {
     for var in &ctx.global_variables {
         let var = var.borrow();
-        match &var.init_gval {
-            Some(gval) => {
-                match gval {
-                    InitGval::Str(s) => {
-                        let trimmed = s.trim_end_matches('\0'); // ヌル文字を除去
-                        println!(".text");
-                        println!(".cstring"); // セクションの指定
-                        println!(".align 3"); // ポインタは8byte。align 3 は　2^3 = 8byteでアラインメント
-                        println!("{}:", var.name);
-                        if trimmed.len() == 0 {
-                            println!("      .asciz \"\"");
-                        } else {
-                            println!("      .asciz \"{}\"", trimmed);
-                        }
-                    }
-                    InitGval::Num(val) => {
-                        println!(".data");
-                        println!(".global {}", var.name);
-                        println!("{}:", var.name);
-                        println!("      .xword {}", val);
-                    }
+
+        // 初期値がない場合の処理
+        if var.init_gval.is_none() {
+            println!(".data");
+            println!(".global {}", var.name);
+            println!("{}:", var.name);
+            println!("      .zero {}", var.ty.size);
+            continue;
+        }
+
+        // 初期値がある場合の処理
+        match &var.init_gval.as_ref().unwrap() {
+            InitGval::Str(s) => {
+                let trimmed = s.trim_end_matches('\0'); // ヌル文字を除去
+                println!(".text");
+                println!(".cstring"); // セクションの指定
+                println!(".align 3"); // ポインタは8byte。align 3 は　2^3 = 8byteでアラインメント
+                println!("{}:", var.name);
+                if trimmed.is_empty() {
+                    println!("      .asciz \"\"");
+                } else {
+                    println!("      .asciz \"{}\"", trimmed);
                 }
             }
-            None => {
+            InitGval::Num(val) => {
                 println!(".data");
                 println!(".global {}", var.name);
                 println!("{}:", var.name);
-                println!("      .zero {}", var.ty.size);
+                println!("      .xword {}", val);
             }
         }
     }
