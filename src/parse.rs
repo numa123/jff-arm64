@@ -349,6 +349,46 @@ impl Ctx<'_> {
         return None;
     }
 
+    fn union_decl(&mut self) -> Type {
+        let mut tag = String::new();
+        if let TokenKind::TkIdent { name } = &self.tokens[0].kind {
+            tag = name.clone();
+            self.advance_one_tok();
+        }
+
+        // 方の値を宣言する時;
+        if !tag.is_empty() && !self.equal("{") {
+            // findtag return ty
+            if let Some(ty) = self.find_tag(tag) {
+                return ty;
+            } else {
+                self.error_tok(&self.tokens[0], "unknown struct type");
+            }
+        }
+
+        self.skip("{");
+        let mut members = self.struct_members();
+        let mut max_size = 0;
+        let mut max_align = 0;
+        for member in &mut members {
+            max_size = cmp::max(max_size, member.ty.size);
+            max_align = cmp::max(max_align, member.ty.align);
+        }
+        if max_align > 8 {
+            max_align = 8;
+        }
+        let ty = Type {
+            kind: TypeKind::TyUnion { members: members },
+            size: max_size,
+            align: max_align,
+        };
+
+        if !tag.is_empty() {
+            self.push_tag(tag, ty.clone());
+        }
+        return ty;
+    }
+
     fn struct_decl(&mut self) -> Type {
         let mut tag = String::new();
         if let TokenKind::TkIdent { name } = &self.tokens[0].kind {
@@ -416,7 +456,7 @@ impl Ctx<'_> {
 
     // tyはTyStruct限定の想定
     fn get_struct_member(&mut self, ty: Type, name: String) -> Member {
-        if let TypeKind::TyStruct { members } = ty.kind {
+        if let TypeKind::TyStruct { members } | TypeKind::TyUnion { members } = ty.kind {
             for member in &members {
                 if member.name == name {
                     return member.clone();
@@ -431,7 +471,8 @@ impl Ctx<'_> {
     fn struct_ref(&mut self, lhs: Node) -> Node {
         let mut lhs = lhs.clone();
         self.add_type(&mut lhs); // 必要か?
-        if let TypeKind::TyStruct { .. } = lhs.ty.as_ref().unwrap().kind {
+        if let TypeKind::TyStruct { .. } | TypeKind::TyUnion { .. } = lhs.ty.as_ref().unwrap().kind
+        {
             // nameを取り出す
             let name = if let TokenKind::TkIdent { name } = self.advance_one_tok().kind {
                 name
@@ -449,7 +490,7 @@ impl Ctx<'_> {
             };
             return node;
         } else {
-            self.error_tok(&self.tokens[0], "not a struct");
+            self.error_tok(&self.tokens[0], "not a struct nor union");
         }
     }
 }
@@ -462,6 +503,8 @@ impl Ctx<'_> {
             return new_char();
         } else if self.consume("struct") {
             return self.struct_decl();
+        } else if self.consume("union") {
+            return self.union_decl();
         }
         self.error_tok(&self.tokens[0], "int or char expected");
     }
@@ -522,7 +565,7 @@ impl Ctx<'_> {
     fn is_typename(&mut self) -> bool {
         match &self.tokens[0].kind {
             TokenKind::TkKeyword { name } => match name.as_str() {
-                "int" | "char" | "struct" => return true,
+                "int" | "char" | "struct" | "union" => return true,
                 _ => return false,
             },
             _ => return false,

@@ -264,7 +264,7 @@ impl Ctx<'_> {
 
     pub fn convert_keywords(&mut self) {
         let keywords = vec![
-            "return", "if", "else", "for", "while", "int", "sizeof", "char", "struct",
+            "return", "if", "else", "for", "while", "int", "sizeof", "char", "struct", "union",
         ];
         for token in &mut self.tokens {
             if let TokenKind::TkIdent { name } = &token.kind {

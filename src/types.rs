@@ -222,6 +222,9 @@ pub enum TypeKind {
     TyStruct {
         members: Vec<Member>,
     },
+    TyUnion {
+        members: Vec<Member>,
+    },
 }
 
 #[derive(Debug, Clone)]
