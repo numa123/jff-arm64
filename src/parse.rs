@@ -1,3 +1,4 @@
+use std::cmp::{self};
 use std::{cell::RefCell, mem::swap, rc::Rc};
 
 use crate::type_utils::*;
@@ -319,6 +320,13 @@ impl Ctx<'_> {
     }
 }
 
+fn align_to(n: usize, to: usize) -> usize {
+    if to == 0 {
+        return n; // なぜreturnを書く必要がある？ nではだめなのか
+    }
+    (n + to - 1) & !(to - 1)
+}
+
 // struct relation
 // 今は、struct {int a;} x;  みたいな宣言の仕方
 impl Ctx<'_> {
@@ -326,13 +334,22 @@ impl Ctx<'_> {
         self.skip("{");
         let mut members = self.struct_members();
         let mut offset = 0;
+        // alignmentを加える
+        let mut max_align = 0;
         for member in &mut members {
+            offset = align_to(offset, member.ty.align);
+            max_align = cmp::max(max_align, member.ty.align);
             member.offset = offset;
             offset += member.ty.size;
         }
+        if max_align > 8 {
+            max_align = 8;
+        }
+        offset = align_to(offset, max_align);
         let ty = Type {
             kind: TypeKind::TyStruct { members: members },
             size: offset,
+            align: max_align,
         };
         return ty;
     }
@@ -356,6 +373,45 @@ impl Ctx<'_> {
             }
         }
         return members;
+    }
+
+    // tyはTyStruct限定の想定
+    fn get_struct_member(&mut self, ty: Type, name: String) -> Member {
+        if let TypeKind::TyStruct { members } = ty.kind {
+            for member in &members {
+                if member.name == name {
+                    return member.clone();
+                }
+            }
+            self.error_tok(&self.tokens[0], "no such member");
+        } else {
+            self.error_tok(&self.tokens[0], "no such member");
+        }
+    }
+
+    fn struct_ref(&mut self, lhs: Node) -> Node {
+        let mut lhs = lhs.clone();
+        self.add_type(&mut lhs); // 必要か?
+        if let TypeKind::TyStruct { .. } = lhs.ty.as_ref().unwrap().kind {
+            // nameを取り出す
+            let name = if let TokenKind::TkIdent { name } = self.advance_one_tok().kind {
+                name
+            } else {
+                self.error_tok(&self.tokens[0], "expected identifier");
+            };
+            // nodeを作る。lhsがx.aのxの方。lhsのoffsetから、memberのoffsetを足したところのデータを取得する形になる
+            let member = self.get_struct_member(lhs.clone().ty.unwrap().clone(), name); // 可読性ゴミ
+            let node = Node {
+                kind: NodeKind::NdMember {
+                    lhs: Box::new(lhs.clone()),
+                    member: member.clone(),
+                },
+                ty: Some(member.ty),
+            };
+            return node;
+        } else {
+            self.error_tok(&self.tokens[0], "not a struct");
+        }
     }
 }
 
@@ -853,45 +909,6 @@ impl Ctx<'_> {
         self.postfix()
     }
 
-    // tyはTyStruct限定の想定
-    fn get_struct_member(&mut self, ty: Type, name: String) -> Member {
-        if let TypeKind::TyStruct { members } = ty.kind {
-            for member in &members {
-                if member.name == name {
-                    return member.clone();
-                }
-            }
-            self.error_tok(&self.tokens[0], "no such member");
-        } else {
-            self.error_tok(&self.tokens[0], "no such member");
-        }
-    }
-
-    fn struct_ref(&mut self, lhs: Node) -> Node {
-        let mut lhs = lhs.clone();
-        self.add_type(&mut lhs); // 必要か?
-        if let TypeKind::TyStruct { .. } = lhs.ty.as_ref().unwrap().kind {
-            // nameを取り出す
-            let name = if let TokenKind::TkIdent { name } = self.advance_one_tok().kind {
-                name
-            } else {
-                self.error_tok(&self.tokens[0], "expected identifier");
-            };
-            // nodeを作る。lhsがx.aのxの方。lhsのoffsetから、memberのoffsetを足したところのデータを取得する形になる
-            let member = self.get_struct_member(lhs.clone().ty.unwrap().clone(), name); // 可読性ゴミ
-            let node = Node {
-                kind: NodeKind::NdMember {
-                    lhs: Box::new(lhs.clone()),
-                    member: member.clone(),
-                },
-                ty: Some(member.ty),
-            };
-            return node;
-        } else {
-            self.error_tok(&self.tokens[0], "not a struct");
-        }
-    }
-
     fn postfix(&mut self) -> Node {
         let mut node = self.primary();
         loop {
@@ -1038,7 +1055,7 @@ impl Ctx<'_> {
     fn create_gvar(&mut self, name: &str, ty: Type, init_gval: Option<InitGval>) -> Node {
         let var = Rc::new(RefCell::new(Var {
             name: name.to_string(),
-            offset: self.global_variables.len() as isize, // Offset will be calculated later // あとで方を実装した際、そのsizeなりによって変更すべき。ここでやるか、codegenでやるかはあとで
+            offset: self.global_variables.len(), // Offset will be calculated later // あとで方を実装した際、そのsizeなりによって変更すべき。ここでやるか、codegenでやるかはあとで
             ty: ty.clone(),
             is_def_arg: false,
             is_local: false,

@@ -51,7 +51,7 @@ pub enum InitGval {
 #[derive(Debug, Clone)]
 pub struct Var {
     pub name: String,
-    pub offset: isize,
+    pub offset: usize,
     pub ty: Type,
     #[allow(dead_code)]
     pub is_def_arg: bool, // 8個を超える引数を扱う際、スタックを利用して引数を渡すことになると思うので、その実装の際に必要になる想定
@@ -216,4 +216,5 @@ pub enum TypeKind {
 pub struct Type {
     pub kind: TypeKind,
     pub size: usize,
+    pub align: usize,
 }

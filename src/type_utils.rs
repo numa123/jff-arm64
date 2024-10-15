@@ -6,6 +6,7 @@ pub fn new_ptr_to(ty: Type) -> Type {
             ptr_to: Box::new(ty),
         },
         size: 8,
+        align: 8,
     }
 }
 
@@ -13,6 +14,7 @@ pub fn new_int() -> Type {
     Type {
         kind: TypeKind::TyInt,
         size: 8, // long?
+        align: 8,
     }
 }
 
@@ -20,15 +22,17 @@ pub fn new_char() -> Type {
     Type {
         kind: TypeKind::TyChar,
         size: 1,
+        align: 1,
     }
 }
 
-pub fn new_struct(members: Vec<Member>, size: usize) -> Type {
-    Type {
-        kind: TypeKind::TyStruct { members: members },
-        size: size,
-    }
-}
+// pub fn new_struct(members: Vec<Member>, size: usize) -> Type {
+//     Type {
+//         kind: TypeKind::TyStruct { members: members },
+//         size: size,
+//         align: 8, // 8じゃないけどどうなんだろう。わからん。structの中にstructがあった時のalignmentってことだよな
+//     }
+// }
 
 pub fn new_array_ty(ty: Type, len: usize) -> Type {
     Type {
@@ -37,6 +41,7 @@ pub fn new_array_ty(ty: Type, len: usize) -> Type {
             len,
         },
         size: ty.size * len,
+        align: ty.align,
     }
 }
 

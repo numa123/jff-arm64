@@ -33,7 +33,7 @@ assert() {
 
 cargo build
 
-assert 48 'int main() { struct {int a[3];} x[2]; sizeof(x); }'
+assert 16 'int main() {  struct { int a; char b; } x; sizeof(x); }'
 
 # assert 2 'int main() {int i = 0; i += 2; return i;}'
 # assert 3 'int main() { int i = 1; i += 2; return i; }' 

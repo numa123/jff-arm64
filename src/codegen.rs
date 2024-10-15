@@ -337,10 +337,6 @@ fn gen_stmt(node: Node) {
     }
 }
 
-fn align16(i: isize) -> isize {
-    (i + 15) & !15
-}
-
 pub fn codegen(ctx: Ctx) {
     for var in &ctx.global_variables {
         let var = var.borrow();
@@ -377,18 +373,25 @@ pub fn codegen(ctx: Ctx) {
         }
     }
 
+    fn align_to(n: usize, to: usize) -> usize {
+        if to == 0 {
+            return n; // なぜreturnを書く必要がある？ nではだめなのか
+        }
+        (n + to - 1) & !(to - 1)
+    }
+
     for (name, func) in &ctx.functions {
         unsafe { CURRENTFN = name.clone() };
-        let mut stack_size = 16;
-        // arm64のアラインメントのポリシーはまだ未確認
+        let mut stack_size = 16; // fp, lp用に事前確保
         for scope in &func.exited_scope_variables {
             for var in scope {
                 let mut var = var.borrow_mut();
+                stack_size = align_to(stack_size, var.ty.align);
                 var.offset = stack_size;
-                stack_size += var.ty.size as isize;
+                stack_size += var.ty.size; // もしかしたら撮りすぎかも。alignをうまく使う？
             }
         }
-        stack_size = align16(stack_size);
+        stack_size = align_to(stack_size, 16);
 
         println!(".text");
         println!(".global _{}", name); // 関数はアンダースコアをつけるのが慣例
