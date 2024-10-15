@@ -12,7 +12,7 @@ static mut CURRENTFN: String = String::new();
 
 fn load(ty: &Type) {
     match ty.kind {
-        TypeKind::TyArray { .. } => {
+        TypeKind::TyArray { .. } | TypeKind::TyStruct { .. } | TypeKind::TyUnion { .. } => {
             return;
         }
         TypeKind::TyChar => {
@@ -25,6 +25,13 @@ fn load(ty: &Type) {
 }
 
 fn store(ty: &Type) {
+    if let TypeKind::TyStruct { .. } | TypeKind::TyUnion { .. } = &ty.kind {
+        for i in 0..ty.size {
+            println!("      ldrb w2, [x0, {}]", i);
+            println!("      strb w2, [x1, {}]", i);
+        }
+        return;
+    }
     if ty.size == 1 {
         println!("      strb w0, [x1]");
     } else {
@@ -246,7 +253,7 @@ fn gen_expr(node: Node) {
                 push16();
             }
             for i in (0..args.len()).rev() {
-                println!("      ldr x{}, [sp], 16", i);
+                println!("      ldr x{}, [sp], 16 // pop for function arg", i);
             }
             println!("      bl _{}", name);
             return;

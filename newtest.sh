@@ -28,10 +28,12 @@ for src_file in $src_files; do
   ./target/debug/jff "$tmp/${base_name}_preprocessed.c" > "$tmp/${base_name}.s" || exit
 
   $CC -o "$tmp/$base_name" "$tmp/${base_name}.s" "$tmp/common.o" || exit
+    # cat "$tmp/${base_name}.s"
 
   echo "Running $base_name"
   if ! "$tmp/$base_name"; then
     echo "Test failed for $base_name"
+    cat "$tmp/${base_name}.s"
     exit 1
   fi
   echo
