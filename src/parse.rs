@@ -8,12 +8,12 @@ impl Ctx<'_> {
     fn create_func(&mut self, name: &str, ty: Type) -> Function {
         let func = Function {
             name: name.to_string(),
-            variables: vec![],
-            exited_scope_variables: vec![],
             args: Vec::new(),
             body: None,
             ty: ty,
+            scopes: Vec::new(),
             scope_idx: -1, // 最初のスコープは-1にすることで、enter_scopeで良い感じに辻褄合わせ。でも、普通にわかりづらいから後で直す
+            exited_scope: Vec::new(),
         };
         return func;
     }
@@ -330,7 +330,42 @@ fn align_to(n: usize, to: usize) -> usize {
 // struct relation
 // 今は、struct {int a;} x;  みたいな宣言の仕方
 impl Ctx<'_> {
+    fn push_tag(&mut self, tag: String, ty: Type) {
+        let function = self.get_function();
+        let struct_tags = &mut function.scopes[function.scope_idx as usize].tags;
+        let struct_tag = StructTag { tag, ty };
+        struct_tags.push(struct_tag);
+    }
+
+    fn find_tag(&mut self, tag: String) -> Option<Type> {
+        let function = self.get_function();
+        for scope in function.scopes.iter().rev() {
+            for struct_tag in &scope.tags {
+                if struct_tag.tag == tag {
+                    return Some(struct_tag.clone().ty);
+                }
+            }
+        }
+        return None;
+    }
+
     fn struct_decl(&mut self) -> Type {
+        let mut tag = String::new();
+        if let TokenKind::TkIdent { name } = &self.tokens[0].kind {
+            tag = name.clone();
+            self.advance_one_tok();
+        }
+
+        // 方の値を宣言する時;
+        if !tag.is_empty() && !self.equal("{") {
+            // findtag return ty
+            if let Some(ty) = self.find_tag(tag) {
+                return ty;
+            } else {
+                self.error_tok(&self.tokens[0], "unknown struct type");
+            }
+        }
+
         self.skip("{");
         let mut members = self.struct_members();
         let mut offset = 0;
@@ -351,6 +386,10 @@ impl Ctx<'_> {
             size: offset,
             align: max_align,
         };
+
+        if !tag.is_empty() {
+            self.push_tag(tag, ty.clone());
+        }
         return ty;
     }
 
@@ -1042,13 +1081,19 @@ impl Ctx<'_> {
 
     pub fn enter_scope(&mut self) {
         let function = self.get_function();
-        function.variables.push(Vec::new());
+        // function.variables.push(Vec::new());
+
+        //
+        function.scopes.push(Scope {
+            variables: Vec::new(),
+            tags: Vec::new(),
+        });
         function.scope_idx += 1;
     }
     pub fn leave_scope(&mut self) {
         let function = self.get_function();
-        let poped_scope = function.variables.pop();
-        function.exited_scope_variables.push(poped_scope.unwrap());
+        let poped_scope = function.scopes.pop();
+        function.exited_scope.push(poped_scope.unwrap());
         function.scope_idx -= 1;
     }
 
@@ -1080,7 +1125,9 @@ impl Ctx<'_> {
             init_gval: None,
         }));
 
-        function.variables[function.scope_idx as usize].push(var.clone()); // コードがひどいが、まあ想定ではここが-になることはないはず
+        function.scopes[function.scope_idx as usize]
+            .variables
+            .push(var.clone()); // コードがひどいが、まあ想定ではここが-になることはないはず
 
         let mut node = self.new_var(var);
         // 関数定義の引数の場合、関数のargsにも追加
@@ -1100,9 +1147,9 @@ impl Ctx<'_> {
 
     pub fn find_var(&mut self, name: &str) -> Option<Rc<RefCell<Var>>> {
         let function = self.get_function();
-        let variables = &function.variables; // なぜ&が必要なのか。
-        for scope in variables.iter().rev() {
-            for var in scope {
+        let scope = &function.scopes; // なぜ&が必要なのか。
+        for scope in scope.iter().rev() {
+            for var in scope.variables.iter() {
                 if var.borrow().name == name {
                     return Some(var.clone());
                 }

@@ -26,7 +26,7 @@
 - func_declaration = declarator "(" (declspec declarator ("," declspec declarator)* )? ")"
 
 ### struct関連
-- struct_decl = "{" struct-members
+- struct_decl =  ident? "{" struct-members
 
 - program = (  declspec  ( no_func_declaration | func_declaration )  )*
 - stmt = "return" expr ";" | expr-stmt | "{" compound-stmt | "if" "(" expr ")" stmt ("else" stmt)? | "for" "(" expr-stmt expr? ";" expr? ")" stmt | "while" "(" expr ")" stm        t

@@ -13,16 +13,28 @@ pub struct Ctx<'a> {
 }
 
 #[derive(Debug)]
+pub struct Scope {
+    pub variables: Vec<Rc<RefCell<Var>>>,
+    pub tags: Vec<StructTag>,
+}
+
+#[derive(Debug)]
 pub struct Function {
     #[allow(dead_code)]
     pub name: String, // 一応つけている方が自然だと思ってつけている。
-    pub variables: Vec<Vec<Rc<RefCell<Var>>>>,
-    pub exited_scope_variables: Vec<Vec<Rc<RefCell<Var>>>>, // スコープが外れたらここに保存する
-    pub body: Option<Node>,                                 // {compound_stmt}
-    pub args: Vec<Node>, // Vec<Rc<RefCell<Var>>>にするかも。可変長引数の場合。
+    pub body: Option<Node>, // {compound_stmt}
+    pub args: Vec<Node>,    // Vec<Rc<RefCell<Var>>>にするかも。可変長引数の場合。
     #[allow(dead_code)]
     pub ty: Type, // 一応つけている方が自然だと思ってつけている。関数の返り値の型が必要なケースがあるときに使うのではと思っている。includeしたやつとかがどういう扱いになっているのかわからないといけないと思う
+    pub scopes: Vec<Scope>,
     pub scope_idx: isize,
+    pub exited_scope: Vec<Scope>,
+}
+
+#[derive(Debug, Clone)]
+pub struct StructTag {
+    pub tag: String,
+    pub ty: Type,
 }
 
 #[derive(Debug, Clone)]

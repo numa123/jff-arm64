@@ -383,8 +383,8 @@ pub fn codegen(ctx: Ctx) {
     for (name, func) in &ctx.functions {
         unsafe { CURRENTFN = name.clone() };
         let mut stack_size = 16; // fp, lp用に事前確保
-        for scope in &func.exited_scope_variables {
-            for var in scope {
+        for scope in &func.exited_scope {
+            for var in &scope.variables {
                 let mut var = var.borrow_mut();
                 stack_size = align_to(stack_size, var.ty.align);
                 var.offset = stack_size;
