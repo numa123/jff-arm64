@@ -5,6 +5,7 @@ pub struct Ctx<'a> {
     pub input: &'a str,
     pub input_copy: &'a str,
     pub tokens: Vec<Token>,
+    pub exited_tokens: Vec<Token>,
     pub global_variables: Vec<Rc<RefCell<Var>>>, // find_varのために型をrefcellにしてみる。不適切の恐れあり
     pub processing_funcname: String,
     pub processing_filename: String,
@@ -16,6 +17,13 @@ pub struct Ctx<'a> {
 pub struct Scope {
     pub variables: Vec<Rc<RefCell<Var>>>,
     pub tags: Vec<StructTag>,
+    pub types: Vec<TypedefType>,
+}
+
+#[derive(Debug)]
+pub struct TypedefType {
+    pub name: String,
+    pub ty: Type,
 }
 
 #[derive(Debug)]

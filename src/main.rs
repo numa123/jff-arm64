@@ -17,6 +17,7 @@ fn main() {
         input: &input.as_str(),
         input_copy: &input.as_str(),
         tokens: Vec::new(),
+        exited_tokens: Vec::new(),
         global_variables: Vec::new(),
         processing_funcname: "".to_string(),
         processing_filename: args[1].clone(),

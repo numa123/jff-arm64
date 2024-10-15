@@ -22,7 +22,7 @@ impl Ctx<'_> {
     pub fn get_and_skip_number(&mut self) -> isize {
         match self.tokens[0].kind {
             TokenKind::TkNum { val } => {
-                self.tokens.remove(0);
+                self.exited_tokens.push(self.tokens.remove(0));
                 return val;
             }
             _ => self.error_tok(&self.tokens[0], "expected a number"),
@@ -30,7 +30,9 @@ impl Ctx<'_> {
     }
 
     pub fn advance_one_tok(&mut self) -> Token {
-        self.tokens.remove(0)
+        let tok = self.tokens.remove(0);
+        self.exited_tokens.push(tok.clone());
+        return tok;
     }
 
     #[allow(dead_code)]
@@ -39,18 +41,25 @@ impl Ctx<'_> {
         for _ in 0..n {
             tokens.push(self.tokens.remove(0));
         }
+        for tok in &tokens {
+            self.exited_tokens.push(tok.clone());
+        }
         tokens
     }
 
     pub fn skip(&mut self, op: &str) -> Token {
         if let TokenKind::TkPunct { str } = &self.tokens[0].kind {
             if str == op {
-                return self.tokens.remove(0);
+                let tok = self.tokens.remove(0);
+                self.exited_tokens.push(tok.clone());
+                return tok;
             }
         }
         if let TokenKind::TkKeyword { name } = &self.tokens[0].kind {
             if name == op {
-                return self.tokens.remove(0);
+                let tok = self.tokens.remove(0);
+                self.exited_tokens.push(tok.clone());
+                return tok;
             }
         }
         self.error_tok(&self.tokens[0], format!("expected '{}'", op).as_str())
@@ -68,7 +77,7 @@ impl Ctx<'_> {
 
     pub fn consume(&mut self, s: &str) -> bool {
         if self.equal(s) {
-            self.tokens.remove(0);
+            self.exited_tokens.push(self.tokens.remove(0));
             return true;
         } else {
             return false;
@@ -265,7 +274,7 @@ impl Ctx<'_> {
     pub fn convert_keywords(&mut self) {
         let keywords = vec![
             "return", "if", "else", "for", "while", "int", "sizeof", "char", "struct", "union",
-            "long", "short",
+            "long", "short", "typedef",
         ];
         for token in &mut self.tokens {
             if let TokenKind::TkIdent { name } = &token.kind {

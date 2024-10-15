@@ -64,9 +64,11 @@ fn gen_addr(node: Node) {
             let var = var.borrow();
             if var.is_local {
                 println!("      add x0, x29, {}", var.offset);
+                return;
             } else {
                 println!("      adrp x0, {}@PAGE", var.name); // what is PAGE?
                 println!("      add x0, x0, {}@PAGEOFF;", var.name);
+                return;
             }
         }
         NodeKind::NdDeref { lhs, .. } => {
@@ -287,6 +289,7 @@ fn gen_expr(node: Node) {
 }
 
 fn gen_stmt(node: Node) {
+    // eprintln!("gen_stmt: {:#?}", node);
     match node.kind {
         NodeKind::NdExprStmt { lhs } => {
             gen_expr(*lhs);
@@ -418,6 +421,7 @@ pub fn codegen(ctx: Ctx) {
                 stack_size = align_to(stack_size, var.ty.align);
                 var.offset = stack_size;
                 stack_size += var.ty.size; // もしかしたら撮りすぎかも。alignをうまく使う？
+                                           // eprintln!("var:{:#?}", var);
             }
         }
         stack_size = align_to(stack_size, 16);

@@ -511,8 +511,22 @@ impl Ctx<'_> {
             return self.struct_decl();
         } else if self.consume("union") {
             return self.union_decl();
+        } else if let TokenKind::TkIdent { name } = &self.tokens[0].kind {
+            if let Some(ty) = self.find_type(name.to_string()) {
+                self.advance_one_tok();
+                return ty;
+            }
         }
-        self.error_tok(&self.tokens[0], "int or char expected");
+
+        if let Some(last) = self.exited_tokens.last() {
+            // ネスト小さくしたい
+            if let TokenKind::TkKeyword { name } = &last.kind {
+                if name == "typedef" {
+                    return new_int();
+                }
+            }
+        }
+        self.error_tok(&self.tokens[0], "type expected");
     }
 
     // return (Type, name, is_function)
@@ -568,12 +582,31 @@ impl Ctx<'_> {
         return node;
     }
 
+    fn find_type(&mut self, name: String) -> Option<Type> {
+        let func = self.get_function();
+        for scope in func.scopes.iter().rev() {
+            for deftype in &scope.types {
+                if deftype.name == name {
+                    return Some(deftype.ty.clone());
+                }
+            }
+        }
+        return None;
+    }
+
     fn is_typename(&mut self) -> bool {
         match &self.tokens[0].kind {
             TokenKind::TkKeyword { name } => match name.as_str() {
                 "int" | "short" | "long" | "char" | "struct" | "union" => return true,
                 _ => return false,
             },
+            TokenKind::TkIdent { name } => {
+                if let Some(_) = self.find_type(name.to_string()) {
+                    return true;
+                } else {
+                    false
+                }
+            }
             _ => return false,
         }
     }
@@ -653,6 +686,12 @@ impl Ctx<'_> {
         return self.expr_stmt();
     }
 
+    fn push_type(&mut self, deftype: TypedefType) {
+        let func = self.get_function();
+        let types = &mut func.scopes[func.scope_idx as usize].types;
+        types.push(deftype);
+    }
+
     fn compound_stmt(&mut self) -> Node {
         let mut body = Vec::new();
         self.enter_scope();
@@ -661,6 +700,17 @@ impl Ctx<'_> {
                 let mut node = self.declaration();
                 self.add_type(&mut node);
                 body.push(node);
+            } else if self.equal("typedef") {
+                // typedefはstmtだが、Nodeを返さないという点で特殊なのでここに書いた
+                self.advance_one_tok();
+                let base_ty = self.declspec();
+                let (ty, name, _) = self.declarator(base_ty);
+                let deftype = TypedefType {
+                    name: name.clone(),
+                    ty,
+                };
+                self.push_type(deftype);
+                self.skip(";");
             } else {
                 let mut stmt = self.stmt();
                 self.add_type(&mut stmt);
@@ -1141,12 +1191,12 @@ impl Ctx<'_> {
 
     pub fn enter_scope(&mut self) {
         let function = self.get_function();
-        // function.variables.push(Vec::new());
 
         //
         function.scopes.push(Scope {
             variables: Vec::new(),
             tags: Vec::new(),
+            types: Vec::new(),
         });
         function.scope_idx += 1;
     }
@@ -1173,6 +1223,7 @@ impl Ctx<'_> {
 
     // 関数定義用の
     fn create_lvar(&mut self, name: &str, ty: Type, is_def_arg: bool) -> Node {
+        // eprintln!("呼ばれた: {:#?}", &self.tokens[0]);
         let function = self.get_function();
 
         let var = Rc::new(RefCell::new(Var {

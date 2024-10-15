@@ -34,7 +34,11 @@ assert() {
 cargo build
 
 # assert 3 'main.c'
-assert 8 'int main() {  union { int a; char b[6]; } x; sizeof(x);  }'
+assert 1 'int main() { typedef int t; t x=1; x;  }'
+assert 1 'int main() { typedef struct {int a;} t; t x; x.a=1; x.a;  }'
+assert 1 'int main() { typedef int t; t t=1; return t; }'
+assert 2 'int main() { typedef struct {int a;} t; { typedef int t; } t x; x.a=2; x.a;  }'
+assert 4 'int main() { typedef t; t x; sizeof(x); }'
 
 # assert 2 'int main() {int i = 0; i += 2; return i;}'
 # assert 3 'int main() { int i = 1; i += 2; return i; }' 
