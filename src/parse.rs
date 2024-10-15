@@ -964,6 +964,12 @@ impl Ctx<'_> {
                 node = self.struct_ref(node);
                 continue;
             }
+            if self.equal("->") {
+                let tok = self.advance_one_tok();
+                node = self.new_deref(node, tok);
+                node = self.struct_ref(node);
+                continue;
+            }
             break;
         }
         self.add_type(&mut node);

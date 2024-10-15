@@ -231,6 +231,23 @@ int main() {
            y.x = 2;
            t + y.x;
          }));
+
+  ASSERT(3, ({
+           struct t {
+             char a;
+           } x;
+           struct t *y = &x;
+           x.a = 3;
+           y->a;
+         }));
+  ASSERT(3, ({
+           struct t {
+             char a;
+           } x;
+           struct t *y = &x;
+           y->a = 3;
+           x.a;
+         }));
   printf("OK\n");
   return 0;
 }
