@@ -171,6 +171,11 @@ int main() {
            x;
          }));
 
+  ASSERT(8, ({
+           long x;
+           sizeof(x);
+         }));
+
   // このテストわけわからん。
   // ASSERT(7, ({
   //          int x;

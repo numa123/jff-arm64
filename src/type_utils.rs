@@ -13,8 +13,16 @@ pub fn new_ptr_to(ty: Type) -> Type {
 pub fn new_int() -> Type {
     Type {
         kind: TypeKind::TyInt,
-        size: 4, // long?
+        size: 4,
         align: 4,
+    }
+}
+
+pub fn new_long() -> Type {
+    Type {
+        kind: TypeKind::TyLong,
+        size: 8,
+        align: 8,
     }
 }
 
@@ -25,14 +33,6 @@ pub fn new_char() -> Type {
         align: 1,
     }
 }
-
-// pub fn new_struct(members: Vec<Member>, size: usize) -> Type {
-//     Type {
-//         kind: TypeKind::TyStruct { members: members },
-//         size: size,
-//         align: 8, // 8じゃないけどどうなんだろう。わからん。structの中にstructがあった時のalignmentってことだよな
-//     }
-// }
 
 pub fn new_array_ty(ty: Type, len: usize) -> Type {
     Type {
@@ -48,8 +48,7 @@ pub fn new_array_ty(ty: Type, len: usize) -> Type {
 pub fn is_integer_node(node: &Node) -> bool {
     if let Some(ty) = &node.ty {
         match ty.kind {
-            TypeKind::TyInt => true,
-            TypeKind::TyChar => true, // charと数値は足せる
+            TypeKind::TyInt | TypeKind::TyChar | TypeKind::TyLong => true,
             _ => false,
         }
     } else {
@@ -156,7 +155,7 @@ impl Ctx<'_> {
             NodeKind::NdMember { member, .. } => {
                 node.ty = Some(member.ty.clone()); // よくわからん
             }
-            _ => {} // Block, If, For, While
+            _ => {} // Block, If, For, While, Funccall
         }
     }
 }

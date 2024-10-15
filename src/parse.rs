@@ -500,6 +500,8 @@ impl Ctx<'_> {
     fn declspec(&mut self) -> Type {
         if self.consume("int") {
             return new_int();
+        } else if self.consume("long") {
+            return new_long();
         } else if self.consume("char") {
             return new_char();
         } else if self.consume("struct") {
@@ -566,7 +568,7 @@ impl Ctx<'_> {
     fn is_typename(&mut self) -> bool {
         match &self.tokens[0].kind {
             TokenKind::TkKeyword { name } => match name.as_str() {
-                "int" | "char" | "struct" | "union" => return true,
+                "int" | "long" | "char" | "struct" | "union" => return true,
                 _ => return false,
             },
             _ => return false,
@@ -1122,7 +1124,7 @@ impl Ctx<'_> {
                 name: name.to_string(),
                 args: args,
             },
-            ty: Some(new_int()), // 自分で定義するようになったら、また変数リストから、型を取り出して入れる。includeの場合はどうする？足し算とかできないよな。まあ後で考えるか
+            ty: Some(new_long()), // 自分で定義するようになったら、また変数リストから、型を取り出して入れる。includeの場合はどうする？足し算とかできないよな。まあ後で考えるか。一旦chibiccにならってlong
         };
         self.skip(")");
         return node;
