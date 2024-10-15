@@ -176,6 +176,11 @@ int main() {
            sizeof(x);
          }));
 
+  ASSERT(2, ({
+           short x;
+           sizeof(x);
+         }));
+
   // このテストわけわからん。
   // ASSERT(7, ({
   //          int x;

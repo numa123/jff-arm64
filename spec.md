@@ -6,6 +6,7 @@
 - 関数は、`Ctx`の`functions`に、関数名をキーとした`Function`構造体をinsertすることで追加。追加の際に、`Ctx`の`processing_funcname`を更新する。`processing_funcname`は、parse中の`create_lvar`, `find_var`によって使用される。例えば`main`関数をパースしている間は、変数の追加や、変数の探索を、`Ctx.functions`から関数名で取得した`Function.variables`を参照して、そこに追加したり、探索するようにしている
 - `.align`は3で決め打ちしている。2の方が適切なものもあるだろうが多めに取ってる
 - `clone`多用しているけど何が何だかわからなくなってきた
+- 符号拡張について、理解が曖昧のまま作ってるの、いつかバグを踏みそう
 
 
 ## やること

@@ -10,6 +10,14 @@ pub fn new_ptr_to(ty: Type) -> Type {
     }
 }
 
+pub fn new_short() -> Type {
+    Type {
+        kind: TypeKind::TyShort,
+        size: 2,
+        align: 2,
+    }
+}
+
 pub fn new_int() -> Type {
     Type {
         kind: TypeKind::TyInt,
@@ -48,7 +56,7 @@ pub fn new_array_ty(ty: Type, len: usize) -> Type {
 pub fn is_integer_node(node: &Node) -> bool {
     if let Some(ty) = &node.ty {
         match ty.kind {
-            TypeKind::TyInt | TypeKind::TyChar | TypeKind::TyLong => true,
+            TypeKind::TyInt | TypeKind::TyShort | TypeKind::TyChar | TypeKind::TyLong => true,
             _ => false,
         }
     } else {
@@ -68,7 +76,7 @@ pub fn is_pointer_node(node: &Node) -> bool {
 
 #[allow(dead_code)]
 pub fn is_integer(ty: &Type) -> bool {
-    if let TypeKind::TyInt = ty.kind {
+    if let TypeKind::TyInt | TypeKind::TyShort | TypeKind::TyLong = ty.kind {
         true
     } else {
         false

@@ -210,6 +210,7 @@ pub struct Node {
 #[derive(Debug, Clone)]
 pub enum TypeKind {
     TyInt,
+    TyShort,
     TyLong,
     TyPtr {
         ptr_to: Box<Type>,

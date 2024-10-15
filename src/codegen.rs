@@ -15,20 +15,14 @@ fn load(ty: &Type) {
         TypeKind::TyArray { .. } | TypeKind::TyStruct { .. } | TypeKind::TyUnion { .. } => {
             return;
         }
-        // TypeKind::TyChar => {
-        //     println!("      ldrsb x0, [x0]");
-        // }
-        // TypeKind::TyInt => {
-        //     println!("      ldr x0, [x0]");
-        // }
-        // _ => {
-        //     println!("      ldr x0, [x0]");
-        // }
         _ => {}
     }
     match ty.size {
         1 => {
             println!("      ldrsb x0, [x0]");
+        }
+        2 => {
+            println!("      ldrsh w0, [x0]")
         }
         4 => {
             println!("      ldr w0, [x0]");
@@ -50,6 +44,9 @@ fn store(ty: &Type) {
     match ty.size {
         1 => {
             println!("      strb w0, [x1]");
+        }
+        2 => {
+            println!("      strh w0, [x1]")
         }
         4 => {
             println!("      str w0, [x1]");

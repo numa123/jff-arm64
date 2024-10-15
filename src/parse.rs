@@ -500,6 +500,8 @@ impl Ctx<'_> {
     fn declspec(&mut self) -> Type {
         if self.consume("int") {
             return new_int();
+        } else if self.consume("short") {
+            return new_short();
         } else if self.consume("long") {
             return new_long();
         } else if self.consume("char") {
@@ -568,7 +570,7 @@ impl Ctx<'_> {
     fn is_typename(&mut self) -> bool {
         match &self.tokens[0].kind {
             TokenKind::TkKeyword { name } => match name.as_str() {
-                "int" | "long" | "char" | "struct" | "union" => return true,
+                "int" | "short" | "long" | "char" | "struct" | "union" => return true,
                 _ => return false,
             },
             _ => return false,
