@@ -13,8 +13,8 @@ pub fn new_ptr_to(ty: Type) -> Type {
 pub fn new_int() -> Type {
     Type {
         kind: TypeKind::TyInt,
-        size: 8, // long?
-        align: 8,
+        size: 4, // long?
+        align: 4,
     }
 }
 

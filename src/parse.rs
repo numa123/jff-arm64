@@ -377,6 +377,7 @@ impl Ctx<'_> {
         if max_align > 8 {
             max_align = 8;
         }
+        max_size = align_to(max_size, max_align);
         let ty = Type {
             kind: TypeKind::TyUnion { members: members },
             size: max_size,
@@ -926,6 +927,11 @@ impl Ctx<'_> {
         }
         // ptr - ptr
         if is_pointer_node(&lhs) && is_pointer_node(&rhs) {
+            let div_size = if let TypeKind::TyPtr { ptr_to } = &lhs.clone().ty.unwrap().kind {
+                ptr_to.size
+            } else {
+                8 // とりあえず8
+            };
             let mut n = Node {
                 kind: NodeKind::NdSub {
                     lhs: Box::new(lhs),
@@ -934,8 +940,8 @@ impl Ctx<'_> {
                 ty: None,
             };
             self.add_type(&mut n);
-            let num = self.new_num(8);
-            let mut node = self.new_div(n, num); // 8 is size of pointer
+            let num = self.new_num(div_size as isize);
+            let mut node = self.new_div(n, num);
             let ty = new_int();
             node.ty = Some(ty);
             return node;

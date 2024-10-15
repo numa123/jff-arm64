@@ -15,8 +15,23 @@ fn load(ty: &Type) {
         TypeKind::TyArray { .. } | TypeKind::TyStruct { .. } | TypeKind::TyUnion { .. } => {
             return;
         }
-        TypeKind::TyChar => {
+        // TypeKind::TyChar => {
+        //     println!("      ldrsb x0, [x0]");
+        // }
+        // TypeKind::TyInt => {
+        //     println!("      ldr x0, [x0]");
+        // }
+        // _ => {
+        //     println!("      ldr x0, [x0]");
+        // }
+        _ => {}
+    }
+    match ty.size {
+        1 => {
             println!("      ldrsb x0, [x0]");
+        }
+        4 => {
+            println!("      ldr w0, [x0]");
         }
         _ => {
             println!("      ldr x0, [x0]");
@@ -32,10 +47,16 @@ fn store(ty: &Type) {
         }
         return;
     }
-    if ty.size == 1 {
-        println!("      strb w0, [x1]");
-    } else {
-        println!("      str x0, [x1]");
+    match ty.size {
+        1 => {
+            println!("      strb w0, [x1]");
+        }
+        4 => {
+            println!("      str w0, [x1]");
+        }
+        _ => {
+            println!("      str x0, [x1]");
+        }
     }
     // 4だったらwとかね 今の8を4にしてintにしたら良いかも
 }
@@ -344,6 +365,13 @@ fn gen_stmt(node: Node) {
     }
 }
 
+fn align_to(n: usize, to: usize) -> usize {
+    if to == 0 {
+        return n; // なぜreturnを書く必要がある？ nではだめなのか
+    }
+    (n + to - 1) & !(to - 1)
+}
+
 pub fn codegen(ctx: Ctx) {
     for var in &ctx.global_variables {
         let var = var.borrow();
@@ -380,13 +408,6 @@ pub fn codegen(ctx: Ctx) {
         }
     }
 
-    fn align_to(n: usize, to: usize) -> usize {
-        if to == 0 {
-            return n; // なぜreturnを書く必要がある？ nではだめなのか
-        }
-        (n + to - 1) & !(to - 1)
-    }
-
     for (name, func) in &ctx.functions {
         unsafe { CURRENTFN = name.clone() };
         let mut stack_size = 16; // fp, lp用に事前確保
@@ -408,6 +429,7 @@ pub fn codegen(ctx: Ctx) {
         println!("      mov x29, sp");
 
         // 引数の処理
+        // chibiccだと、関数の引数でもレジスタの選別をしていた。
         for (i, arg) in func.args.iter().enumerate() {
             // 他のアドレスを計算する際にx0を使うので、最初の引数のみ特別扱いして対比する
             if i == 0 {

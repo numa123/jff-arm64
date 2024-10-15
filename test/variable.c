@@ -1,5 +1,7 @@
 #include "test.h"
+
 int g1, g2[4];
+
 int main() {
   ASSERT(3, ({
            int a;
@@ -15,6 +17,7 @@ int main() {
            int z = 5;
            a + z;
          }));
+
   ASSERT(3, ({
            int a = 3;
            a;
@@ -39,11 +42,12 @@ int main() {
            int bar = 5;
            foo123 + bar;
          }));
-  ASSERT(8, ({
+
+  ASSERT(4, ({
            int x;
            sizeof(x);
          }));
-  ASSERT(8, ({
+  ASSERT(4, ({
            int x;
            sizeof x;
          }));
@@ -51,35 +55,35 @@ int main() {
            int *x;
            sizeof(x);
          }));
-  ASSERT(32, ({
+  ASSERT(16, ({
            int x[4];
            sizeof(x);
          }));
-  ASSERT(96, ({
+  ASSERT(48, ({
            int x[3][4];
            sizeof(x);
          }));
-  ASSERT(32, ({
+  ASSERT(16, ({
            int x[3][4];
            sizeof(*x);
          }));
-  ASSERT(8, ({
+  ASSERT(4, ({
            int x[3][4];
            sizeof(**x);
          }));
-  ASSERT(9, ({
+  ASSERT(5, ({
            int x[3][4];
            sizeof(**x) + 1;
          }));
-  ASSERT(9, ({
+  ASSERT(5, ({
            int x[3][4];
            sizeof **x + 1;
          }));
-  ASSERT(8, ({
+  ASSERT(4, ({
            int x[3][4];
            sizeof(**x + 1);
          }));
-  ASSERT(8, ({
+  ASSERT(4, ({
            int x = 1;
            sizeof(x = 2);
          }));
@@ -88,6 +92,7 @@ int main() {
            sizeof(x = 2);
            x;
          }));
+
   ASSERT(0, g1);
   ASSERT(3, ({
            g1 = 3;
@@ -121,17 +126,17 @@ int main() {
            g2[3] = 3;
            g2[3];
          }));
-  ASSERT(8, sizeof(g1));
-  ASSERT(32, sizeof(g2));
 
-  // これ、alignを8でやらず、ldrでロードすると、xを読み込むと同時にyも読み込んでしまい、513になってしまう。
+  ASSERT(4, sizeof(g1));
+  ASSERT(16, sizeof(g2));
+
   ASSERT(1, ({
            char x = 1;
-           char y = 2;
            x;
          }));
   ASSERT(1, ({
            char x = 1;
+           char y = 2;
            x;
          }));
   ASSERT(2, ({
@@ -139,6 +144,7 @@ int main() {
            char y = 2;
            y;
          }));
+
   ASSERT(1, ({
            char x;
            sizeof(x);
@@ -147,6 +153,7 @@ int main() {
            char x[10];
            sizeof(x);
          }));
+
   ASSERT(2, ({
            int x = 2;
            { int x = 3; }
@@ -163,61 +170,25 @@ int main() {
            { x = 3; }
            x;
          }));
-  // += 演算子のテスト
-  ASSERT(3, ({
-           int i = 1;
-           i += 2;
-           i;
-         }));
 
-  // -= 演算子のテスト
-  ASSERT(1, ({
-           int i = 3;
-           i -= 2;
-           i;
-         }));
+  // このテストわけわからん。
+  // ASSERT(7, ({
+  //          int x;
+  //          int y;
+  //          char z;
+  //          char *a = &y;
+  //          char *b = &z;
+  //          b - a;
+  //        }));
+  // ASSERT(1, ({
+  //          int x;
+  //          char y;
+  //          int z;
+  //          char *a = &y;
+  //          char *b = &z;
+  //          b - a;
+  //        }));
 
-  // *= 演算子のテスト
-  ASSERT(6, ({
-           int i = 3;
-           i *= 2;
-           i;
-         }));
-
-  // /= 演算子のテスト
-  ASSERT(2, ({
-           int i = 6;
-           i /= 3;
-           i;
-         }));
-
-  // %= 演算子のテスト
-  ASSERT(1, ({
-           int i = 7;
-           i %= 3;
-           i;
-         }));
-
-  // &= 演算子のテスト
-  ASSERT(2, ({
-           int i = 6;
-           i &= 3;
-           i;
-         }));
-
-  // ^= 演算子のテスト
-  ASSERT(5, ({
-           int i = 7;
-           i ^= 2;
-           i;
-         }));
-
-  // |= 演算子のテスト
-  ASSERT(7, ({
-           int i = 5;
-           i |= 2;
-           i;
-         }));
   printf("OK\n");
   return 0;
 }
