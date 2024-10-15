@@ -29,6 +29,7 @@ pub struct Function {
     pub scopes: Vec<Scope>,
     pub scope_idx: isize,
     pub exited_scope: Vec<Scope>,
+    pub is_def: bool,
 }
 
 #[derive(Debug, Clone)]

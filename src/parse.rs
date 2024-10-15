@@ -14,6 +14,7 @@ impl Ctx<'_> {
             scopes: Vec::new(),
             scope_idx: -1, // 最初のスコープは-1にすることで、enter_scopeで良い感じに辻褄合わせ。でも、普通にわかりづらいから後で直す
             exited_scope: Vec::new(),
+            is_def: true,
         };
         return func;
     }
@@ -1243,6 +1244,13 @@ impl Ctx<'_> {
             self.consume(","); // ,があればスキップ、なければ何もしないで、whileの条件分で終了
         }
         self.skip(")");
+
+        if self.consume(";") {
+            let func = self.get_function();
+            func.is_def = false;
+            return;
+        }
+
         self.skip("{");
 
         // 関数の中身の処理

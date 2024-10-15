@@ -406,6 +406,10 @@ pub fn codegen(ctx: Ctx) {
     }
 
     for (name, func) in &ctx.functions {
+        // 宣言のみの場合はスキップ
+        if !func.is_def {
+            continue;
+        }
         unsafe { CURRENTFN = name.clone() };
         let mut stack_size = 16; // fp, lp用に事前確保
         for scope in &func.exited_scope {
