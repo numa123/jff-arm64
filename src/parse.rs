@@ -358,7 +358,7 @@ impl Ctx<'_> {
         }
 
         // 方の値を宣言する時;
-        if !tag.is_empty() && !self.equal("{") {
+        if !tag.is_empty() && !self.hequal("{") {
             // findtag return ty
             if let Some(ty) = self.find_tag(tag) {
                 return ty;
@@ -399,7 +399,7 @@ impl Ctx<'_> {
         }
 
         // 方の値を宣言する時;
-        if !tag.is_empty() && !self.equal("{") {
+        if !tag.is_empty() && !self.hequal("{") {
             // findtag return ty
             if let Some(ty) = self.find_tag(tag) {
                 return ty;
@@ -447,7 +447,7 @@ impl Ctx<'_> {
                     offset: 0, // あとでstruct_declで更新する
                 };
                 members.push(member);
-                if self.equal(",") {
+                if self.hequal(",") {
                     self.advance_one_tok();
                     continue;
                 }
@@ -545,14 +545,14 @@ impl Ctx<'_> {
     // 今は配列のみ
     // return (Type, is_function)
     fn type_suffix(&mut self, ty: Type) -> (Type, bool) {
-        if self.equal("[") {
+        if self.hequal("[") {
             self.advance_one_tok();
             let size = self.get_and_skip_number();
             self.skip("]");
             let (ty, _) = self.type_suffix(ty);
             return (new_array_ty(ty, size as usize), false);
         }
-        if self.equal("(") {
+        if self.hequal("(") {
             return (ty, true);
         }
         return (ty, false);
@@ -561,18 +561,18 @@ impl Ctx<'_> {
     fn declaration(&mut self) -> Node {
         let base_ty = self.declspec();
         let mut body = Vec::new();
-        while !self.equal(";") {
+        while !self.hequal(";") {
             let (ty, name, _) = self.declarator(base_ty.clone());
             let mut node = self.create_lvar(name.clone().as_str(), ty, false);
 
-            if self.equal("=") {
+            if self.hequal("=") {
                 self.advance_one_tok();
                 let rhs = self.expr();
                 node = self.new_assign(node, rhs);
             }
             let node = self.new_expr_stmt(node);
             body.push(node);
-            if self.equal(",") {
+            if self.hequal(",") {
                 self.advance_one_tok();
                 continue;
             }
@@ -641,7 +641,7 @@ impl Ctx<'_> {
                 self.skip(")");
                 let then = self.stmt();
                 let mut els = None;
-                if self.equal("else") {
+                if self.hequal("else") {
                     self.advance_one_tok();
                     els = Some(self.stmt());
                 }
@@ -654,11 +654,11 @@ impl Ctx<'_> {
                 let init = self.expr_stmt();
                 let mut cond = None;
                 let mut inc = None;
-                if !self.equal(";") {
+                if !self.hequal(";") {
                     cond = Some(self.expr());
                 }
                 self.skip(";");
-                if !self.equal(")") {
+                if !self.hequal(")") {
                     inc = Some(self.expr());
                 }
                 self.skip(")");
@@ -700,7 +700,7 @@ impl Ctx<'_> {
                 let mut node = self.declaration();
                 self.add_type(&mut node);
                 body.push(node);
-            } else if self.equal("typedef") {
+            } else if self.hequal("typedef") {
                 // typedefはstmtだが、Nodeを返さないという点で特殊なのでここに書いた
                 self.advance_one_tok();
                 let base_ty = self.declspec();
@@ -723,7 +723,7 @@ impl Ctx<'_> {
     }
 
     fn expr_stmt(&mut self) -> Node {
-        if self.equal(";") {
+        if self.hequal(";") {
             self.advance_one_tok();
             return self.null_stmt();
         }
@@ -1030,21 +1030,21 @@ impl Ctx<'_> {
     }
 
     fn unary(&mut self) -> Node {
-        if self.equal("+") {
+        if self.hequal("+") {
             self.advance_one_tok();
             return self.unary();
         }
-        if self.equal("-") {
+        if self.hequal("-") {
             self.advance_one_tok();
             let unary = self.unary();
             return self.new_neg(unary);
         }
-        if self.equal("&") {
+        if self.hequal("&") {
             self.advance_one_tok();
             let unary = self.unary();
             return self.new_addr(unary);
         }
-        if self.equal("*") {
+        if self.hequal("*") {
             self.advance_one_tok();
             let unary = self.unary();
             return self.new_deref(unary, self.tokens[0].clone());
@@ -1055,7 +1055,7 @@ impl Ctx<'_> {
     fn postfix(&mut self) -> Node {
         let mut node = self.primary();
         loop {
-            if self.equal("[") {
+            if self.hequal("[") {
                 self.advance_one_tok();
                 let idx = self.expr();
                 self.skip("]");
@@ -1063,12 +1063,12 @@ impl Ctx<'_> {
                 node = self.new_deref(add, self.tokens[0].clone());
                 continue;
             }
-            if self.equal(".") {
+            if self.hequal(".") {
                 self.advance_one_tok();
                 node = self.struct_ref(node);
                 continue;
             }
-            if self.equal("->") {
+            if self.hequal("->") {
                 let tok = self.advance_one_tok();
                 node = self.new_deref(node, tok);
                 node = self.struct_ref(node);
@@ -1089,7 +1089,7 @@ impl Ctx<'_> {
             TokenKind::TkPunct { str } if str == "(" => {
                 self.advance_one_tok();
                 // gnu statement expression
-                if self.equal("{") {
+                if self.hequal("{") {
                     self.advance_one_tok();
                     let compound_stmt = self.compound_stmt();
                     let body = if let NodeKind::NdBlock { body } = compound_stmt.kind {
@@ -1130,7 +1130,7 @@ impl Ctx<'_> {
                 self.advance_one_tok();
                 let node: Node;
                 // funccall
-                if self.equal("(") {
+                if self.hequal("(") {
                     node = self.funccall(&name);
                     return node;
                 }
@@ -1159,8 +1159,8 @@ impl Ctx<'_> {
     fn funccall(&mut self, name: &str) -> Node {
         self.advance_one_tok();
         let mut args = Vec::new();
-        while !self.equal(")") {
-            if self.equal(",") {
+        while !self.hequal(")") {
+            if self.hequal(",") {
                 self.advance_one_tok();
             }
             args.push(self.assign());
@@ -1288,7 +1288,7 @@ impl Ctx<'_> {
 
         // 引数の処理
         self.skip("(");
-        while !self.equal(")") {
+        while !self.hequal(")") {
             let base_ty = self.declspec();
             let (ty, name, _) = self.declarator(base_ty);
             self.create_lvar(name.as_str(), ty, true);

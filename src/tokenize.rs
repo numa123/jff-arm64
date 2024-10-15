@@ -65,18 +65,28 @@ impl Ctx<'_> {
         self.error_tok(&self.tokens[0], format!("expected '{}'", op).as_str())
     }
 
-    pub fn equal(&mut self, op: &str) -> bool {
+    pub fn hequal(&mut self, s: &str) -> bool {
         if let TokenKind::TkPunct { str } = &self.tokens[0].kind {
-            return str == op;
+            return str == s;
         }
         if let TokenKind::TkKeyword { name } = &self.tokens[0].kind {
-            return name == op;
+            return name == s;
+        }
+        false
+    }
+
+    pub fn equal(&mut self, tok: Token, s: &str) -> bool {
+        if let TokenKind::TkPunct { str } = &tok.kind {
+            return str == s;
+        }
+        if let TokenKind::TkKeyword { name } = &tok.kind {
+            return name == s;
         }
         false
     }
 
     pub fn consume(&mut self, s: &str) -> bool {
-        if self.equal(s) {
+        if self.hequal(s) {
             self.exited_tokens.push(self.tokens.remove(0));
             return true;
         } else {
