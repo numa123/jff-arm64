@@ -18,8 +18,8 @@ pub struct Scope {
     pub variables: Vec<Rc<RefCell<Var>>>,
     pub tags: Vec<StructTag>,
     pub types: Vec<TypedefType>,
+    pub enums: Vec<Enum>, // ただしEnum
 }
-
 #[derive(Debug)]
 pub struct TypedefType {
     pub name: String,
@@ -44,6 +44,13 @@ pub struct Function {
 pub struct StructTag {
     pub tag: String,
     pub ty: Type,
+}
+
+// strucgtagとほぼ同じ。でも分けた方が考えやすい
+#[derive(Debug, Clone)]
+pub struct Enum {
+    pub name: String,
+    pub ty: Type, // size, alignはてきとーというか、もはやいらないなあ。まあいっか
 }
 
 #[derive(Debug, Clone)]
@@ -236,6 +243,17 @@ pub enum TypeKind {
     TyUnion {
         members: Vec<Member>,
     },
+    TyEnum {
+        list: Vec<EnumMember>,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub struct EnumMember {
+    pub name: String,
+    #[allow(dead_code)]
+    pub ty: Type, //Int
+    pub val: isize, // value
 }
 
 #[derive(Debug, Clone)]

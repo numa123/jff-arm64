@@ -34,11 +34,18 @@ assert() {
 cargo build
 
 # assert 3 'main.c'
-assert 1 'int main() { typedef int t; t x=1; x;  }'
-assert 1 'int main() { typedef struct {int a;} t; t x; x.a=1; x.a;  }'
-assert 1 'int main() { typedef int t; t t=1; return t; }'
-assert 2 'int main() { typedef struct {int a;} t; { typedef int t; } t x; x.a=2; x.a;  }'
-assert 4 'int main() { typedef t; t x; sizeof(x); }'
+assert 1 'int main() {return 1;}'
+assert 0 'int main() { enum { zero, one, two }; zero;  }'
+assert 1 'int main() { enum { zero, one, two }; one;  }'
+assert 2 'int main() { enum { zero, one, two }; two;  }'
+assert 4 'int main() {  enum { zero, one, two } x; sizeof(x);  }'
+assert 4 'int main() {  enum t { zero, one, two }; enum t y; sizeof(y); }'
+assert 5 'int main() { enum { five=5, six, seven }; five; }'
+assert 6 'int main() { enum { five=5, six, seven }; six;}'
+assert 0 'int main() {enum { zero, five=5, three=3, four }; zero;  }'
+assert 5 'int main() {enum { zero, five=5, three=3, four }; five; }'
+assert 3 'int main() {  enum { zero, five=5, three=3, four }; three; }'
+assert 4 'int main() {  enum { zero, five=5, three=3, four }; four;  }'
 
 # assert 2 'int main() {int i = 0; i += 2; return i;}'
 # assert 3 'int main() { int i = 1; i += 2; return i; }' 

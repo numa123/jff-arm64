@@ -75,7 +75,7 @@ impl Ctx<'_> {
         false
     }
 
-    pub fn equal(&mut self, tok: Token, s: &str) -> bool {
+    pub fn _equal(&mut self, tok: Token, s: &str) -> bool {
         if let TokenKind::TkPunct { str } = &tok.kind {
             return str == s;
         }
@@ -284,7 +284,7 @@ impl Ctx<'_> {
     pub fn convert_keywords(&mut self) {
         let keywords = vec![
             "return", "if", "else", "for", "while", "int", "sizeof", "char", "struct", "union",
-            "long", "short", "typedef",
+            "long", "short", "typedef", "enum",
         ];
         for token in &mut self.tokens {
             if let TokenKind::TkIdent { name } = &token.kind {

@@ -53,10 +53,22 @@ pub fn new_array_ty(ty: Type, len: usize) -> Type {
     }
 }
 
+// pub fn new_enum_ty(members: Vec<EnumMember>) -> Type {
+//     Type {
+//         kind: TypeKind::TyEnum { list: members },
+//         size: 1,
+//         align: 1,
+//     }
+// }
+
 pub fn is_integer_node(node: &Node) -> bool {
     if let Some(ty) = &node.ty {
         match ty.kind {
-            TypeKind::TyInt | TypeKind::TyShort | TypeKind::TyChar | TypeKind::TyLong => true,
+            TypeKind::TyInt
+            | TypeKind::TyShort
+            | TypeKind::TyChar
+            | TypeKind::TyLong
+            | TypeKind::TyEnum { .. } => true,
             _ => false,
         }
     } else {

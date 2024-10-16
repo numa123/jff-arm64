@@ -498,6 +498,103 @@ impl Ctx<'_> {
 }
 
 impl Ctx<'_> {
+    fn enum_members(&mut self) -> Vec<EnumMember> {
+        let mut members: Vec<EnumMember> = Vec::new();
+        let mut i = 0;
+        while !self.consume("}") {
+            let name = self.get_ident();
+            // 代入
+            if self.consume("=") {
+                i = self.get_num();
+            }
+            let mem = EnumMember {
+                name: name,
+                ty: new_int(),
+                val: i,
+            };
+            members.push(mem);
+            i += 1;
+            if self.consume(",") {
+                continue;
+            }
+        }
+        return members;
+    }
+
+    fn enum_decl(&mut self) -> Type {
+        let mut tag = String::new();
+        if let TokenKind::TkIdent { name } = &self.tokens[0].kind {
+            tag = name.clone();
+            self.advance_one_tok();
+        }
+
+        if !tag.is_empty() && !self.hequal("{") {
+            if let Some(enm) = self.find_enum(tag) {
+                return enm.ty;
+            } else {
+                self.error_tok(&self.tokens[0], "unknown enum type");
+            }
+        }
+
+        self.skip("{");
+        let member = self.enum_members();
+        let ty = Type {
+            kind: TypeKind::TyEnum { list: member },
+            size: 4,
+            align: 4,
+        };
+        if !tag.is_empty() {
+            self.push_enum(tag, ty.clone());
+        } else {
+            self.push_enum("".to_string(), ty.clone());
+        }
+        return ty;
+    }
+
+    fn push_enum(&mut self, name: String, ty: Type) {
+        let function = self.get_function();
+        let enums = &mut function.scopes[function.scope_idx as usize].enums;
+        let enm = Enum { name: name, ty: ty };
+        enums.push(enm);
+    }
+
+    pub fn find_enum(&mut self, name: String) -> Option<Enum> {
+        let func = self.get_function();
+        let scopes = &func.scopes;
+        for scope in scopes.iter().rev() {
+            for enm in &scope.enums {
+                if enm.name == name {
+                    return Some(enm.clone());
+                }
+            }
+        }
+        return None;
+    }
+
+    pub fn find_enum_primary(&mut self, name: &str) -> Option<Node> {
+        let func = self.get_function();
+        let scopes = &func.scopes;
+        let mut val = None;
+        for scope in scopes.iter().rev() {
+            for enm in &scope.enums {
+                if let TypeKind::TyEnum { list } = &enm.ty.kind {
+                    for mem in list {
+                        if mem.name == name {
+                            val = Some(mem.val);
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(val) = val {
+            return Some(self.new_num(val));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl Ctx<'_> {
     fn declspec(&mut self) -> Type {
         if self.consume("int") {
             return new_int();
@@ -511,6 +608,8 @@ impl Ctx<'_> {
             return self.struct_decl();
         } else if self.consume("union") {
             return self.union_decl();
+        } else if self.consume("enum") {
+            return self.enum_decl();
         } else if let TokenKind::TkIdent { name } = &self.tokens[0].kind {
             if let Some(ty) = self.find_type(name.to_string()) {
                 self.advance_one_tok();
@@ -597,7 +696,7 @@ impl Ctx<'_> {
     fn is_typename(&mut self) -> bool {
         match &self.tokens[0].kind {
             TokenKind::TkKeyword { name } => match name.as_str() {
-                "int" | "short" | "long" | "char" | "struct" | "union" => return true,
+                "int" | "short" | "long" | "char" | "struct" | "union" | "enum" => return true,
                 _ => return false,
             },
             TokenKind::TkIdent { name } => {
@@ -617,6 +716,17 @@ impl Ctx<'_> {
             n = name.clone();
         } else {
             self.error_tok(&self.tokens[0], "expected identifier");
+        }
+        self.advance_one_tok();
+        return n;
+    }
+
+    fn get_num(&mut self) -> isize {
+        let n: isize;
+        if let TokenKind::TkNum { val } = &self.tokens[0].kind {
+            n = *val;
+        } else {
+            self.error_tok(&self.tokens[0], "expected number");
         }
         self.advance_one_tok();
         return n;
@@ -1141,6 +1251,8 @@ impl Ctx<'_> {
                         kind: NodeKind::NdVar { var: var.clone() }, // Clone the Rc to increase the reference count
                         ty: Some(var.borrow().clone().ty),
                     };
+                } else if let Some(n) = self.find_enum_primary(&name) {
+                    node = n;
                 } else {
                     self.error_tok(&self.tokens[0], "undefined variable");
                     // -1しないといけない
@@ -1197,6 +1309,7 @@ impl Ctx<'_> {
             variables: Vec::new(),
             tags: Vec::new(),
             types: Vec::new(),
+            enums: Vec::new(),
         });
         function.scope_idx += 1;
     }
@@ -1258,8 +1371,8 @@ impl Ctx<'_> {
 
     pub fn find_var(&mut self, name: &str) -> Option<Rc<RefCell<Var>>> {
         let function = self.get_function();
-        let scope = &function.scopes; // なぜ&が必要なのか。
-        for scope in scope.iter().rev() {
+        let scopes = &function.scopes; // なぜ&が必要なのか。
+        for scope in scopes.iter().rev() {
             for var in scope.variables.iter() {
                 if var.borrow().name == name {
                     return Some(var.clone());

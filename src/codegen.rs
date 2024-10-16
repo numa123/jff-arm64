@@ -427,6 +427,7 @@ pub fn codegen(ctx: Ctx) {
         stack_size = align_to(stack_size, 16);
 
         println!(".text");
+        println!(".align 2");
         println!(".global _{}", name); // 関数はアンダースコアをつけるのが慣例
         println!("_{}:", name);
         println!("      sub sp, sp, {}", stack_size);
