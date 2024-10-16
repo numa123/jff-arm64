@@ -58,6 +58,34 @@ fn store(ty: &Type) {
     // 4だったらwとかね 今の8を4にしてintにしたら良いかも
 }
 
+// 多分ガバガバ
+fn cast(from: Type, to: Type) {
+    let instruction = match (from.clone().kind, to.clone().kind) {
+        (TypeKind::TyChar, TypeKind::TyShort) => "      sxtb w0, w0",
+        (TypeKind::TyChar, TypeKind::TyInt) => "      sxtb w0, w0",
+        (TypeKind::TyChar, TypeKind::TyLong) => "      sxtb x0, w0",
+
+        (TypeKind::TyShort, TypeKind::TyChar) => "      sxtb w0, w0",
+        (TypeKind::TyShort, TypeKind::TyInt) => "      sxth w0, w0",
+        (TypeKind::TyShort, TypeKind::TyLong) => "      sxth x0, w0",
+
+        (TypeKind::TyInt, TypeKind::TyChar) => "      sxtb w0, w0",
+        (TypeKind::TyInt, TypeKind::TyShort) => "      sxth w0, w0",
+        (TypeKind::TyInt, TypeKind::TyLong) => "      sxtw x0, w0",
+
+        (TypeKind::TyLong, TypeKind::TyChar) => "      sxtb w0, w0",
+        (TypeKind::TyLong, TypeKind::TyShort) => "      sxth w0, w0",
+        (TypeKind::TyLong, TypeKind::TyInt) => "      sxtw x0, w0",
+
+        _ => {
+            eprintln!("from type: {:#?}", from);
+            eprintln!("to type: {:#?}", to);
+            panic!("not supported cast type")
+        }
+    };
+    println!("{}", instruction);
+}
+
 fn gen_addr(node: Node) {
     match node.kind {
         NodeKind::NdVar { var } => {
@@ -92,6 +120,13 @@ fn gen_expr(node: Node) {
             let ty = var.borrow().ty.clone();
             gen_addr(node);
             load(&ty);
+            return;
+        }
+        NodeKind::NdCast { lhs } => {
+            let to_ty = node.ty.clone().unwrap();
+            let from_ty = lhs.ty.clone().unwrap();
+            gen_expr(*lhs);
+            cast(from_ty, to_ty);
             return;
         }
         NodeKind::NdMember { .. } => {

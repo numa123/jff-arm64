@@ -319,6 +319,15 @@ impl Ctx<'_> {
         self.add_type(&mut node);
         return node;
     }
+
+    fn new_cast(&mut self, lhs: Node, ty: Type) -> Node {
+        let mut node = Node {
+            kind: NodeKind::NdCast { lhs: Box::new(lhs) },
+            ty: Some(ty),
+        };
+        self.add_type(&mut node);
+        return node;
+    }
 }
 
 fn align_to(n: usize, to: usize) -> usize {
@@ -1128,23 +1137,23 @@ impl Ctx<'_> {
     }
 
     fn mul(&mut self) -> Node {
-        let mut node = self.unary();
+        let mut node = self.cast();
         while !self.tokens.is_empty() {
             match &self.tokens[0].kind {
                 TokenKind::TkPunct { str } if str == "*" => {
                     self.advance_one_tok();
-                    let unary = self.unary();
-                    node = self.new_mul(node, unary);
+                    let cast = self.cast();
+                    node = self.new_mul(node, cast);
                 }
                 TokenKind::TkPunct { str } if str == "/" => {
                     self.advance_one_tok();
-                    let unary = self.unary();
-                    return self.new_div(node, unary);
+                    let cast = self.cast();
+                    return self.new_div(node, cast);
                 }
                 TokenKind::TkPunct { str } if str == "%" => {
                     self.advance_one_tok();
-                    let unary = self.unary();
-                    return self.new_mod(node, unary);
+                    let cast = self.cast();
+                    return self.new_mod(node, cast);
                 }
                 _ => break,
             }
@@ -1152,25 +1161,37 @@ impl Ctx<'_> {
         return node;
     }
 
+    fn cast(&mut self) -> Node {
+        if self.hequal("(") && self.is_typename(&self.tokens[1].clone()) {
+            self.skip("(");
+            let ty = self.typename();
+            self.skip(")");
+            let cast = self.cast();
+            let node = self.new_cast(cast, ty);
+            return node;
+        }
+        return self.unary();
+    }
+
     fn unary(&mut self) -> Node {
         if self.hequal("+") {
             self.advance_one_tok();
-            return self.unary();
+            return self.cast();
         }
         if self.hequal("-") {
             self.advance_one_tok();
-            let unary = self.unary();
-            return self.new_neg(unary);
+            let cast = self.cast();
+            return self.new_neg(cast);
         }
         if self.hequal("&") {
             self.advance_one_tok();
-            let unary = self.unary();
-            return self.new_addr(unary);
+            let cast = self.cast();
+            return self.new_addr(cast);
         }
         if self.hequal("*") {
             self.advance_one_tok();
-            let unary = self.unary();
-            return self.new_deref(unary, self.tokens[0].clone());
+            let cast = self.cast();
+            return self.new_deref(cast, self.tokens[0].clone());
         }
         self.postfix()
     }

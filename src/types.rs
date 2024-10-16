@@ -208,6 +208,9 @@ pub enum NodeKind {
         lhs: Box<Node>,
         member: Member,
     },
+    NdCast {
+        lhs: Box<Node>,
+    },
 }
 
 #[derive(Debug, Clone)]
