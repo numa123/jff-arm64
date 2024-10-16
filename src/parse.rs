@@ -248,7 +248,7 @@ impl Ctx<'_> {
                 lhs: Box::new(lhs),
                 rhs: Box::new(rhs),
             },
-            ty: Some(new_int()),
+            ty: None,
         };
         self.add_type(&mut node);
         return node;
@@ -260,7 +260,7 @@ impl Ctx<'_> {
                 lhs: Box::new(lhs),
                 rhs: Box::new(rhs),
             },
-            ty: Some(new_int()),
+            ty: None,
         };
         self.add_type(&mut node);
         return node;
@@ -272,6 +272,14 @@ impl Ctx<'_> {
             ty: None,
         };
         self.add_type(&mut node);
+        return node;
+    }
+
+    fn new_long(&mut self, val: isize) -> Node {
+        let node = Node {
+            kind: NodeKind::NdNum { val },
+            ty: Some(new_long_ty()),
+        };
         return node;
     }
 
@@ -320,7 +328,7 @@ impl Ctx<'_> {
         return node;
     }
 
-    fn new_cast(&mut self, lhs: Node, ty: Type) -> Node {
+    pub fn new_cast(&mut self, lhs: Node, ty: Type) -> Node {
         let mut node = Node {
             kind: NodeKind::NdCast { lhs: Box::new(lhs) },
             ty: Some(ty),
@@ -518,7 +526,7 @@ impl Ctx<'_> {
             }
             let mem = EnumMember {
                 name: name,
-                ty: new_int(),
+                ty: new_int_ty(),
                 val: i,
             };
             members.push(mem);
@@ -619,13 +627,13 @@ impl Ctx<'_> {
     }
     fn declspec(&mut self) -> Type {
         if self.consume("int") {
-            return new_int();
+            return new_int_ty();
         } else if self.consume("short") {
             return new_short();
         } else if self.consume("long") {
-            return new_long();
+            return new_long_ty();
         } else if self.consume("char") {
-            return new_char();
+            return new_char_ty();
         } else if self.consume("struct") {
             return self.struct_decl();
         } else if self.consume("union") {
@@ -643,7 +651,7 @@ impl Ctx<'_> {
             // ネスト小さくしたい
             if let TokenKind::TkKeyword { name } = &last.kind {
                 if name == "typedef" {
-                    return new_int();
+                    return new_int_ty();
                 }
             }
         }
@@ -1065,7 +1073,7 @@ impl Ctx<'_> {
         if is_pointer_node(&lhs) && is_integer_node(&rhs) {
             // node.tyのkindのptr_toのsizeを取得してvalに足す
             let size = get_pointer_or_array_size(&lhs);
-            let num = self.new_num(size as isize);
+            let num = self.new_long(size as isize);
             let r = self.new_mul(rhs, num);
             let node = Node {
                 kind: NodeKind::NdAdd {
@@ -1127,9 +1135,9 @@ impl Ctx<'_> {
                 ty: None,
             };
             self.add_type(&mut n);
-            let num = self.new_num(div_size as isize);
+            let num = self.new_long(div_size as isize);
             let mut node = self.new_div(n, num);
-            let ty = new_int();
+            let ty = new_int_ty();
             node.ty = Some(ty);
             return node;
         }
@@ -1272,7 +1280,7 @@ impl Ctx<'_> {
                 let name = format!("lC{}", self.global_variables.len());
                 let var = self.create_gvar(
                     name.as_str(),
-                    new_array_ty(new_char(), str.len()),
+                    new_array_ty(new_char_ty(), str.len()),
                     Some(InitGval::Str(str.clone())),
                 );
                 self.advance_one_tok();
@@ -1332,7 +1340,7 @@ impl Ctx<'_> {
                 name: name.to_string(),
                 args: args,
             },
-            ty: Some(new_long()), // 自分で定義するようになったら、また変数リストから、型を取り出して入れる。includeの場合はどうする？足し算とかできないよな。まあ後で考えるか。一旦chibiccにならってlong
+            ty: Some(new_long_ty()), // 自分で定義するようになったら、また変数リストから、型を取り出して入れる。includeの場合はどうする？足し算とかできないよな。まあ後で考えるか。一旦chibiccにならってlong
         };
         self.skip(")");
         return node;

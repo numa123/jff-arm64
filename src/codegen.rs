@@ -64,18 +64,22 @@ fn cast(from: Type, to: Type) {
         (TypeKind::TyChar, TypeKind::TyShort) => "      sxtb w0, w0",
         (TypeKind::TyChar, TypeKind::TyInt) => "      sxtb w0, w0",
         (TypeKind::TyChar, TypeKind::TyLong) => "      sxtb x0, w0",
+        (TypeKind::TyChar, TypeKind::TyChar) => "",
 
         (TypeKind::TyShort, TypeKind::TyChar) => "      sxtb w0, w0",
         (TypeKind::TyShort, TypeKind::TyInt) => "      sxth w0, w0",
         (TypeKind::TyShort, TypeKind::TyLong) => "      sxth x0, w0",
+        (TypeKind::TyShort, TypeKind::TyShort) => "",
 
         (TypeKind::TyInt, TypeKind::TyChar) => "      sxtb w0, w0",
         (TypeKind::TyInt, TypeKind::TyShort) => "      sxth w0, w0",
         (TypeKind::TyInt, TypeKind::TyLong) => "      sxtw x0, w0",
+        (TypeKind::TyInt, TypeKind::TyInt) => "",
 
         (TypeKind::TyLong, TypeKind::TyChar) => "      sxtb w0, w0",
         (TypeKind::TyLong, TypeKind::TyShort) => "      sxth w0, w0",
         (TypeKind::TyLong, TypeKind::TyInt) => "      sxtw x0, w0",
+        (TypeKind::TyLong, TypeKind::TyLong) => "",
 
         _ => {
             eprintln!("from type: {:#?}", from);

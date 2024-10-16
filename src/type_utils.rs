@@ -1,3 +1,5 @@
+use core::panic;
+
 use crate::types::*;
 
 pub fn new_ptr_to(ty: Type) -> Type {
@@ -18,7 +20,7 @@ pub fn new_short() -> Type {
     }
 }
 
-pub fn new_int() -> Type {
+pub fn new_int_ty() -> Type {
     Type {
         kind: TypeKind::TyInt,
         size: 4,
@@ -26,7 +28,7 @@ pub fn new_int() -> Type {
     }
 }
 
-pub fn new_long() -> Type {
+pub fn new_long_ty() -> Type {
     Type {
         kind: TypeKind::TyLong,
         size: 8,
@@ -34,7 +36,7 @@ pub fn new_long() -> Type {
     }
 }
 
-pub fn new_char() -> Type {
+pub fn new_char_ty() -> Type {
     Type {
         kind: TypeKind::TyChar,
         size: 1,
@@ -53,13 +55,15 @@ pub fn new_array_ty(ty: Type, len: usize) -> Type {
     }
 }
 
-// pub fn new_enum_ty(members: Vec<EnumMember>) -> Type {
-//     Type {
-//         kind: TypeKind::TyEnum { list: members },
-//         size: 1,
-//         align: 1,
-//     }
-// }
+pub fn get_common_type(ty1: Type, ty2: Type) -> Type {
+    if let TypeKind::TyPtr { ptr_to } = ty1.kind {
+        return new_ptr_to(*ptr_to); // こうなのか？なぜかは知らん
+    }
+    if ty1.size == 8 || ty2.size == 8 {
+        return new_long_ty();
+    }
+    return new_int_ty(); // short + shortもintになるらしい
+}
 
 pub fn is_integer_node(node: &Node) -> bool {
     if let Some(ty) = &node.ty {
@@ -125,22 +129,34 @@ impl Ctx<'_> {
             | NodeKind::NdSub { lhs, rhs }
             | NodeKind::NdMul { lhs, rhs }
             | NodeKind::NdDiv { lhs, rhs }
-            | NodeKind::NdMod { lhs, rhs }
-            | NodeKind::NdAssign { lhs, rhs } => {
+            | NodeKind::NdMod { lhs, rhs } => {
+                self.add_type(lhs);
+                self.add_type(rhs);
+                let ty = get_common_type(lhs.clone().ty.unwrap(), rhs.clone().ty.unwrap());
+                node.ty = Some(ty);
+            }
+            NodeKind::NdAssign { lhs, rhs } => {
                 self.add_type(lhs);
                 self.add_type(rhs);
                 node.ty = lhs.ty.clone();
             }
-            NodeKind::NdEq { .. }
-            | NodeKind::NdNe { .. }
-            | NodeKind::NdLt { .. }
-            | NodeKind::NdLe { .. }
-            | NodeKind::NdGt { .. }
-            | NodeKind::NdGe { .. }
-            | NodeKind::NdAnd { .. }
-            | NodeKind::NdOr { .. }
-            | NodeKind::NdNum { .. } => {
-                node.ty = Some(new_int());
+            NodeKind::NdEq { lhs, rhs }
+            | NodeKind::NdNe { lhs, rhs }
+            | NodeKind::NdLt { lhs, rhs }
+            | NodeKind::NdLe { lhs, rhs }
+            | NodeKind::NdGt { lhs, rhs }
+            | NodeKind::NdGe { lhs, rhs }
+            | NodeKind::NdAnd { lhs, rhs }
+            | NodeKind::NdOr { lhs, rhs } => {
+                self.usual_arith_conv(lhs, rhs);
+                node.ty = Some(new_int_ty());
+            }
+            NodeKind::NdNum { val } => {
+                node.ty = if *val == (*val as i32 as isize) {
+                    Some(new_int_ty())
+                } else {
+                    Some(new_long_ty())
+                }
             }
             NodeKind::NdVar { var } => {
                 node.ty = Some(var.borrow().ty.clone());
@@ -164,7 +180,11 @@ impl Ctx<'_> {
                     panic!("no type information");
                 }
             }
-            NodeKind::NdReturn { lhs } | NodeKind::NdExprStmt { lhs } | NodeKind::NdNeg { lhs } => {
+            NodeKind::NdNeg { lhs } => {
+                self.add_type(lhs);
+                node.ty = lhs.ty.clone();
+            }
+            NodeKind::NdReturn { lhs } | NodeKind::NdExprStmt { lhs } => {
                 self.add_type(lhs);
                 node.ty = lhs.ty.clone();
             }
@@ -177,5 +197,11 @@ impl Ctx<'_> {
             }
             _ => {} // Block, If, For, While, Funccall
         }
+    }
+
+    pub fn usual_arith_conv(&mut self, lhs: &mut Node, rhs: &mut Node) {
+        let ty = get_common_type(lhs.clone().ty.unwrap(), rhs.clone().ty.unwrap());
+        *lhs = self.new_cast(lhs.clone(), ty.clone());
+        *rhs = self.new_cast(rhs.clone(), ty);
     }
 }

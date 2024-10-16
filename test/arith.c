@@ -38,6 +38,8 @@ int main() {
   ASSERT(0, 1 & 0);
   ASSERT(3, 2 | 1);
   ASSERT(6, 7 ^ 1);
+
+  // ASSERT(0, 1073741824 * 100 / 100);
   printf("OK\n");
   return 0;
 }
