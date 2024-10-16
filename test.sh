@@ -31,7 +31,7 @@ cargo build
 
 
 
-assert 3 'int main() { int x[2]; int *y=&x; *y=3; return *x; }'
+assert 0 'int main() {return 1073741824 * 100 / 100;}'
 
 # assert 3 'int main() { int x[3]; *x=3; *(x+1)=4; *(x+2)=5; return *x; }'
 # assert 4 'int main() { int x[3]; *x=3; *(x+1)=4; *(x+2)=5; return *(x+1); }'

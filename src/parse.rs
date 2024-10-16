@@ -269,7 +269,7 @@ impl Ctx<'_> {
     fn new_num(&mut self, val: isize) -> Node {
         let mut node = Node {
             kind: NodeKind::NdNum { val },
-            ty: None,
+            ty: Some(new_int_ty()),
         };
         self.add_type(&mut node);
         return node;

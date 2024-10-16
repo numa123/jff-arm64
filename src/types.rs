@@ -32,7 +32,7 @@ pub struct Function {
     pub name: String, // 一応つけている方が自然だと思ってつけている。
     pub body: Option<Node>, // {compound_stmt}
     pub args: Vec<Node>,    // Vec<Rc<RefCell<Var>>>にするかも。可変長引数の場合。
-    #[allow(dead_code)]
+    // #[allow(dead_code)]
     pub ty: Type, // 一応つけている方が自然だと思ってつけている。関数の返り値の型が必要なケースがあるときに使うのではと思っている。includeしたやつとかがどういう扱いになっているのかわからないといけないと思う
     pub scopes: Vec<Scope>,
     pub scope_idx: isize,
