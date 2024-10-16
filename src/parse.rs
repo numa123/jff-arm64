@@ -595,6 +595,19 @@ impl Ctx<'_> {
 }
 
 impl Ctx<'_> {
+    fn only_type_declarator(&mut self, ty: Type) -> Type {
+        let mut ty = ty;
+        while self.consume("*") {
+            ty = new_ptr_to(ty);
+        }
+        (ty, _) = self.type_suffix(ty);
+        return ty;
+    }
+    fn typename(&mut self) -> Type {
+        let base_ty = self.declspec();
+        let ty = self.only_type_declarator(base_ty);
+        return ty;
+    }
     fn declspec(&mut self) -> Type {
         if self.consume("int") {
             return new_int();
@@ -693,8 +706,8 @@ impl Ctx<'_> {
         return None;
     }
 
-    fn is_typename(&mut self) -> bool {
-        match &self.tokens[0].kind {
+    fn is_typename(&mut self, tok: &Token) -> bool {
+        match &tok.kind {
             TokenKind::TkKeyword { name } => match name.as_str() {
                 "int" | "short" | "long" | "char" | "struct" | "union" | "enum" => return true,
                 _ => return false,
@@ -806,7 +819,7 @@ impl Ctx<'_> {
         let mut body = Vec::new();
         self.enter_scope();
         while !self.consume("}") {
-            if self.is_typename() {
+            if self.is_typename(&self.tokens[0].clone()) {
                 let mut node = self.declaration();
                 self.add_type(&mut node);
                 body.push(node);
@@ -1221,6 +1234,15 @@ impl Ctx<'_> {
             }
             TokenKind::TkKeyword { name } if name == "sizeof" => {
                 self.advance_one_tok();
+                // sizeof(type)
+                if self.hequal("(") && self.is_typename(&self.tokens[1].clone()) {
+                    self.skip("(");
+                    let ty = self.typename();
+                    self.skip(")");
+                    return self.new_num(ty.size as isize); //
+                }
+
+                // sizeof(ident)
                 let mut node = self.unary();
                 self.add_type(&mut node);
                 return self.new_num(node.ty.as_ref().unwrap().size as isize);
