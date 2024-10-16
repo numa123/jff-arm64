@@ -1226,6 +1226,9 @@ impl Ctx<'_> {
                 node = self.struct_ref(node);
                 continue;
             }
+            if self.hequal("++") {
+                self.advance_one_tok();
+            }
             break;
         }
         self.add_type(&mut node);
