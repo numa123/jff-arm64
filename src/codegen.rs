@@ -244,12 +244,12 @@ fn gen_expr(node: Node) {
             push16();
             gen_expr(*rhs);
             pop16();
-            println!("  mov x2, 0");
-            println!("  cmp x1, 0");
-            println!("  cset x2, ne");
-            println!("  cmp x0, 0");
-            println!("  cset x0, ne");
-            println!("  and x0, x0, x2");
+            println!("      mov x2, 0");
+            println!("      cmp x1, 0");
+            println!("      cset x2, ne");
+            println!("      cmp x0, 0");
+            println!("      cset x0, ne");
+            println!("      and x0, x0, x2");
             return;
         }
         NodeKind::NdOr { lhs, rhs } => {
@@ -257,12 +257,12 @@ fn gen_expr(node: Node) {
             push16();
             gen_expr(*rhs);
             pop16();
-            println!("  mov x2, 0");
-            println!("  cmp x1, 0");
-            println!("  cset x2, ne");
-            println!("  cmp x0, 0");
-            println!("  cset x0, ne");
-            println!("  orr x0, x0, x2");
+            println!("      mov x2, 0");
+            println!("      cmp x1, 0");
+            println!("      cset x2, ne");
+            println!("      cmp x0, 0");
+            println!("      cset x0, ne");
+            println!("      orr x0, x0, x2");
             return;
         }
         NodeKind::NdBitAnd { lhs, rhs } => {
@@ -349,15 +349,15 @@ fn gen_stmt(node: Node) {
             let idx = unsafe { IFIDX };
             unsafe { IFIDX += 1 };
             gen_expr(*cond);
-            println!("	  cmp x0, 1");
+            println!("      cmp x0, 1");
             if let Some(els) = els {
-                println!("	  b.ne else.{}", idx);
+                println!("      b.ne else.{}", idx);
                 gen_stmt(*then);
-                println!("	  b endif.{}", idx);
+                println!("      b endif.{}", idx);
                 println!("else.{}:", idx);
                 gen_stmt(*els);
             } else {
-                println!("	  b.ne endif.{}", idx);
+                println!("      b.ne endif.{}", idx);
                 gen_stmt(*then);
             }
             println!("endif.{}:", idx);
@@ -372,7 +372,7 @@ fn gen_stmt(node: Node) {
             let idx = unsafe { FORIDX };
             unsafe { FORIDX += 1 };
             gen_stmt(*init);
-            println!("	  b cond.{}", idx);
+            println!("      b cond.{}", idx);
             println!("startfor.{}:", idx);
             gen_stmt(*body);
             if let Some(inc) = inc {
@@ -381,10 +381,10 @@ fn gen_stmt(node: Node) {
             println!("cond.{}:", idx);
             if let Some(cond) = cond {
                 gen_expr(*cond);
-                println!("	  cmp x0, 1");
-                println!("	  b.ne endfor.{}", idx);
+                println!("      cmp x0, 1");
+                println!("      b.ne endfor.{}", idx);
             }
-            println!("	  b startfor.{}", idx);
+            println!("      b startfor.{}", idx);
             println!("endfor.{}:", idx);
             return;
         }
@@ -393,10 +393,10 @@ fn gen_stmt(node: Node) {
             unsafe { FORIDX += 1 };
             println!("startwhile.{}:", idx);
             gen_expr(*cond);
-            println!("	  cmp x0, 1");
-            println!("	  b.ne endwhile.{}", idx);
+            println!("      cmp x0, 1");
+            println!("      b.ne endwhile.{}", idx);
             gen_stmt(*body);
-            println!("	  b startwhile.{}", idx);
+            println!("      b startwhile.{}", idx);
             println!("endwhile.{}:", idx);
             return;
         }

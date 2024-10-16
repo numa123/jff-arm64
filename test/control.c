@@ -74,6 +74,12 @@ int main() {
            }
            j;
          }));
+  ASSERT(55, ({
+           int j = 0;
+           for (int i = 0; i <= 10; i = i + 1)
+             j = i + j;
+           j;
+         }));
 
   ASSERT(1, 0 || 1);
   ASSERT(1, 0 || (2 - 2) || 5);

@@ -5,6 +5,7 @@ use types::Ctx;
 mod codegen;
 mod parse;
 use codegen::*;
+mod new_node;
 mod type_utils;
 
 fn main() {

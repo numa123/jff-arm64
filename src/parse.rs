@@ -4,340 +4,6 @@ use std::{cell::RefCell, mem::swap, rc::Rc};
 use crate::type_utils::*;
 use crate::types::*;
 
-impl Ctx<'_> {
-    fn create_func(&mut self, name: &str, ty: Type) -> Function {
-        let func = Function {
-            name: name.to_string(),
-            args: Vec::new(),
-            body: None,
-            ty: ty,
-            scopes: Vec::new(),
-            scope_idx: -1, // 最初のスコープは-1にすることで、enter_scopeで良い感じに辻褄合わせ。でも、普通にわかりづらいから後で直す
-            exited_scope: Vec::new(),
-            is_def: true,
-        };
-        return func;
-    }
-
-    fn new_if(&mut self, cond: Node, then: Node, els: Option<Node>) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdIf {
-                cond: Box::new(cond),
-                then: Box::new(then),
-                els: els.map(Box::new),
-            },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn new_for(&mut self, init: Node, cond: Option<Node>, inc: Option<Node>, body: Node) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdFor {
-                init: Box::new(init),
-                cond: cond.map(Box::new),
-                inc: inc.map(Box::new),
-                body: Box::new(body),
-            },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn new_while(&mut self, cond: Node, body: Node) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdWhile {
-                cond: Box::new(cond),
-                body: Box::new(body),
-            },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn new_block(&mut self, body: Vec<Node>) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdBlock { body },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn null_stmt(&self) -> Node {
-        return Node {
-            kind: NodeKind::NdBlock { body: Vec::new() },
-            ty: None,
-        };
-    }
-
-    fn new_expr_stmt(&mut self, lhs: Node) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdExprStmt { lhs: Box::new(lhs) },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn new_assign(&mut self, lhs: Node, rhs: Node) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdAssign {
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn new_return(&mut self, lhs: Node) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdReturn { lhs: Box::new(lhs) },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn new_eq(&mut self, lhs: Node, rhs: Node) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdEq {
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn new_ne(&mut self, lhs: Node, rhs: Node) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdNe {
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn new_lt(&mut self, lhs: Node, rhs: Node) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdLt {
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn new_le(&mut self, lhs: Node, rhs: Node) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdLe {
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn new_gt(&mut self, lhs: Node, rhs: Node) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdGt {
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn new_ge(&mut self, lhs: Node, rhs: Node) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdGe {
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn new_and(&mut self, lhs: Node, rhs: Node) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdAnd {
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn new_or(&mut self, lhs: Node, rhs: Node) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdOr {
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn new_neg(&mut self, lhs: Node) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdNeg { lhs: Box::new(lhs) },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn new_addr(&mut self, lhs: Node) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdAddr { lhs: Box::new(lhs) },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn new_deref(&mut self, lhs: Node, tok: Token) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdDeref {
-                lhs: Box::new(lhs),
-                tok: tok,
-            },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn new_mul(&mut self, lhs: Node, rhs: Node) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdMul {
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn new_div(&mut self, lhs: Node, rhs: Node) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdDiv {
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn new_mod(&mut self, lhs: Node, rhs: Node) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdMod {
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn new_num(&mut self, val: isize) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdNum { val },
-            ty: Some(new_int_ty()),
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn new_long(&mut self, val: isize) -> Node {
-        let node = Node {
-            kind: NodeKind::NdNum { val },
-            ty: Some(new_long_ty()),
-        };
-        return node;
-    }
-
-    fn new_var(&mut self, var: Rc<RefCell<Var>>) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdVar { var },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn new_bit_and(&mut self, lhs: Node, rhs: Node) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdBitAnd {
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn new_bit_xor(&mut self, lhs: Node, rhs: Node) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdBitXor {
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    fn new_bit_or(&mut self, lhs: Node, rhs: Node) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdBitOr {
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-            ty: None,
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-
-    pub fn new_cast(&mut self, lhs: Node, ty: Type) -> Node {
-        let mut node = Node {
-            kind: NodeKind::NdCast { lhs: Box::new(lhs) },
-            ty: Some(ty),
-        };
-        self.add_type(&mut node);
-        return node;
-    }
-}
-
 fn align_to(n: usize, to: usize) -> usize {
     if to == 0 {
         return n; // なぜreturnを書く必要がある？ nではだめなのか
@@ -345,28 +11,10 @@ fn align_to(n: usize, to: usize) -> usize {
     (n + to - 1) & !(to - 1)
 }
 
-// struct relation
-// 今は、struct {int a;} x;  みたいな宣言の仕方
+//
+// union, struct
+//
 impl Ctx<'_> {
-    fn push_tag(&mut self, tag: String, ty: Type) {
-        let function = self.get_function();
-        let struct_tags = &mut function.scopes[function.scope_idx as usize].tags;
-        let struct_tag = StructTag { tag, ty };
-        struct_tags.push(struct_tag);
-    }
-
-    fn find_tag(&mut self, tag: String) -> Option<Type> {
-        let function = self.get_function();
-        for scope in function.scopes.iter().rev() {
-            for struct_tag in &scope.tags {
-                if struct_tag.tag == tag {
-                    return Some(struct_tag.clone().ty);
-                }
-            }
-        }
-        return None;
-    }
-
     fn union_decl(&mut self) -> Type {
         let mut tag = String::new();
         if let TokenKind::TkIdent { name } = &self.tokens[0].kind {
@@ -374,7 +22,7 @@ impl Ctx<'_> {
             self.advance_one_tok();
         }
 
-        // 方の値を宣言する時;
+        // union型の値を宣言する時;
         if !tag.is_empty() && !self.hequal("{") {
             // findtag return ty
             if let Some(ty) = self.find_tag(tag) {
@@ -512,32 +160,31 @@ impl Ctx<'_> {
             self.error_tok(&self.tokens[0], "not a struct nor union");
         }
     }
-}
 
-impl Ctx<'_> {
-    fn enum_members(&mut self) -> Vec<EnumMember> {
-        let mut members: Vec<EnumMember> = Vec::new();
-        let mut i = 0;
-        while !self.consume("}") {
-            let name = self.get_ident();
-            // 代入
-            if self.consume("=") {
-                i = self.get_num();
-            }
-            let mem = EnumMember {
-                name: name,
-                ty: new_int_ty(),
-                val: i,
-            };
-            members.push(mem);
-            i += 1;
-            if self.consume(",") {
-                continue;
-            }
-        }
-        return members;
+    fn push_tag(&mut self, tag: String, ty: Type) {
+        let function = self.get_function();
+        let struct_tags = &mut function.scopes[function.scope_idx as usize].tags;
+        let struct_tag = StructTag { tag, ty };
+        struct_tags.push(struct_tag);
     }
 
+    fn find_tag(&mut self, tag: String) -> Option<Type> {
+        let function = self.get_function();
+        for scope in function.scopes.iter().rev() {
+            for struct_tag in &scope.tags {
+                if struct_tag.tag == tag {
+                    return Some(struct_tag.clone().ty);
+                }
+            }
+        }
+        return None;
+    }
+}
+
+//
+// enum
+//
+impl Ctx<'_> {
     fn enum_decl(&mut self) -> Type {
         let mut tag = String::new();
         if let TokenKind::TkIdent { name } = &self.tokens[0].kind {
@@ -568,6 +215,29 @@ impl Ctx<'_> {
         return ty;
     }
 
+    fn enum_members(&mut self) -> Vec<EnumMember> {
+        let mut members: Vec<EnumMember> = Vec::new();
+        let mut i = 0;
+        while !self.consume("}") {
+            let name = self.get_ident();
+            // 代入
+            if self.consume("=") {
+                i = self.get_num();
+            }
+            let mem = EnumMember {
+                name: name,
+                ty: new_int_ty(),
+                val: i,
+            };
+            members.push(mem);
+            i += 1;
+            if self.consume(",") {
+                continue;
+            }
+        }
+        return members;
+    }
+
     fn push_enum(&mut self, name: String, ty: Type) {
         let function = self.get_function();
         let enums = &mut function.scopes[function.scope_idx as usize].enums;
@@ -588,6 +258,7 @@ impl Ctx<'_> {
         return None;
     }
 
+    // 変数にenumのメンバを代入する際に使用
     pub fn find_enum_primary(&mut self, name: &str) -> Option<Node> {
         let func = self.get_function();
         let scopes = &func.scopes;
@@ -611,7 +282,12 @@ impl Ctx<'_> {
     }
 }
 
+//
+// declration relation
+//
 impl Ctx<'_> {
+    // 型のみを取得する
+    // sizeof(int)や、キャストの際に使用する
     fn only_type_declarator(&mut self, ty: Type) -> Type {
         let mut ty = ty;
         while self.consume("*") {
@@ -620,11 +296,7 @@ impl Ctx<'_> {
         (ty, _) = self.type_suffix(ty);
         return ty;
     }
-    fn typename(&mut self) -> Type {
-        let base_ty = self.declspec();
-        let ty = self.only_type_declarator(base_ty);
-        return ty;
-    }
+
     fn declspec(&mut self) -> Type {
         if self.consume("int") {
             return new_int_ty();
@@ -671,7 +343,8 @@ impl Ctx<'_> {
         return (ty, name, is_func);
     }
 
-    // 今は配列のみ
+    // 配列であればそれも含めた型を返す
+    // "(" の有無で関数かの判定をする
     // return (Type, is_function)
     fn type_suffix(&mut self, ty: Type) -> (Type, bool) {
         if self.hequal("[") {
@@ -710,59 +383,11 @@ impl Ctx<'_> {
         self.skip(";");
         return node;
     }
-
-    fn find_type(&mut self, name: String) -> Option<Type> {
-        let func = self.get_function();
-        for scope in func.scopes.iter().rev() {
-            for deftype in &scope.types {
-                if deftype.name == name {
-                    return Some(deftype.ty.clone());
-                }
-            }
-        }
-        return None;
-    }
-
-    fn is_typename(&mut self, tok: &Token) -> bool {
-        match &tok.kind {
-            TokenKind::TkKeyword { name } => match name.as_str() {
-                "int" | "short" | "long" | "char" | "struct" | "union" | "enum" => return true,
-                _ => return false,
-            },
-            TokenKind::TkIdent { name } => {
-                if let Some(_) = self.find_type(name.to_string()) {
-                    return true;
-                } else {
-                    false
-                }
-            }
-            _ => return false,
-        }
-    }
-
-    fn get_ident(&mut self) -> String {
-        let n: String;
-        if let TokenKind::TkIdent { name } = &self.tokens[0].kind {
-            n = name.clone();
-        } else {
-            self.error_tok(&self.tokens[0], "expected identifier");
-        }
-        self.advance_one_tok();
-        return n;
-    }
-
-    fn get_num(&mut self) -> isize {
-        let n: isize;
-        if let TokenKind::TkNum { val } = &self.tokens[0].kind {
-            n = *val;
-        } else {
-            self.error_tok(&self.tokens[0], "expected number");
-        }
-        self.advance_one_tok();
-        return n;
-    }
 }
 
+//
+// statement, expression
+//
 impl Ctx<'_> {
     fn stmt(&mut self) -> Node {
         match &self.tokens[0].kind {
@@ -791,7 +416,12 @@ impl Ctx<'_> {
             TokenKind::TkKeyword { name } if name == "for" => {
                 self.advance_one_tok();
                 self.skip("(");
-                let init = self.expr_stmt();
+                let init;
+                if self.is_typename(&self.tokens[0].clone()) {
+                    init = self.declaration();
+                } else {
+                    init = self.expr_stmt();
+                }
                 let mut cond = None;
                 let mut inc = None;
                 if !self.hequal(";") {
@@ -1350,7 +980,43 @@ impl Ctx<'_> {
     }
 }
 
+//
+// main process
+//
 impl Ctx<'_> {
+    pub fn new_function(&mut self, name: &str, ty: Type) {
+        // 関数の場合
+        // これから処理する関数名をセット。create_lvar, find_varで使用
+        self.processing_funcname = name.to_string();
+        let func = self.create_func(name, ty);
+        self.functions.insert(name.to_string(), func);
+
+        self.enter_scope();
+
+        // 引数の処理
+        self.skip("(");
+        while !self.hequal(")") {
+            let base_ty = self.declspec();
+            let (ty, name, _) = self.declarator(base_ty);
+            self.create_lvar(name.as_str(), ty, true);
+            self.consume(","); // ,があればスキップ、なければ何もしないで、whileの条件分で終了
+        }
+        self.skip(")");
+
+        if self.consume(";") {
+            let func = self.get_function();
+            func.is_def = false;
+            return;
+        }
+
+        self.skip("{");
+
+        // 関数の中身の処理
+        // これからはローカル変数の処理という意味合い
+        self.is_processing_local = true;
+        self.functions.get_mut(name).unwrap().body = Some(self.compound_stmt());
+    }
+
     fn get_function(&mut self) -> &mut Function {
         return self.functions.get_mut(&self.processing_funcname).unwrap();
     }
@@ -1374,6 +1040,43 @@ impl Ctx<'_> {
         function.scope_idx -= 1;
     }
 
+    pub fn new_gvar(&mut self, name: &str, base_ty: Type, ty: Type) {
+        self.create_gvar(name, ty, None);
+        while self.consume(",") {
+            let (ty, name, _) = self.declarator(base_ty.clone()); // なぜclone
+            self.create_gvar(name.as_str(), ty, None);
+        }
+        self.skip(";");
+    }
+
+    pub fn parse(&mut self) {
+        // inputをトークンに変換
+        self.tokens = self.tokenize();
+        self.convert_keywords();
+
+        // グローバル変数の定義文をwhileで回す
+        while !self.tokens.is_empty() {
+            // これからグローバル変数の定義を行うという意味合い
+            self.is_processing_local = false;
+
+            let base_ty = self.declspec();
+            let (ty, name, is_func) = self.declarator(base_ty.clone());
+
+            // 関数ではない場合
+            if !is_func {
+                self.new_gvar(name.as_str(), base_ty, ty);
+                continue;
+            }
+            // 関数の場合
+            self.new_function(name.as_str(), ty);
+            self.leave_scope();
+        }
+    }
+}
+
+// utility
+impl Ctx<'_> {
+    // variable
     fn create_gvar(&mut self, name: &str, ty: Type, init_gval: Option<InitGval>) -> Node {
         let var = Rc::new(RefCell::new(Var {
             name: name.to_string(),
@@ -1441,72 +1144,63 @@ impl Ctx<'_> {
         }
         return None;
     }
-}
 
-impl Ctx<'_> {
-    pub fn new_function(&mut self, name: &str, ty: Type) {
-        // 関数の場合
-        // これから処理する関数名をセット。create_lvar, find_varで使用
-        self.processing_funcname = name.to_string();
-        let func = self.create_func(name, ty);
-        self.functions.insert(name.to_string(), func);
-
-        self.enter_scope();
-
-        // 引数の処理
-        self.skip("(");
-        while !self.hequal(")") {
-            let base_ty = self.declspec();
-            let (ty, name, _) = self.declarator(base_ty);
-            self.create_lvar(name.as_str(), ty, true);
-            self.consume(","); // ,があればスキップ、なければ何もしないで、whileの条件分で終了
-        }
-        self.skip(")");
-
-        if self.consume(";") {
-            let func = self.get_function();
-            func.is_def = false;
-            return;
-        }
-
-        self.skip("{");
-
-        // 関数の中身の処理
-        // これからはローカル変数の処理という意味合い
-        self.is_processing_local = true;
-        self.functions.get_mut(name).unwrap().body = Some(self.compound_stmt());
-    }
-
-    pub fn new_gvar(&mut self, name: &str, base_ty: Type, ty: Type) {
-        self.create_gvar(name, ty, None);
-        while self.consume(",") {
-            let (ty, name, _) = self.declarator(base_ty.clone()); // なぜclone
-            self.create_gvar(name.as_str(), ty, None);
-        }
-        self.skip(";");
-    }
-
-    pub fn parse(&mut self) {
-        // inputをトークンに変換
-        self.tokens = self.tokenize();
-        self.convert_keywords();
-
-        // グローバル変数の定義文をwhileで回す
-        while !self.tokens.is_empty() {
-            // これからグローバル変数の定義を行うという意味合い
-            self.is_processing_local = false;
-
-            let base_ty = self.declspec();
-            let (ty, name, is_func) = self.declarator(base_ty.clone());
-
-            // 関数ではない場合
-            if !is_func {
-                self.new_gvar(name.as_str(), base_ty, ty);
-                continue;
+    // type
+    fn find_type(&mut self, name: String) -> Option<Type> {
+        let func = self.get_function();
+        for scope in func.scopes.iter().rev() {
+            for deftype in &scope.types {
+                if deftype.name == name {
+                    return Some(deftype.ty.clone());
+                }
             }
-            // 関数の場合
-            self.new_function(name.as_str(), ty);
-            self.leave_scope();
         }
+        return None;
+    }
+
+    // cast, sizeofの際に使用
+    fn typename(&mut self) -> Type {
+        let base_ty = self.declspec();
+        let ty = self.only_type_declarator(base_ty);
+        return ty;
+    }
+
+    fn is_typename(&mut self, tok: &Token) -> bool {
+        match &tok.kind {
+            TokenKind::TkKeyword { name } => match name.as_str() {
+                "int" | "short" | "long" | "char" | "struct" | "union" | "enum" => return true,
+                _ => return false,
+            },
+            TokenKind::TkIdent { name } => {
+                if let Some(_) = self.find_type(name.to_string()) {
+                    return true;
+                } else {
+                    false
+                }
+            }
+            _ => return false,
+        }
+    }
+
+    fn get_ident(&mut self) -> String {
+        let n: String;
+        if let TokenKind::TkIdent { name } = &self.tokens[0].kind {
+            n = name.clone();
+        } else {
+            self.error_tok(&self.tokens[0], "expected identifier");
+        }
+        self.advance_one_tok();
+        return n;
+    }
+
+    fn get_num(&mut self) -> isize {
+        let n: isize;
+        if let TokenKind::TkNum { val } = &self.tokens[0].kind {
+            n = *val;
+        } else {
+            self.error_tok(&self.tokens[0], "expected number");
+        }
+        self.advance_one_tok();
+        return n;
     }
 }

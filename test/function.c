@@ -31,6 +31,8 @@ int main() {
   ASSERT(1, sub_long(7, 3, 3));
   ASSERT(1, sub_short(7, 3, 3));
   ASSERT(1, ({ sub_char(7, 3, 3); }));
+  ASSERT(17711, fib(21));
+
   printf("OK\n");
   return 0;
 }

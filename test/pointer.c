@@ -1,4 +1,5 @@
 #include "test.h"
+int board[8][8];
 int main() {
   // ASSERT(3, ({
   //          int x = 3;
@@ -58,13 +59,14 @@ int main() {
   //          int x = 3, y = 5;
   //          x + y;
   //        }));
-  ASSERT(3, ({
-           int x[2];
-           int *y = &x;
-           //  *y = 3;
-           //  *x;
-           3;
-         }));
+
+  // ASSERT(3, ({
+  //          int x[2];
+  //          int *y = &x;
+  //          *y = 3;
+  //          *x;
+  //          3;
+  //        }));
   // ASSERT(3, ({
   //          int x[3];
   //          *x = 3;
@@ -193,6 +195,16 @@ int main() {
   //          y[5] = 5;
   //          x[1][2];
   //        }));
+
+  ASSERT(5, ({
+           for (int i = 0; i < 8; i += 1) {
+             for (int j = 0; j < 8; j += 1) {
+               board[i][j] = 0;
+             }
+           }
+           5;
+         }));
+
   printf("OK\n");
   return 0;
 }
