@@ -1,4 +1,5 @@
 use core::panic;
+use std::collections::HashMap;
 mod tokenize;
 mod types;
 use types::Ctx;
@@ -18,12 +19,11 @@ fn main() {
         input: &input.as_str(),
         input_copy: &input.as_str(),
         tokens: Vec::new(),
-        exited_tokens: Vec::new(),
-        global_variables: Vec::new(),
-        processing_funcname: "".to_string(),
-        processing_filename: args[1].clone(),
-        is_processing_local: false,
-        functions: std::collections::HashMap::new(),
+        consumed_tokens: Vec::new(),
+        gvars: Vec::new(),
+        cur_func: "".to_string(),
+        cur_file: args[1].clone(),
+        functions: HashMap::new(),
     };
     ctx.parse();
     codegen(ctx);

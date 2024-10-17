@@ -1,4 +1,5 @@
 use core::panic;
+use std::{cell::RefCell, rc::Rc};
 
 use crate::types::*;
 
@@ -118,6 +119,14 @@ pub fn get_pointer_or_array_size(node: &Node) -> usize {
     }
 }
 
+pub fn copy_type(node: &Node) -> Type {
+    node.clone().ty.unwrap()
+}
+
+pub fn copy_var_type(var: &Rc<RefCell<Var>>) -> Type {
+    var.borrow().clone().ty
+}
+
 impl Ctx<'_> {
     pub fn add_type(&mut self, node: &mut Node) {
         if node.ty.is_some() {
@@ -132,7 +141,7 @@ impl Ctx<'_> {
             | NodeKind::NdMod { lhs, rhs } => {
                 self.add_type(lhs);
                 self.add_type(rhs);
-                let ty = get_common_type(lhs.clone().ty.unwrap(), rhs.clone().ty.unwrap());
+                let ty = get_common_type(copy_type(&lhs), copy_type(&rhs));
                 node.ty = Some(ty);
             }
             NodeKind::NdAssign { lhs, rhs } => {
@@ -200,7 +209,7 @@ impl Ctx<'_> {
     }
 
     pub fn usual_arith_conv(&mut self, lhs: &mut Node, rhs: &mut Node) {
-        let ty = get_common_type(lhs.clone().ty.unwrap(), rhs.clone().ty.unwrap());
+        let ty = get_common_type(copy_type(&lhs), copy_type(&lhs));
         *lhs = self.new_cast(lhs.clone(), ty.clone());
         *rhs = self.new_cast(rhs.clone(), ty);
     }

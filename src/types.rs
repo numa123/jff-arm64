@@ -5,12 +5,25 @@ pub struct Ctx<'a> {
     pub input: &'a str,
     pub input_copy: &'a str,
     pub tokens: Vec<Token>,
-    pub exited_tokens: Vec<Token>,
-    pub global_variables: Vec<Rc<RefCell<Var>>>, // find_varのために型をrefcellにしてみる。不適切の恐れあり
-    pub processing_funcname: String,
-    pub processing_filename: String,
-    pub is_processing_local: bool, // グローバル変数の定義をしているのか、ローカル変数の定義をしているのかどうか
+    pub consumed_tokens: Vec<Token>,
+    pub gvars: Vec<Rc<RefCell<Var>>>, // find_varのために型をrefcellにしてみる。不適切の恐れあり
+    pub cur_func: String,
+    pub cur_file: String,
     pub functions: HashMap<String, Function>,
+}
+
+#[derive(Debug)]
+pub struct Function {
+    #[allow(dead_code)]
+    pub name: String, // 一応つけている方が自然だと思ってつけている。
+    pub body: Option<Node>, // {compound_stmt}
+    pub args: Vec<Node>,    // Vec<Rc<RefCell<Var>>>にするかも。可変長引数の場合。
+    #[allow(dead_code)]
+    pub ty: Type, // 一応つけている方が自然だと思ってつけている。関数の返り値の型が必要なケースがあるときに使うのではと思っている。 // includeしたやつとかがどういう扱いになっているのかわからないといけないと思う
+    pub scopes: Vec<Scope>,
+    pub scope_idx: isize,
+    pub exited_scope: Vec<Scope>,
+    pub is_def: bool,
 }
 
 #[derive(Debug)]
@@ -26,20 +39,6 @@ pub struct TypedefType {
     pub ty: Type,
 }
 
-#[derive(Debug)]
-pub struct Function {
-    #[allow(dead_code)]
-    pub name: String, // 一応つけている方が自然だと思ってつけている。
-    pub body: Option<Node>, // {compound_stmt}
-    pub args: Vec<Node>,    // Vec<Rc<RefCell<Var>>>にするかも。可変長引数の場合。
-    #[allow(dead_code)]
-    pub ty: Type, // 一応つけている方が自然だと思ってつけている。関数の返り値の型が必要なケースがあるときに使うのではと思っている。includeしたやつとかがどういう扱いになっているのかわからないといけないと思う
-    pub scopes: Vec<Scope>,
-    pub scope_idx: isize,
-    pub exited_scope: Vec<Scope>,
-    pub is_def: bool,
-}
-
 #[derive(Debug, Clone)]
 pub struct StructTag {
     pub tag: String,
@@ -49,10 +48,13 @@ pub struct StructTag {
 // strucgtagとほぼ同じ。でも分けた方が考えやすい
 #[derive(Debug, Clone)]
 pub struct Enum {
-    pub name: String,
+    pub tag: String,
     pub ty: Type, // size, alignはてきとーというか、もはやいらないなあ。まあいっか
 }
 
+//
+// token
+//
 #[derive(Debug, Clone)]
 pub enum TokenKind {
     TkPunct { str: String },
@@ -69,6 +71,20 @@ pub struct Token {
     pub len: usize,
 }
 
+//
+// variable
+//
+#[derive(Debug, Clone)]
+pub struct Var {
+    pub name: String,
+    pub offset: usize,
+    pub ty: Type,
+    #[allow(dead_code)]
+    pub is_param: bool, // 8個を超える引数を扱う際、スタックを利用して引数を渡すことになると思うので、その実装の際に必要になる想定
+    pub is_local: bool,
+    pub init_gval: Option<InitGval>,
+}
+
 #[derive(Debug, Clone)]
 pub enum InitGval {
     Str(String),
@@ -76,17 +92,9 @@ pub enum InitGval {
     Num(isize), // 初期化の際に必要だけど./test.shとかで少し邪魔だからdead_codeにしている
 }
 
-#[derive(Debug, Clone)]
-pub struct Var {
-    pub name: String,
-    pub offset: usize,
-    pub ty: Type,
-    #[allow(dead_code)]
-    pub is_def_arg: bool, // 8個を超える引数を扱う際、スタックを利用して引数を渡すことになると思うので、その実装の際に必要になる想定
-    pub is_local: bool,
-    pub init_gval: Option<InitGval>,
-}
-
+//
+// node
+//
 #[derive(Debug, Clone)]
 pub enum NodeKind {
     NdAdd {
@@ -213,6 +221,7 @@ pub enum NodeKind {
     },
 }
 
+// for struct and union
 #[derive(Debug, Clone)]
 pub struct Member {
     pub name: String,
@@ -226,6 +235,9 @@ pub struct Node {
     pub ty: Option<Type>,
 }
 
+//
+// type
+//
 #[derive(Debug, Clone)]
 pub enum TypeKind {
     TyInt,
@@ -247,7 +259,7 @@ pub enum TypeKind {
         members: Vec<Member>,
     },
     TyEnum {
-        list: Vec<EnumMember>,
+        members: Vec<EnumMember>,
     },
 }
 

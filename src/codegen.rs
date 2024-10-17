@@ -55,7 +55,6 @@ fn store(ty: &Type) {
             println!("      str x0, [x1]");
         }
     }
-    // 4だったらwとかね 今の8を4にしてintにしたら良いかも
 }
 
 // 多分ガバガバ
@@ -411,8 +410,9 @@ fn align_to(n: usize, to: usize) -> usize {
     (n + to - 1) & !(to - 1)
 }
 
-pub fn codegen(ctx: Ctx) {
-    for var in &ctx.global_variables {
+// 関数以外のグローバル変数
+fn handle_data(ctx: &Ctx) {
+    for var in &ctx.gvars {
         let var = var.borrow();
 
         // 初期値がない場合の処理
@@ -446,7 +446,10 @@ pub fn codegen(ctx: Ctx) {
             }
         }
     }
+}
 
+// 関数
+fn handle_text(ctx: &Ctx) {
     for (name, func) in &ctx.functions {
         // 宣言のみの場合はスキップ
         if !func.is_def {
@@ -496,4 +499,9 @@ pub fn codegen(ctx: Ctx) {
         println!("      add sp, sp, {}", stack_size);
         println!("      ret");
     }
+}
+
+pub fn codegen(ctx: Ctx) {
+    handle_data(&ctx);
+    handle_text(&ctx);
 }

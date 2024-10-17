@@ -1,17 +1,4 @@
 #!/bin/bash
-cat <<EOF | gcc -xc -c -o tmp2.o -
-int ret3() { return 3; }
-int ret5() { return 5; }
-int add(int x, int y) { return x+y; }
-int sub(int x, int y) { return x-y; }
-int add6(int a, int b, int c, int d, int e, int f) {
-    return a+b+c+d+e+f;
-}
-int add8(int a, int b, int c, int d, int e, int f, int g, int h) {
-    return a+b+c+d+e+f+g+h;
-}
-EOF
-
 assert() {
 	expected="$1"
 	input="$2"
@@ -29,12 +16,5 @@ assert() {
 
 cargo build
 
-
-
-assert 0 'int main() {return 1073741824 * 100 / 100;}'
-
-# assert 3 'int main() { int x[3]; *x=3; *(x+1)=4; *(x+2)=5; return *x; }'
-# assert 4 'int main() { int x[3]; *x=3; *(x+1)=4; *(x+2)=5; return *(x+1); }'
-# assert 5 'int main() { int x[3]; *x=3; *(x+1)=4; *(x+2)=5; return *(x+2); }'
 
 echo OK

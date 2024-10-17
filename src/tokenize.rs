@@ -22,43 +22,37 @@ impl Ctx<'_> {
     pub fn get_and_skip_number(&mut self) -> isize {
         match self.tokens[0].kind {
             TokenKind::TkNum { val } => {
-                self.exited_tokens.push(self.tokens.remove(0));
+                self.consumed_tokens.push(self.tokens.remove(0));
                 return val;
             }
             _ => self.error_tok(&self.tokens[0], "expected a number"),
         }
     }
 
-    pub fn advance_one_tok(&mut self) -> Token {
-        let tok = self.tokens.remove(0);
-        self.exited_tokens.push(tok.clone());
-        return tok;
-    }
-
-    #[allow(dead_code)]
-    pub fn advance_toks(&mut self, n: usize) -> Vec<Token> {
-        let mut tokens = Vec::new();
-        for _ in 0..n {
-            tokens.push(self.tokens.remove(0));
+    // 複数個飛ばす場合、最後のtokenのみが返る
+    pub fn advance(&mut self, n: usize) -> Token {
+        assert!(n >= 1);
+        let mut tok = self.tokens.remove(0);
+        self.consumed_tokens.push(tok.clone());
+        for _ in 0..(n - 1) {
+            tok = self.tokens.remove(0);
+            self.consumed_tokens.push(tok.clone());
         }
-        for tok in &tokens {
-            self.exited_tokens.push(tok.clone());
-        }
-        tokens
+        tok
     }
 
     pub fn skip(&mut self, op: &str) -> Token {
         if let TokenKind::TkPunct { str } = &self.tokens[0].kind {
             if str == op {
                 let tok = self.tokens.remove(0);
-                self.exited_tokens.push(tok.clone());
+                self.consumed_tokens.push(tok.clone());
                 return tok;
             }
         }
         if let TokenKind::TkKeyword { name } = &self.tokens[0].kind {
             if name == op {
                 let tok = self.tokens.remove(0);
-                self.exited_tokens.push(tok.clone());
+                self.consumed_tokens.push(tok.clone());
                 return tok;
             }
         }
@@ -75,19 +69,9 @@ impl Ctx<'_> {
         false
     }
 
-    pub fn _equal(&mut self, tok: Token, s: &str) -> bool {
-        if let TokenKind::TkPunct { str } = &tok.kind {
-            return str == s;
-        }
-        if let TokenKind::TkKeyword { name } = &tok.kind {
-            return name == s;
-        }
-        false
-    }
-
     pub fn consume(&mut self, s: &str) -> bool {
         if self.hequal(s) {
-            self.exited_tokens.push(self.tokens.remove(0));
+            self.consumed_tokens.push(self.tokens.remove(0));
             return true;
         } else {
             return false;
@@ -114,7 +98,7 @@ impl Ctx<'_> {
             line_string_before = line.to_string();
         }
 
-        eprintln!("{}:{}: error", self.processing_filename, line_idx);
+        eprintln!("{}:{}: error", self.cur_file, line_idx);
         eprintln!();
         eprintln!("|");
         eprintln!("|{}", line_string_before);
@@ -301,4 +285,14 @@ fn is_ident(c: char) -> bool {
 }
 fn is_ident2(c: char) -> bool {
     return is_ident(c) || c.is_digit(10);
+}
+
+pub fn equal(tok: &Token, s: &str) -> bool {
+    if let TokenKind::TkPunct { str } = &tok.kind {
+        return str == s;
+    }
+    if let TokenKind::TkKeyword { name } = &tok.kind {
+        return name == s;
+    }
+    false
 }
