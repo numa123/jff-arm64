@@ -3,9 +3,13 @@ use crate::types::*;
 impl<'a> Ctx<'a> {
     // 入力: 数字から始まる文字列　出力: 数字列。副作用: 文字列を数値の次の文字列まで進める
     pub fn parse_and_skip_number(&mut self) -> isize {
-        let num: String = self.input.chars().take_while(|c| c.is_digit(10)).collect();
+        let num: String = self
+            .input
+            .chars()
+            .take_while(|c| c.is_ascii_digit())
+            .collect();
         self.input = &self.input[num.len()..];
-        return num.parse().unwrap();
+        num.parse().unwrap()
     }
 }
 impl Ctx<'_> {
@@ -17,15 +21,200 @@ impl Ctx<'_> {
     }
 }
 
+impl Ctx<'_> {
+    pub fn tokenize(&mut self) -> Vec<Token> {
+        let mut tokens = Vec::new();
+        while !self.input.is_empty() {
+            let c = self.input.chars().next().unwrap();
+
+            if c == ' ' {
+                self.advance_input(1);
+                continue;
+            }
+
+            // 改行文字のスキップ
+            if c == '\n' {
+                self.advance_input(1);
+                continue;
+            }
+
+            // 行コメントのスキップ
+            if self.input.starts_with("//") {
+                self.advance_input(2);
+                while !self.input.is_empty() && self.input.starts_with('\n') {
+                    self.advance_input(1);
+                }
+                continue;
+            }
+
+            // ブロックコメントのスキップ
+            if self.input.starts_with("/*") {
+                self.advance_input(2);
+                while !self.input.starts_with("*/") {
+                    self.advance_input(1);
+                }
+                self.advance_input(2);
+                continue;
+            }
+
+            if c.is_ascii_digit() {
+                let num = self.parse_and_skip_number();
+                tokens.push(Token {
+                    kind: TokenKind::Num { val: num },
+                    start: self.current_input_position() - num.to_string().len(),
+                    len: num.to_string().len(),
+                });
+                continue;
+            }
+            if self.input.starts_with("==")
+                || self.input.starts_with("!=")
+                || self.input.starts_with(">=")
+                || self.input.starts_with("<=")
+                || self.input.starts_with("&&")
+                || self.input.starts_with("||")
+                || self.input.starts_with("+=")
+                || self.input.starts_with("-=")
+                || self.input.starts_with("*=")
+                || self.input.starts_with("/=")
+                || self.input.starts_with("%=")
+                || self.input.starts_with("&=")
+                || self.input.starts_with("^=")
+                || self.input.starts_with("|=")
+                || self.input.starts_with("->")
+            {
+                tokens.push(Token {
+                    kind: TokenKind::Punct {
+                        str: self.input[0..2].to_string(),
+                    },
+                    start: self.current_input_position(),
+                    len: 2,
+                });
+                self.advance_input(2);
+                continue;
+            }
+            if c == '+'
+                || c == '-'
+                || c == '*'
+                || c == '/'
+                || c == '('
+                || c == ')'
+                || c == '>'
+                || c == '<'
+                || c == ';'
+                || c == '='
+                || c == '{'
+                || c == '}'
+                || c == '&'
+                || c == ','
+                || c == '['
+                || c == ']'
+                || c == '%'
+                || c == '^'
+                || c == '|'
+                || c == '.'
+            {
+                tokens.push(Token {
+                    kind: TokenKind::Punct { str: c.to_string() },
+                    start: self.current_input_position(),
+                    len: 1,
+                });
+                self.advance_input(1);
+                continue;
+            }
+
+            if c == '"' {
+                let mut str = String::new();
+                self.advance_input(1);
+                // while self.input.chars().next().unwrap() != '"' {
+                while !self.input.starts_with('\"') {
+                    // 取り急ぎの実装。後でなんとかしないと。string.cのテストに対応したいがために実装したもの。
+                    if self.input.starts_with("\\\"") {
+                        str.push_str("\\\"");
+                        self.advance_input(2); // \"が入るとstrのlenがずれて、tok.startもずれるかも
+                        continue;
+                    }
+                    str.push(self.input.chars().next().unwrap());
+                    self.advance_input(1);
+                }
+                str.push('\0');
+                self.advance_input(1);
+                tokens.push(Token {
+                    kind: TokenKind::Str { str: str.clone() },
+                    start: self.current_input_position() - str.len(),
+                    len: str.len(),
+                });
+                continue;
+            }
+
+            // identifier
+            if is_ident(c) {
+                let name: String = self.input.chars().take_while(|c| is_ident2(*c)).collect();
+                self.advance_input(name.len());
+
+                tokens.push(Token {
+                    kind: TokenKind::Ident { name: name.clone() },
+                    start: self.current_input_position() - name.len(),
+                    len: name.len(),
+                });
+                continue;
+            }
+            self.error_input_at(format!("invalid input: {}", &self.input[0..1]).as_str());
+        }
+        tokens
+    }
+
+    pub fn convert_keywords(&mut self) {
+        let keywords = vec![
+            "return", "if", "else", "for", "while", "int", "sizeof", "char", "struct", "union",
+            "long", "short", "typedef", "enum",
+        ];
+        for token in &mut self.tokens {
+            if let TokenKind::Ident { name } = &token.kind {
+                if keywords.contains(&name.as_str()) {
+                    token.kind = TokenKind::Keyword { name: name.clone() };
+                }
+            }
+        }
+    }
+}
+
+fn is_ident(c: char) -> bool {
+    c.is_ascii_lowercase() || c.is_ascii_uppercase() || c == '_'
+}
+fn is_ident2(c: char) -> bool {
+    is_ident(c) || c.is_ascii_digit()
+}
+
+pub fn equal(tok: &Token, s: &str) -> bool {
+    if let TokenKind::Punct { str } = &tok.kind {
+        return str == s;
+    }
+    if let TokenKind::Keyword { name } = &tok.kind {
+        return name == s;
+    }
+    false
+}
+
 // for token
 impl Ctx<'_> {
     pub fn get_and_skip_number(&mut self) -> isize {
         match self.tokens[0].kind {
-            TokenKind::TkNum { val } => {
+            TokenKind::Num { val } => {
                 self.consumed_tokens.push(self.tokens.remove(0));
-                return val;
+                val
             }
             _ => self.error_tok(&self.tokens[0], "expected a number"),
+        }
+    }
+
+    // nが0以上なら、未処理のトークンからの取得。負ならすでに処理されたトークンからの取得とする。
+    // もっとも最近処理されたトークンへのアクセスは、self.get_tok(-1);
+    pub fn get_tok(&self, n: isize) -> &Token {
+        if n >= 0 {
+            &self.tokens[0]
+        } else {
+            // lenが0で、nが負の場合エラーになるが、本コードではそのような使い方はしない
+            &self.consumed_tokens[((self.consumed_tokens.len() as isize) + n) as usize]
         }
     }
 
@@ -42,14 +231,14 @@ impl Ctx<'_> {
     }
 
     pub fn skip(&mut self, op: &str) -> Token {
-        if let TokenKind::TkPunct { str } = &self.tokens[0].kind {
+        if let TokenKind::Punct { str } = &self.tokens[0].kind {
             if str == op {
                 let tok = self.tokens.remove(0);
                 self.consumed_tokens.push(tok.clone());
                 return tok;
             }
         }
-        if let TokenKind::TkKeyword { name } = &self.tokens[0].kind {
+        if let TokenKind::Keyword { name } = &self.tokens[0].kind {
             if name == op {
                 let tok = self.tokens.remove(0);
                 self.consumed_tokens.push(tok.clone());
@@ -60,10 +249,10 @@ impl Ctx<'_> {
     }
 
     pub fn hequal(&mut self, s: &str) -> bool {
-        if let TokenKind::TkPunct { str } = &self.tokens[0].kind {
+        if let TokenKind::Punct { str } = &self.tokens[0].kind {
             return str == s;
         }
-        if let TokenKind::TkKeyword { name } = &self.tokens[0].kind {
+        if let TokenKind::Keyword { name } = &self.tokens[0].kind {
             return name == s;
         }
         false
@@ -72,9 +261,9 @@ impl Ctx<'_> {
     pub fn consume(&mut self, s: &str) -> bool {
         if self.hequal(s) {
             self.consumed_tokens.push(self.tokens.remove(0));
-            return true;
+            true
         } else {
-            return false;
+            false
         }
     }
 
@@ -120,179 +309,4 @@ impl Ctx<'_> {
         eprintln!("jff_error: {}", msg);
         panic!();
     }
-}
-
-impl Ctx<'_> {
-    pub fn tokenize(&mut self) -> Vec<Token> {
-        let mut tokens = Vec::new();
-        while !self.input.is_empty() {
-            let c = self.input.chars().next().unwrap();
-
-            if c == ' ' {
-                self.advance_input(1);
-                continue;
-            }
-
-            // 改行文字のスキップ
-            if c == '\n' {
-                self.advance_input(1);
-                continue;
-            }
-
-            // 行コメントのスキップ
-            if self.input.starts_with("//") {
-                self.advance_input(2);
-                while !self.input.is_empty() && self.input.chars().next().unwrap() != '\n' {
-                    self.advance_input(1);
-                }
-                continue;
-            }
-
-            // ブロックコメントのスキップ
-            if self.input.starts_with("/*") {
-                self.advance_input(2);
-                while !self.input.starts_with("*/") {
-                    self.advance_input(1);
-                }
-                self.advance_input(2);
-                continue;
-            }
-
-            if c.is_digit(10) {
-                let num = self.parse_and_skip_number();
-                tokens.push(Token {
-                    kind: TokenKind::TkNum { val: num },
-                    start: self.current_input_position() - num.to_string().len(),
-                    len: num.to_string().len(),
-                });
-                continue;
-            }
-            if self.input.starts_with("==")
-                || self.input.starts_with("!=")
-                || self.input.starts_with(">=")
-                || self.input.starts_with("<=")
-                || self.input.starts_with("&&")
-                || self.input.starts_with("||")
-                || self.input.starts_with("+=")
-                || self.input.starts_with("-=")
-                || self.input.starts_with("*=")
-                || self.input.starts_with("/=")
-                || self.input.starts_with("%=")
-                || self.input.starts_with("&=")
-                || self.input.starts_with("^=")
-                || self.input.starts_with("|=")
-                || self.input.starts_with("->")
-            {
-                tokens.push(Token {
-                    kind: TokenKind::TkPunct {
-                        str: self.input[0..2].to_string(),
-                    },
-                    start: self.current_input_position(),
-                    len: 2,
-                });
-                self.advance_input(2);
-                continue;
-            }
-            if c == '+'
-                || c == '-'
-                || c == '*'
-                || c == '/'
-                || c == '('
-                || c == ')'
-                || c == '>'
-                || c == '<'
-                || c == ';'
-                || c == '='
-                || c == '{'
-                || c == '}'
-                || c == '&'
-                || c == ','
-                || c == '['
-                || c == ']'
-                || c == '%'
-                || c == '^'
-                || c == '|'
-                || c == '.'
-            {
-                tokens.push(Token {
-                    kind: TokenKind::TkPunct { str: c.to_string() },
-                    start: self.current_input_position(),
-                    len: 1,
-                });
-                self.advance_input(1);
-                continue;
-            }
-
-            if c == '"' {
-                let mut str = String::new();
-                self.advance_input(1);
-                while self.input.chars().next().unwrap() != '"' {
-                    // 取り急ぎの実装。後でなんとかしないと。string.cのテストに対応したいがために実装したもの。
-                    if self.input.starts_with("\\\"") {
-                        str.push_str("\\\"");
-                        self.advance_input(2); // \"が入るとstrのlenがずれて、tok.startもずれるかも
-                        continue;
-                    }
-                    str.push(self.input.chars().next().unwrap());
-                    self.advance_input(1);
-                }
-                str.push_str("\0");
-                self.advance_input(1);
-                tokens.push(Token {
-                    kind: TokenKind::TkStr { str: str.clone() },
-                    start: self.current_input_position() - str.len(),
-                    len: str.len(),
-                });
-                continue;
-            }
-
-            // identifier
-            if is_ident(c) {
-                let name: String = self.input.chars().take_while(|c| is_ident2(*c)).collect();
-                self.advance_input(name.len());
-
-                tokens.push(Token {
-                    kind: TokenKind::TkIdent { name: name.clone() },
-                    start: self.current_input_position() - name.len(),
-                    len: name.len(),
-                });
-                continue;
-            }
-            self.error_input_at(
-                format!("invalid input: {}", self.input[0..1].to_string()).as_str(),
-            );
-        }
-        return tokens;
-    }
-
-    pub fn convert_keywords(&mut self) {
-        let keywords = vec![
-            "return", "if", "else", "for", "while", "int", "sizeof", "char", "struct", "union",
-            "long", "short", "typedef", "enum",
-        ];
-        for token in &mut self.tokens {
-            if let TokenKind::TkIdent { name } = &token.kind {
-                if keywords.contains(&name.as_str()) {
-                    token.kind = TokenKind::TkKeyword { name: name.clone() };
-                }
-            }
-        }
-    }
-}
-
-fn is_ident(c: char) -> bool {
-    return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_';
-}
-fn is_ident2(c: char) -> bool {
-    return is_ident(c) || c.is_digit(10);
-}
-
-pub fn equal(tok: &Token, s: &str) -> bool {
-    if let TokenKind::TkPunct { str } = &tok.kind {
-        return str == s;
-    }
-    if let TokenKind::TkKeyword { name } = &tok.kind {
-        return name == s;
-    }
-    false
 }

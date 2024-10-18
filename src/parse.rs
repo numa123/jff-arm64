@@ -7,9 +7,10 @@ use crate::types::*;
 
 fn align_to(n: usize, to: usize) -> usize {
     if to == 0 {
-        return n; // なぜreturnを書く必要がある？ nではだめなのか
+        n
+    } else {
+        (n + to - 1) & !(to - 1)
     }
-    (n + to - 1) & !(to - 1)
 }
 
 //
@@ -18,7 +19,7 @@ fn align_to(n: usize, to: usize) -> usize {
 impl Ctx<'_> {
     fn union_decl(&mut self) -> Type {
         let mut tag = String::new();
-        if let TokenKind::TkIdent { name } = &self.tokens[0].kind {
+        if let TokenKind::Ident { name } = &self.get_tok(0).kind {
             tag = name.clone();
             self.advance(1);
         }
@@ -29,7 +30,7 @@ impl Ctx<'_> {
             if let Some(ty) = self.find_tag(tag) {
                 return ty;
             } else {
-                self.error_tok(&self.tokens[0], "unknown struct type");
+                self.error_tok(self.get_tok(0), "unknown struct type");
             }
         }
 
@@ -46,7 +47,7 @@ impl Ctx<'_> {
         }
         max_size = align_to(max_size, max_align);
         let ty = Type {
-            kind: TypeKind::TyUnion { members: members },
+            kind: TypeKind::Union { members },
             size: max_size,
             align: max_align,
         };
@@ -54,12 +55,12 @@ impl Ctx<'_> {
         if !tag.is_empty() {
             self.push_tag(tag, ty.clone());
         }
-        return ty;
+        ty
     }
 
     fn struct_decl(&mut self) -> Type {
         let mut tag = String::new();
-        if let TokenKind::TkIdent { name } = &self.tokens[0].kind {
+        if let TokenKind::Ident { name } = &self.get_tok(0).kind {
             tag = name.clone();
             self.advance(1);
         }
@@ -70,7 +71,7 @@ impl Ctx<'_> {
             if let Some(ty) = self.find_tag(tag) {
                 return ty;
             } else {
-                self.error_tok(&self.tokens[0], "unknown struct type");
+                self.error_tok(self.get_tok(0), "unknown struct type");
             }
         }
 
@@ -90,7 +91,7 @@ impl Ctx<'_> {
         }
         offset = align_to(offset, max_align);
         let ty = Type {
-            kind: TypeKind::TyStruct { members: members },
+            kind: TypeKind::Struct { members },
             size: offset,
             align: max_align,
         };
@@ -98,7 +99,7 @@ impl Ctx<'_> {
         if !tag.is_empty() {
             self.push_tag(tag, ty.clone());
         }
-        return ty;
+        ty
     }
 
     fn struct_members(&mut self) -> Vec<Member> {
@@ -108,8 +109,8 @@ impl Ctx<'_> {
             while !self.consume(";") {
                 let (ty, name, _) = self.declarator(base_ty.clone());
                 let member = Member {
-                    name: name,
-                    ty: ty,
+                    name,
+                    ty,
                     offset: 0, // あとでstruct_declで更新する
                 };
                 members.push(member);
@@ -119,12 +120,12 @@ impl Ctx<'_> {
                 }
             }
         }
-        return members;
+        members
     }
 
     // tyはTyStruct限定の想定
     fn get_struct_member(&mut self, ty: Type, name: String) -> Member {
-        if let TypeKind::TyStruct { members } | TypeKind::TyUnion { members } = ty.kind {
+        if let TypeKind::Struct { members } | TypeKind::Union { members } = ty.kind {
             for member in &members {
                 if member.name == name {
                     return member.clone();
@@ -132,31 +133,29 @@ impl Ctx<'_> {
             }
             self.error_tok(&self.tokens[0], "no such member");
         } else {
-            self.error_tok(&self.tokens[0], "no such member");
+            self.error_tok(&self.tokens[0], "no such member"); // いらないかも
         }
     }
 
     fn struct_ref(&mut self, lhs: Node) -> Node {
         let mut lhs = lhs.clone();
         self.add_type(&mut lhs); // 必要か?
-        if let TypeKind::TyStruct { .. } | TypeKind::TyUnion { .. } = lhs.ty.as_ref().unwrap().kind
-        {
+        if let TypeKind::Struct { .. } | TypeKind::Union { .. } = lhs.ty.as_ref().unwrap().kind {
             // nameを取り出す
-            let name = if let TokenKind::TkIdent { name } = self.advance(1).kind {
+            let name = if let TokenKind::Ident { name } = self.advance(1).kind {
                 name
             } else {
                 self.error_tok(&self.tokens[0], "expected identifier");
             };
             // nodeを作る。lhsがx.aのxの方。lhsのoffsetから、memberのoffsetを足したところのデータを取得する形になる
             let member = self.get_struct_member(copy_type(&lhs), name); // 可読性ゴミ
-            let node = Node {
-                kind: NodeKind::NdMember {
+            Node {
+                kind: NodeKind::Member {
                     lhs: Box::new(lhs.clone()),
                     member: member.clone(),
                 },
                 ty: Some(member.ty),
-            };
-            return node;
+            }
         } else {
             self.error_tok(&self.tokens[0], "not a struct nor union");
         }
@@ -178,7 +177,7 @@ impl Ctx<'_> {
                 }
             }
         }
-        return None;
+        None
     }
 }
 
@@ -188,7 +187,7 @@ impl Ctx<'_> {
 impl Ctx<'_> {
     fn enum_decl(&mut self) -> Type {
         let mut tag = String::new();
-        if let TokenKind::TkIdent { name } = &self.tokens[0].kind {
+        if let TokenKind::Ident { name } = &self.tokens[0].kind {
             tag = name.clone();
             self.advance(1);
         }
@@ -204,7 +203,7 @@ impl Ctx<'_> {
         self.skip("{");
         let member = self.enum_members();
         let ty = Type {
-            kind: TypeKind::TyEnum { members: member },
+            kind: TypeKind::Enum { members: member },
             size: 4,
             align: 4,
         };
@@ -213,7 +212,7 @@ impl Ctx<'_> {
         } else {
             self.push_enum("".to_string(), ty.clone());
         }
-        return ty;
+        ty
     }
 
     fn enum_members(&mut self) -> Vec<EnumMember> {
@@ -226,7 +225,7 @@ impl Ctx<'_> {
                 i = self.get_num();
             }
             let mem = EnumMember {
-                name: name,
+                name,
                 ty: new_int_ty(),
                 val: i,
             };
@@ -236,13 +235,13 @@ impl Ctx<'_> {
                 continue;
             }
         }
-        return members;
+        members
     }
 
     fn push_enum(&mut self, name: String, ty: Type) {
         let function = self.get_func();
         let enums = &mut function.scopes[function.scope_idx as usize].enums;
-        let enm = Enum { tag: name, ty: ty };
+        let enm = Enum { tag: name, ty };
         enums.push(enm);
     }
 
@@ -256,7 +255,7 @@ impl Ctx<'_> {
                 }
             }
         }
-        return None;
+        None
     }
 
     // 変数にenumのメンバを代入する際に使用
@@ -266,7 +265,7 @@ impl Ctx<'_> {
         let mut val = None;
         for scope in scopes.iter().rev() {
             for enm in &scope.enums {
-                if let TypeKind::TyEnum { members: list } = &enm.ty.kind {
+                if let TypeKind::Enum { members: list } = &enm.ty.kind {
                     for mem in list {
                         if mem.name == name {
                             val = Some(mem.val);
@@ -275,11 +274,7 @@ impl Ctx<'_> {
                 }
             }
         }
-        if let Some(val) = val {
-            return Some(self.new_num(val));
-        } else {
-            return None;
-        }
+        val.map(|val| self.new_num(val))
     }
 }
 
@@ -295,7 +290,7 @@ impl Ctx<'_> {
             ty = new_ptr_to(ty);
         }
         (ty, _) = self.type_suffix(ty);
-        return ty;
+        ty
     }
 
     fn declspec(&mut self) -> Type {
@@ -313,7 +308,7 @@ impl Ctx<'_> {
             return self.union_decl();
         } else if self.consume("enum") {
             return self.enum_decl();
-        } else if let TokenKind::TkIdent { name } = &self.tokens[0].kind {
+        } else if let TokenKind::Ident { name } = &self.tokens[0].kind {
             if let Some(ty) = self.find_type(name.to_string()) {
                 self.advance(1);
                 return ty;
@@ -322,7 +317,7 @@ impl Ctx<'_> {
 
         if let Some(last) = self.consumed_tokens.last() {
             // ネスト小さくしたい
-            if let TokenKind::TkKeyword { name } = &last.kind {
+            if let TokenKind::Keyword { name } = &last.kind {
                 if name == "typedef" {
                     return new_int_ty();
                 }
@@ -341,7 +336,7 @@ impl Ctx<'_> {
         }
         let name = self.get_ident();
         (ty, is_func) = self.type_suffix(ty);
-        return (ty, name, is_func);
+        (ty, name, is_func)
     }
 
     // 配列であればそれも含めた型を返す
@@ -358,7 +353,7 @@ impl Ctx<'_> {
         if self.hequal("(") {
             return (ty, true);
         }
-        return (ty, false);
+        (ty, false)
     }
 
     fn declaration(&mut self) -> Node {
@@ -380,8 +375,7 @@ impl Ctx<'_> {
                 continue;
             }
         }
-        let node = self.new_block(body);
-        return node;
+        self.new_block(body)
     }
 }
 
@@ -391,14 +385,14 @@ impl Ctx<'_> {
 impl Ctx<'_> {
     fn stmt(&mut self) -> Node {
         match &self.tokens[0].kind {
-            TokenKind::TkKeyword { name } if name == "return" => {
+            TokenKind::Keyword { name } if name == "return" => {
                 self.advance(1);
                 let expr = self.expr();
                 let node = self.new_return(expr);
                 self.skip(";");
                 return node;
             }
-            TokenKind::TkKeyword { name } if name == "if" => {
+            TokenKind::Keyword { name } if name == "if" => {
                 self.advance(1);
                 let node: Node;
                 self.skip("(");
@@ -413,15 +407,14 @@ impl Ctx<'_> {
                 node = self.new_if(cond, then, els);
                 return node;
             }
-            TokenKind::TkKeyword { name } if name == "for" => {
+            TokenKind::Keyword { name } if name == "for" => {
                 self.advance(1);
                 self.skip("(");
-                let init;
-                if self.is_typename(&self.tokens[0].clone()) {
-                    init = self.declaration();
+                let init = if self.is_typename(&self.tokens[0].clone()) {
+                    self.declaration()
                 } else {
-                    init = self.expr_stmt();
-                }
+                    self.expr_stmt()
+                };
                 let mut cond = None;
                 let mut inc = None;
                 if !self.hequal(";") {
@@ -436,7 +429,7 @@ impl Ctx<'_> {
                 let node = self.new_for(init, cond, inc, body);
                 return node;
             }
-            TokenKind::TkKeyword { name } if name == "while" => {
+            TokenKind::Keyword { name } if name == "while" => {
                 self.advance(1);
                 self.skip("(");
                 let cond = self.expr();
@@ -445,7 +438,7 @@ impl Ctx<'_> {
                 let node = self.new_while(cond, body);
                 return node;
             }
-            TokenKind::TkPunct { str } if str == "{" => {
+            TokenKind::Punct { str } if str == "{" => {
                 self.skip("{");
                 let node = self.compound_stmt();
                 return node;
@@ -453,7 +446,7 @@ impl Ctx<'_> {
             _ => {}
         }
 
-        return self.expr_stmt();
+        self.expr_stmt()
     }
 
     fn push_type(&mut self, deftype: TypedefType) {
@@ -488,8 +481,7 @@ impl Ctx<'_> {
             }
         }
         self.leave_scope();
-        let node = self.new_block(body);
-        return node;
+        self.new_block(body)
     }
 
     fn expr_stmt(&mut self) -> Node {
@@ -500,65 +492,65 @@ impl Ctx<'_> {
         let expr = self.expr();
         let node = self.new_expr_stmt(expr);
         self.skip(";");
-        return node;
+        node
     }
 
     fn expr(&mut self) -> Node {
-        return self.assign();
+        self.assign()
     }
 
     fn assign(&mut self) -> Node {
         let mut node = self.bit();
         while !self.tokens.is_empty() {
             match &self.tokens[0].kind {
-                TokenKind::TkPunct { str } if str == "=" => {
+                TokenKind::Punct { str } if str == "=" => {
                     self.advance(1);
                     let assign = self.assign();
                     node = self.new_assign(node, assign);
                 }
-                TokenKind::TkPunct { str } if str == "+=" => {
+                TokenKind::Punct { str } if str == "+=" => {
                     self.advance(1);
                     let assign = self.assign();
                     let add = self.new_add(node.clone(), assign);
                     node = self.new_assign(node, add);
                 }
-                TokenKind::TkPunct { str } if str == "-=" => {
+                TokenKind::Punct { str } if str == "-=" => {
                     self.advance(1);
                     let assign = self.assign();
                     let sub = self.new_sub(node.clone(), assign);
                     node = self.new_assign(node, sub);
                 }
-                TokenKind::TkPunct { str } if str == "*=" => {
+                TokenKind::Punct { str } if str == "*=" => {
                     self.advance(1);
                     let assign = self.assign();
                     let mul = self.new_mul(node.clone(), assign);
                     node = self.new_assign(node, mul);
                 }
-                TokenKind::TkPunct { str } if str == "/=" => {
+                TokenKind::Punct { str } if str == "/=" => {
                     self.advance(1);
                     let assign = self.assign();
                     let div = self.new_div(node.clone(), assign);
                     node = self.new_assign(node, div);
                 }
-                TokenKind::TkPunct { str } if str == "%=" => {
+                TokenKind::Punct { str } if str == "%=" => {
                     self.advance(1);
                     let assign = self.assign();
                     let mod_ = self.new_mod(node.clone(), assign);
                     node = self.new_assign(node, mod_);
                 }
-                TokenKind::TkPunct { str } if str == "&=" => {
+                TokenKind::Punct { str } if str == "&=" => {
                     self.advance(1);
                     let assign = self.assign();
                     let bit_and = self.new_bit_and(node.clone(), assign);
                     node = self.new_assign(node, bit_and);
                 }
-                TokenKind::TkPunct { str } if str == "^=" => {
+                TokenKind::Punct { str } if str == "^=" => {
                     self.advance(1);
                     let assign = self.assign();
                     let bit_xor = self.new_bit_xor(node.clone(), assign);
                     node = self.new_assign(node, bit_xor);
                 }
-                TokenKind::TkPunct { str } if str == "|=" => {
+                TokenKind::Punct { str } if str == "|=" => {
                     self.advance(1);
                     let assign = self.assign();
                     let bit_or = self.new_bit_or(node.clone(), assign);
@@ -567,24 +559,24 @@ impl Ctx<'_> {
                 _ => break,
             }
         }
-        return node;
+        node
     }
 
     fn bit(&mut self) -> Node {
         let mut node = self.equality();
         while !self.tokens.is_empty() {
             match &self.tokens[0].kind {
-                TokenKind::TkPunct { str } if str == "&" => {
+                TokenKind::Punct { str } if str == "&" => {
                     self.advance(1);
                     let equality = self.equality();
                     node = self.new_bit_and(node, equality);
                 }
-                TokenKind::TkPunct { str } if str == "^" => {
+                TokenKind::Punct { str } if str == "^" => {
                     self.advance(1);
                     let equality = self.equality();
                     node = self.new_bit_xor(node, equality);
                 }
-                TokenKind::TkPunct { str } if str == "|" => {
+                TokenKind::Punct { str } if str == "|" => {
                     self.advance(1);
                     let equality = self.equality();
                     node = self.new_bit_or(node, equality);
@@ -592,29 +584,29 @@ impl Ctx<'_> {
                 _ => break,
             }
         }
-        return node;
+        node
     }
 
     fn equality(&mut self) -> Node {
         let mut node = self.relational();
         while !self.tokens.is_empty() {
             match &self.tokens[0].kind {
-                TokenKind::TkPunct { str } if str == "||" => {
+                TokenKind::Punct { str } if str == "||" => {
                     self.advance(1);
                     let add = self.add();
                     node = self.new_or(node, add);
                 }
-                TokenKind::TkPunct { str } if str == "&&" => {
+                TokenKind::Punct { str } if str == "&&" => {
                     self.advance(1);
                     let add = self.add();
                     node = self.new_and(node, add);
                 }
-                TokenKind::TkPunct { str } if str == "==" => {
+                TokenKind::Punct { str } if str == "==" => {
                     self.advance(1);
                     let relational = self.relational();
                     node = self.new_eq(node, relational);
                 }
-                TokenKind::TkPunct { str } if str == "!=" => {
+                TokenKind::Punct { str } if str == "!=" => {
                     self.advance(1);
                     let relational = self.relational();
                     node = self.new_ne(node, relational);
@@ -622,29 +614,29 @@ impl Ctx<'_> {
                 _ => break,
             }
         }
-        return node;
+        node
     }
 
     fn relational(&mut self) -> Node {
         let mut node = self.add();
         while !self.tokens.is_empty() {
             match &self.tokens[0].kind {
-                TokenKind::TkPunct { str } if str == "<" => {
+                TokenKind::Punct { str } if str == "<" => {
                     self.advance(1);
                     let add = self.add();
                     node = self.new_lt(node, add);
                 }
-                TokenKind::TkPunct { str } if str == "<=" => {
+                TokenKind::Punct { str } if str == "<=" => {
                     self.advance(1);
                     let add = self.add();
                     node = self.new_le(node, add);
                 }
-                TokenKind::TkPunct { str } if str == ">" => {
+                TokenKind::Punct { str } if str == ">" => {
                     self.advance(1);
                     let add = self.add();
                     node = self.new_gt(node, add);
                 }
-                TokenKind::TkPunct { str } if str == ">=" => {
+                TokenKind::Punct { str } if str == ">=" => {
                     self.advance(1);
                     let add = self.add();
                     node = self.new_ge(node, add);
@@ -652,19 +644,19 @@ impl Ctx<'_> {
                 _ => break,
             }
         }
-        return node;
+        node
     }
 
     fn add(&mut self) -> Node {
         let mut node = self.mul();
         while !self.tokens.is_empty() {
             match &self.tokens[0].kind {
-                TokenKind::TkPunct { str } if str == "+" => {
+                TokenKind::Punct { str } if str == "+" => {
                     self.advance(1);
                     let rhs = self.mul();
                     node = self.new_add(node, rhs);
                 }
-                TokenKind::TkPunct { str } if str == "-" => {
+                TokenKind::Punct { str } if str == "-" => {
                     self.advance(1);
                     let rhs = self.mul();
                     node = self.new_sub(node, rhs);
@@ -672,7 +664,7 @@ impl Ctx<'_> {
                 _ => break,
             }
         }
-        return node;
+        node
     }
 
     fn new_add(&mut self, lhs: Node, rhs: Node) -> Node {
@@ -683,7 +675,7 @@ impl Ctx<'_> {
         // num + num
         if is_integer_node(&lhs) && is_integer_node(&rhs) {
             let mut node = Node {
-                kind: NodeKind::NdAdd {
+                kind: NodeKind::Add {
                     lhs: Box::new(lhs),
                     rhs: Box::new(rhs),
                 },
@@ -706,7 +698,7 @@ impl Ctx<'_> {
             let num = self.new_long(size as isize);
             let r = self.new_mul(rhs, num);
             let node = Node {
-                kind: NodeKind::NdAdd {
+                kind: NodeKind::Add {
                     lhs: Box::new(lhs.clone()),
                     rhs: Box::new(r),
                 },
@@ -727,7 +719,7 @@ impl Ctx<'_> {
         // num - num
         if is_integer_node(&lhs) && is_integer_node(&rhs) {
             let mut node = Node {
-                kind: NodeKind::NdSub {
+                kind: NodeKind::Sub {
                     lhs: Box::new(lhs),
                     rhs: Box::new(rhs),
                 },
@@ -742,7 +734,7 @@ impl Ctx<'_> {
             let num = self.new_num(size as isize);
             let r = self.new_mul(rhs, num);
             let node = Node {
-                kind: NodeKind::NdSub {
+                kind: NodeKind::Sub {
                     lhs: Box::new(lhs.clone()),
                     rhs: Box::new(r),
                 },
@@ -752,13 +744,13 @@ impl Ctx<'_> {
         }
         // ptr - ptr
         if is_pointer_node(&lhs) && is_pointer_node(&rhs) {
-            let div_size = if let TypeKind::TyPtr { ptr_to } = copy_type(&rhs).kind {
+            let div_size = if let TypeKind::Ptr { ptr_to } = copy_type(&rhs).kind {
                 ptr_to.size
             } else {
                 8 // とりあえず8
             };
             let mut n = Node {
-                kind: NodeKind::NdSub {
+                kind: NodeKind::Sub {
                     lhs: Box::new(lhs),
                     rhs: Box::new(rhs),
                 },
@@ -778,17 +770,17 @@ impl Ctx<'_> {
         let mut node = self.cast();
         while !self.tokens.is_empty() {
             match &self.tokens[0].kind {
-                TokenKind::TkPunct { str } if str == "*" => {
+                TokenKind::Punct { str } if str == "*" => {
                     self.advance(1);
                     let cast = self.cast();
                     node = self.new_mul(node, cast);
                 }
-                TokenKind::TkPunct { str } if str == "/" => {
+                TokenKind::Punct { str } if str == "/" => {
                     self.advance(1);
                     let cast = self.cast();
                     return self.new_div(node, cast);
                 }
-                TokenKind::TkPunct { str } if str == "%" => {
+                TokenKind::Punct { str } if str == "%" => {
                     self.advance(1);
                     let cast = self.cast();
                     return self.new_mod(node, cast);
@@ -796,7 +788,7 @@ impl Ctx<'_> {
                 _ => break,
             }
         }
-        return node;
+        node
     }
 
     fn cast(&mut self) -> Node {
@@ -808,7 +800,7 @@ impl Ctx<'_> {
             let node = self.new_cast(cast, ty);
             return node;
         }
-        return self.unary();
+        self.unary()
     }
 
     fn unary(&mut self) -> Node {
@@ -862,38 +854,38 @@ impl Ctx<'_> {
             break;
         }
         self.add_type(&mut node);
-        return node;
+        node
     }
 
     fn primary(&mut self) -> Node {
         match &self.tokens[0].kind {
-            TokenKind::TkNum { .. } => {
+            TokenKind::Num { .. } => {
                 let num = self.get_and_skip_number();
-                return self.new_num(num);
+                self.new_num(num)
             }
             // gnu statement expression
-            TokenKind::TkPunct { str } if str == "(" && equal(&self.tokens[1].clone(), "{") => {
+            TokenKind::Punct { str } if str == "(" && equal(&self.tokens[1].clone(), "{") => {
                 self.advance(2);
                 let compound_stmt = self.compound_stmt();
                 let body = match compound_stmt.kind {
-                    NodeKind::NdBlock { body } => body,
+                    NodeKind::Block { body } => body,
                     _ => unreachable!("gnu statement expression body is not block"),
                 };
                 let mut node = Node {
-                    kind: NodeKind::NdGNUStmtExpr { body: body },
+                    kind: NodeKind::GNUStmtExpr { body },
                     ty: None,
                 };
                 self.add_type(&mut node);
                 self.skip(")");
-                return node;
+                node
             }
-            TokenKind::TkPunct { str } if str == "(" => {
+            TokenKind::Punct { str } if str == "(" => {
                 self.advance(1);
                 let node = self.expr();
                 self.skip(")");
-                return node;
+                node
             }
-            TokenKind::TkKeyword { name } if name == "sizeof" => {
+            TokenKind::Keyword { name } if name == "sizeof" => {
                 self.advance(1);
                 // sizeof(type)
                 if self.hequal("(") && self.is_typename(&self.tokens[1].clone()) {
@@ -905,9 +897,9 @@ impl Ctx<'_> {
                 // sizeof(ident)
                 let mut node = self.unary();
                 self.add_type(&mut node);
-                return self.new_num(copy_type(&node).size as isize);
+                self.new_num(copy_type(&node).size as isize)
             }
-            TokenKind::TkStr { str } => {
+            TokenKind::Str { str } => {
                 let name = format!("lC{}", self.gvars.len());
                 let var = self.create_gvar(
                     name.as_str(),
@@ -915,9 +907,9 @@ impl Ctx<'_> {
                     Some(InitGval::Str(str.clone())),
                 );
                 self.advance(1);
-                return var;
+                var
             }
-            TokenKind::TkIdent { name } => {
+            TokenKind::Ident { name } => {
                 let name = name.clone();
                 self.advance(1);
                 let node: Node;
@@ -931,7 +923,7 @@ impl Ctx<'_> {
                 // まずローカル変数、グローバル変数から取得しようとし、そこになければenumのメンバを探す
                 if let Some(var) = self.find_var(&name) {
                     node = Node {
-                        kind: NodeKind::NdVar { var: var.clone() }, // Clone the Rc to increase the reference count
+                        kind: NodeKind::Var { var: var.clone() }, // Clone the Rc to increase the reference count
                         ty: Some(copy_var_type(&var)),
                     };
                 } else if let Some(n) = self.find_enum_member(&name) {
@@ -940,7 +932,7 @@ impl Ctx<'_> {
                     self.error_tok(&self.tokens[0], "undefined variable");
                     // -1しないといけない
                 }
-                return node;
+                node
             }
 
             _ => self.error_tok(
@@ -962,18 +954,17 @@ impl Ctx<'_> {
         }
         if args.len() > 8 {
             self.error_tok(
-                &self.consumed_tokens.last().unwrap(),
+                self.consumed_tokens.last().unwrap(),
                 "too many arguments. 8 arguments are allowed at most",
             );
         }
-        let node = Node {
-            kind: NodeKind::NdFuncCall {
+        Node {
+            kind: NodeKind::FuncCall {
                 name: name.to_string(),
-                args: args,
+                args,
             },
             ty: Some(new_long_ty()), // 自分で定義するようになったら、また変数リストから、型を取り出して入れる。includeの場合はどうする？足し算とかできないよな。まあ後で考えるか。一旦chibiccにならってlong
-        };
-        return node;
+        }
     }
 }
 
@@ -1074,11 +1065,11 @@ impl Ctx<'_> {
             ty: ty.clone(),
             is_param: false,
             is_local: false,
-            init_gval: init_gval,
+            init_gval,
         }));
 
         self.gvars.push(var.clone());
-        return self.new_var(var);
+        self.new_var(var)
     }
 
     // 関数定義用の
@@ -1106,14 +1097,14 @@ impl Ctx<'_> {
             let func = self.functions.get_mut(&self.cur_func).unwrap();
             if func.args.len() >= 8 {
                 self.error_tok(
-                    &self.consumed_tokens.last().unwrap(),
+                    self.consumed_tokens.last().unwrap(),
                     "too many arguments. 8 arguments are allowed at most",
                 );
             }
             func.args.push(node.clone());
         }
         self.add_type(&mut node);
-        return node;
+        node
     }
 
     pub fn find_var(&mut self, name: &str) -> Option<Rc<RefCell<Var>>> {
@@ -1130,7 +1121,7 @@ impl Ctx<'_> {
                 return Some(var.clone());
             }
         }
-        return None;
+        None
     }
 
     // type
@@ -1143,52 +1134,47 @@ impl Ctx<'_> {
                 }
             }
         }
-        return None;
+        None
     }
 
     // cast, sizeofの際に使用
     fn typename(&mut self) -> Type {
         let base_ty = self.declspec();
-        let ty = self.only_type_declarator(base_ty);
-        return ty;
+        self.only_type_declarator(base_ty)
     }
 
     fn is_typename(&mut self, tok: &Token) -> bool {
         match &tok.kind {
-            TokenKind::TkKeyword { name } => match name.as_str() {
-                "int" | "short" | "long" | "char" | "struct" | "union" | "enum" => return true,
-                _ => return false,
-            },
-            TokenKind::TkIdent { name } => {
-                if let Some(_) = self.find_type(name.to_string()) {
-                    return true;
-                } else {
-                    false
-                }
+            TokenKind::Keyword { name } => {
+                matches!(
+                    name.as_str(),
+                    "int" | "short" | "long" | "char" | "struct" | "union" | "enum"
+                )
             }
-            _ => return false,
+            TokenKind::Ident { name } => self.find_type(name.to_string()).is_some(),
+            _ => false,
         }
     }
 
     fn get_ident(&mut self) -> String {
         let n: String;
-        if let TokenKind::TkIdent { name } = &self.tokens[0].kind {
+        if let TokenKind::Ident { name } = &self.tokens[0].kind {
             n = name.clone();
         } else {
             self.error_tok(&self.tokens[0], "expected identifier");
         }
         self.advance(1);
-        return n;
+        n
     }
 
     fn get_num(&mut self) -> isize {
         let n: isize;
-        if let TokenKind::TkNum { val } = &self.tokens[0].kind {
+        if let TokenKind::Num { val } = &self.tokens[0].kind {
             n = *val;
         } else {
             self.error_tok(&self.tokens[0], "expected number");
         }
         self.advance(1);
-        return n;
+        n
     }
 }

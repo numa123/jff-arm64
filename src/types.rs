@@ -57,11 +57,11 @@ pub struct Enum {
 //
 #[derive(Debug, Clone)]
 pub enum TokenKind {
-    TkPunct { str: String },
-    TkNum { val: isize },
-    TkIdent { name: String },
-    TkKeyword { name: String },
-    TkStr { str: String },
+    Punct { str: String },
+    Num { val: isize },
+    Ident { name: String },
+    Keyword { name: String },
+    Str { str: String },
 }
 
 #[derive(Debug, Clone)]
@@ -97,126 +97,126 @@ pub enum InitGval {
 //
 #[derive(Debug, Clone)]
 pub enum NodeKind {
-    NdAdd {
+    Add {
         lhs: Box<Node>,
         rhs: Box<Node>,
     },
-    NdSub {
+    Sub {
         lhs: Box<Node>,
         rhs: Box<Node>,
     },
-    NdMul {
+    Mul {
         lhs: Box<Node>,
         rhs: Box<Node>,
     },
-    NdDiv {
+    Div {
         lhs: Box<Node>,
         rhs: Box<Node>,
     },
-    NdMod {
+    Mod {
         lhs: Box<Node>,
         rhs: Box<Node>,
     },
-    NdNeg {
+    Neg {
         lhs: Box<Node>,
     },
-    NdEq {
-        lhs: Box<Node>,
-        rhs: Box<Node>,
-    },
-    NdNe {
+    Eq {
         lhs: Box<Node>,
         rhs: Box<Node>,
     },
-    NdLt {
+    Ne {
         lhs: Box<Node>,
         rhs: Box<Node>,
     },
-    NdLe {
+    Lt {
         lhs: Box<Node>,
         rhs: Box<Node>,
     },
-    NdGt {
+    Le {
         lhs: Box<Node>,
         rhs: Box<Node>,
     },
-    NdGe {
+    Gt {
         lhs: Box<Node>,
         rhs: Box<Node>,
     },
-    NdAnd {
+    Ge {
         lhs: Box<Node>,
         rhs: Box<Node>,
     },
-    NdOr {
+    And {
         lhs: Box<Node>,
         rhs: Box<Node>,
     },
-    NdExprStmt {
+    Or {
+        lhs: Box<Node>,
+        rhs: Box<Node>,
+    },
+    ExprStmt {
         lhs: Box<Node>,
     },
-    NdNum {
+    Num {
         val: isize,
     },
     NdAssign {
         lhs: Box<Node>,
         rhs: Box<Node>,
     },
-    NdVar {
+    Var {
         var: Rc<RefCell<Var>>,
     },
-    NdReturn {
+    Return {
         lhs: Box<Node>,
     },
-    NdBlock {
+    Block {
         body: Vec<Node>,
     },
-    NdIf {
+    If {
         cond: Box<Node>,
         then: Box<Node>,
         els: Option<Box<Node>>,
     },
-    NdFor {
+    For {
         init: Box<Node>,
         cond: Option<Box<Node>>,
         inc: Option<Box<Node>>,
         body: Box<Node>,
     },
-    NdWhile {
+    While {
         cond: Box<Node>,
         body: Box<Node>,
     },
-    NdAddr {
+    Addr {
         lhs: Box<Node>,
     },
-    NdDeref {
+    Deref {
         lhs: Box<Node>,
         tok: Token,
     },
-    NdFuncCall {
+    FuncCall {
         name: String,
         args: Vec<Node>,
     },
-    NdGNUStmtExpr {
+    GNUStmtExpr {
         body: Vec<Node>, // compound_stmt
     },
-    NdBitAnd {
+    BitAnd {
         lhs: Box<Node>,
         rhs: Box<Node>,
     },
-    NdBitXor {
+    BitXor {
         lhs: Box<Node>,
         rhs: Box<Node>,
     },
-    NdBitOr {
+    BitOr {
         lhs: Box<Node>,
         rhs: Box<Node>,
     },
-    NdMember {
+    Member {
         lhs: Box<Node>,
         member: Member,
     },
-    NdCast {
+    Cas {
         lhs: Box<Node>,
     },
 }
@@ -240,25 +240,25 @@ pub struct Node {
 //
 #[derive(Debug, Clone)]
 pub enum TypeKind {
-    TyInt,
-    TyShort,
-    TyLong,
-    TyPtr {
+    Int,
+    Short,
+    Long,
+    Ptr {
         ptr_to: Box<Type>,
     },
     #[allow(dead_code)]
-    TyArray {
+    Array {
         ptr_to: Box<Type>,
         len: usize, // <- これをまだ未使用だからdead_codeにしている, lenがある方が自然だおと持っている
     },
-    TyChar,
-    TyStruct {
+    Char,
+    Struct {
         members: Vec<Member>,
     },
-    TyUnion {
+    Union {
         members: Vec<Member>,
     },
-    TyEnum {
+    Enum {
         members: Vec<EnumMember>,
     },
 }

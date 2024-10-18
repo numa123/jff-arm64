@@ -12,7 +12,7 @@ static mut CURRENTFN: String = String::new();
 
 fn load(ty: &Type) {
     match ty.kind {
-        TypeKind::TyArray { .. } | TypeKind::TyStruct { .. } | TypeKind::TyUnion { .. } => {
+        TypeKind::Array { .. } | TypeKind::Struct { .. } | TypeKind::Union { .. } => {
             return;
         }
         _ => {}
@@ -34,7 +34,7 @@ fn load(ty: &Type) {
 }
 
 fn store(ty: &Type) {
-    if let TypeKind::TyStruct { .. } | TypeKind::TyUnion { .. } = &ty.kind {
+    if let TypeKind::Struct { .. } | TypeKind::Union { .. } = &ty.kind {
         for i in 0..ty.size {
             println!("      ldrb w2, [x0, {}]", i);
             println!("      strb w2, [x1, {}]", i);
@@ -60,25 +60,25 @@ fn store(ty: &Type) {
 // 多分ガバガバ
 fn cast(from: Type, to: Type) {
     let instruction = match (from.clone().kind, to.clone().kind) {
-        (TypeKind::TyChar, TypeKind::TyShort) => "      sxtb w0, w0",
-        (TypeKind::TyChar, TypeKind::TyInt) => "      sxtb w0, w0",
-        (TypeKind::TyChar, TypeKind::TyLong) => "      sxtb x0, w0",
-        (TypeKind::TyChar, TypeKind::TyChar) => "",
+        (TypeKind::Char, TypeKind::Short) => "      sxtb w0, w0",
+        (TypeKind::Char, TypeKind::Int) => "      sxtb w0, w0",
+        (TypeKind::Char, TypeKind::Long) => "      sxtb x0, w0",
+        (TypeKind::Char, TypeKind::Char) => "",
 
-        (TypeKind::TyShort, TypeKind::TyChar) => "      sxtb w0, w0",
-        (TypeKind::TyShort, TypeKind::TyInt) => "      sxth w0, w0",
-        (TypeKind::TyShort, TypeKind::TyLong) => "      sxth x0, w0",
-        (TypeKind::TyShort, TypeKind::TyShort) => "",
+        (TypeKind::Short, TypeKind::Char) => "      sxtb w0, w0",
+        (TypeKind::Short, TypeKind::Int) => "      sxth w0, w0",
+        (TypeKind::Short, TypeKind::Long) => "      sxth x0, w0",
+        (TypeKind::Short, TypeKind::Short) => "",
 
-        (TypeKind::TyInt, TypeKind::TyChar) => "      sxtb w0, w0",
-        (TypeKind::TyInt, TypeKind::TyShort) => "      sxth w0, w0",
-        (TypeKind::TyInt, TypeKind::TyLong) => "      sxtw x0, w0",
-        (TypeKind::TyInt, TypeKind::TyInt) => "",
+        (TypeKind::Int, TypeKind::Char) => "      sxtb w0, w0",
+        (TypeKind::Int, TypeKind::Short) => "      sxth w0, w0",
+        (TypeKind::Int, TypeKind::Long) => "      sxtw x0, w0",
+        (TypeKind::Int, TypeKind::Int) => "",
 
-        (TypeKind::TyLong, TypeKind::TyChar) => "      sxtb w0, w0",
-        (TypeKind::TyLong, TypeKind::TyShort) => "      sxth w0, w0",
-        (TypeKind::TyLong, TypeKind::TyInt) => "      sxtw x0, w0",
-        (TypeKind::TyLong, TypeKind::TyLong) => "",
+        (TypeKind::Long, TypeKind::Char) => "      sxtb w0, w0",
+        (TypeKind::Long, TypeKind::Short) => "      sxth w0, w0",
+        (TypeKind::Long, TypeKind::Int) => "      sxtw x0, w0",
+        (TypeKind::Long, TypeKind::Long) => "",
 
         _ => {
             eprintln!("from type: {:#?}", from);
@@ -91,21 +91,19 @@ fn cast(from: Type, to: Type) {
 
 fn gen_addr(node: Node) {
     match node.kind {
-        NodeKind::NdVar { var } => {
+        NodeKind::Var { var } => {
             let var = var.borrow();
             if var.is_local {
                 println!("      add x0, x29, {}", var.offset);
-                return;
             } else {
                 println!("      adrp x0, {}@PAGE", var.name); // what is PAGE?
                 println!("      add x0, x0, {}@PAGEOFF;", var.name);
-                return;
             }
         }
-        NodeKind::NdDeref { lhs, .. } => {
+        NodeKind::Deref { lhs, .. } => {
             gen_expr(*lhs);
         }
-        NodeKind::NdMember { lhs, member } => {
+        NodeKind::Member { lhs, member } => {
             gen_addr(*lhs);
             println!("      add x0, x0, {}", member.offset);
         }
@@ -115,130 +113,114 @@ fn gen_addr(node: Node) {
 
 fn gen_expr(node: Node) {
     match node.kind {
-        NodeKind::NdNum { val } => {
+        NodeKind::Num { val } => {
             println!("      mov x0, {}", val);
-            return;
         }
-        NodeKind::NdVar { ref var } => {
+        NodeKind::Var { ref var } => {
             let ty = var.borrow().ty.clone();
             gen_addr(node);
             load(&ty);
-            return;
         }
-        NodeKind::NdCast { lhs } => {
+        NodeKind::Cas { lhs } => {
             let to_ty = node.ty.clone().unwrap();
             let from_ty = lhs.ty.clone().unwrap();
             gen_expr(*lhs);
             cast(from_ty, to_ty);
-            return;
         }
-        NodeKind::NdMember { .. } => {
+        NodeKind::Member { .. } => {
             let ty = node.clone().ty.unwrap();
             gen_addr(node); // x.valとかだったら、xのアドレスをx0に入れる。
             load(&ty);
-            return;
         }
-        NodeKind::NdAdd { lhs, rhs } => {
+        NodeKind::Add { lhs, rhs } => {
             gen_expr(*lhs);
             push16();
             gen_expr(*rhs);
             pop16();
             println!("      add x0, x1, x0");
-            return;
         }
-        NodeKind::NdSub { lhs, rhs } => {
+        NodeKind::Sub { lhs, rhs } => {
             gen_expr(*lhs);
             push16();
             gen_expr(*rhs);
             pop16();
             println!("      sub x0, x1, x0");
-            return;
         }
-        NodeKind::NdMul { lhs, rhs } => {
+        NodeKind::Mul { lhs, rhs } => {
             gen_expr(*lhs);
             push16();
             gen_expr(*rhs);
             pop16();
             println!("      mul x0, x1, x0");
-            return;
         }
-        NodeKind::NdDiv { lhs, rhs } => {
+        NodeKind::Div { lhs, rhs } => {
             gen_expr(*lhs);
             push16();
             gen_expr(*rhs);
             pop16();
             println!("      sdiv x0, x1, x0");
-            return;
         }
-        NodeKind::NdMod { lhs, rhs } => {
+        NodeKind::Mod { lhs, rhs } => {
             gen_expr(*lhs);
             push16();
             gen_expr(*rhs);
             pop16();
             println!("      sdiv x2, x1, x0");
             println!("      msub x0, x2, x0, x1");
-            return;
         }
-        NodeKind::NdNeg { lhs } => {
+        NodeKind::Neg { lhs } => {
             gen_expr(*lhs);
             println!("      neg x0, x0");
-            return;
         }
-        NodeKind::NdEq { lhs, rhs } => {
+        NodeKind::Eq { lhs, rhs } => {
             gen_expr(*lhs);
             push16();
             gen_expr(*rhs);
             pop16();
             println!("      cmp x0, x1");
             println!("      cset x0, eq");
-            return;
         }
-        NodeKind::NdNe { lhs, rhs } => {
+        NodeKind::Ne { lhs, rhs } => {
             gen_expr(*lhs);
             push16();
             gen_expr(*rhs);
             pop16();
             println!("      cmp x0, x1");
             println!("      cset x0, ne");
-            return;
         }
-        NodeKind::NdLt { lhs, rhs } => {
+        NodeKind::Lt { lhs, rhs } => {
             gen_expr(*lhs);
             push16();
             gen_expr(*rhs);
             pop16();
             println!("      cmp x1, x0");
             println!("      cset x0, lt");
-            return;
         }
-        NodeKind::NdLe { lhs, rhs } => {
+        NodeKind::Le { lhs, rhs } => {
             gen_expr(*lhs);
             push16();
             gen_expr(*rhs);
             pop16();
             println!("      cmp x1, x0");
             println!("      cset x0, le");
-            return;
         }
-        NodeKind::NdGt { lhs, rhs } => {
+        NodeKind::Gt { lhs, rhs } => {
             gen_expr(*lhs);
             push16();
             gen_expr(*rhs);
             pop16();
             println!("      cmp x1, x0");
             println!("      cset x0, gt");
-            return;
         }
-        NodeKind::NdGe { lhs, rhs } => {
+        NodeKind::Ge { lhs, rhs } => {
             gen_expr(*lhs);
             push16();
             gen_expr(*rhs);
             pop16();
             println!("      cmp x1, x0");
             println!("      cset x0, ge");
-            return;
         }
-        NodeKind::NdAnd { lhs, rhs } => {
+        NodeKind::And { lhs, rhs } => {
             gen_expr(*lhs);
             push16();
             gen_expr(*rhs);
@@ -249,9 +231,8 @@ fn gen_expr(node: Node) {
             println!("      cmp x0, 0");
             println!("      cset x0, ne");
             println!("      and x0, x0, x2");
-            return;
         }
-        NodeKind::NdOr { lhs, rhs } => {
+        NodeKind::Or { lhs, rhs } => {
             gen_expr(*lhs);
             push16();
             gen_expr(*rhs);
@@ -262,31 +243,27 @@ fn gen_expr(node: Node) {
             println!("      cmp x0, 0");
             println!("      cset x0, ne");
             println!("      orr x0, x0, x2");
-            return;
         }
-        NodeKind::NdBitAnd { lhs, rhs } => {
+        NodeKind::BitAnd { lhs, rhs } => {
             gen_expr(*lhs);
             push16();
             gen_expr(*rhs);
             pop16();
             println!("      and x0, x1, x0");
-            return;
         }
-        NodeKind::NdBitXor { lhs, rhs } => {
+        NodeKind::BitXor { lhs, rhs } => {
             gen_expr(*lhs);
             push16();
             gen_expr(*rhs);
             pop16();
             println!("      eor x0, x1, x0");
-            return;
         }
-        NodeKind::NdBitOr { lhs, rhs } => {
+        NodeKind::BitOr { lhs, rhs } => {
             gen_expr(*lhs);
             push16();
             gen_expr(*rhs);
             pop16();
             println!("      orr x0, x1, x0");
-            return;
         }
         NodeKind::NdAssign { lhs, rhs } => {
             gen_addr(*lhs);
@@ -294,18 +271,15 @@ fn gen_expr(node: Node) {
             gen_expr(*rhs);
             pop16();
             store(node.ty.as_ref().unwrap()); // unwrap使わずにいけないかな
-            return;
         }
-        NodeKind::NdAddr { lhs } => {
+        NodeKind::Addr { lhs } => {
             gen_addr(*lhs);
-            return;
         }
-        NodeKind::NdDeref { lhs, .. } => {
+        NodeKind::Deref { lhs, .. } => {
             gen_expr(*lhs);
             load(node.ty.as_ref().unwrap()); // 正しいか？
-            return;
         }
-        NodeKind::NdFuncCall { name, args } => {
+        NodeKind::FuncCall { name, args } => {
             for arg in &args {
                 gen_expr(arg.clone());
                 push16();
@@ -314,13 +288,11 @@ fn gen_expr(node: Node) {
                 println!("      ldr x{}, [sp], 16 // pop for function arg", i);
             }
             println!("      bl _{}", name);
-            return;
         }
-        NodeKind::NdGNUStmtExpr { body } => {
+        NodeKind::GNUStmtExpr { body } => {
             for stmt in body {
                 gen_stmt(stmt);
             }
-            return;
         }
         _ => panic!("not expected node: {:#?}", node),
     }
@@ -329,22 +301,19 @@ fn gen_expr(node: Node) {
 fn gen_stmt(node: Node) {
     // eprintln!("gen_stmt: {:#?}", node);
     match node.kind {
-        NodeKind::NdExprStmt { lhs } => {
+        NodeKind::ExprStmt { lhs } => {
             gen_expr(*lhs);
-            return;
         }
-        NodeKind::NdReturn { lhs } => {
+        NodeKind::Return { lhs } => {
             gen_expr(*lhs);
             println!("      b end.{}", unsafe { CURRENTFN.clone() });
-            return;
         }
-        NodeKind::NdBlock { body } => {
+        NodeKind::Block { body } => {
             for stmt in body {
                 gen_stmt(stmt);
             }
-            return;
         }
-        NodeKind::NdIf { cond, then, els } => {
+        NodeKind::If { cond, then, els } => {
             let idx = unsafe { IFIDX };
             unsafe { IFIDX += 1 };
             gen_expr(*cond);
@@ -360,9 +329,8 @@ fn gen_stmt(node: Node) {
                 gen_stmt(*then);
             }
             println!("endif.{}:", idx);
-            return;
         }
-        NodeKind::NdFor {
+        NodeKind::For {
             init,
             cond,
             inc,
@@ -385,9 +353,8 @@ fn gen_stmt(node: Node) {
             }
             println!("      b startfor.{}", idx);
             println!("endfor.{}:", idx);
-            return;
         }
-        NodeKind::NdWhile { cond, body } => {
+        NodeKind::While { cond, body } => {
             let idx = unsafe { FORIDX };
             unsafe { FORIDX += 1 };
             println!("startwhile.{}:", idx);
@@ -397,7 +364,6 @@ fn gen_stmt(node: Node) {
             gen_stmt(*body);
             println!("      b startwhile.{}", idx);
             println!("endwhile.{}:", idx);
-            return;
         }
         _ => panic!("not expected node: {:#?}", node),
     }

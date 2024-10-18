@@ -5,7 +5,7 @@ use crate::types::*;
 
 pub fn new_ptr_to(ty: Type) -> Type {
     Type {
-        kind: TypeKind::TyPtr {
+        kind: TypeKind::Ptr {
             ptr_to: Box::new(ty),
         },
         size: 8,
@@ -15,7 +15,7 @@ pub fn new_ptr_to(ty: Type) -> Type {
 
 pub fn new_short() -> Type {
     Type {
-        kind: TypeKind::TyShort,
+        kind: TypeKind::Short,
         size: 2,
         align: 2,
     }
@@ -23,7 +23,7 @@ pub fn new_short() -> Type {
 
 pub fn new_int_ty() -> Type {
     Type {
-        kind: TypeKind::TyInt,
+        kind: TypeKind::Int,
         size: 4,
         align: 4,
     }
@@ -31,7 +31,7 @@ pub fn new_int_ty() -> Type {
 
 pub fn new_long_ty() -> Type {
     Type {
-        kind: TypeKind::TyLong,
+        kind: TypeKind::Long,
         size: 8,
         align: 8,
     }
@@ -39,7 +39,7 @@ pub fn new_long_ty() -> Type {
 
 pub fn new_char_ty() -> Type {
     Type {
-        kind: TypeKind::TyChar,
+        kind: TypeKind::Char,
         size: 1,
         align: 1,
     }
@@ -47,7 +47,7 @@ pub fn new_char_ty() -> Type {
 
 pub fn new_array_ty(ty: Type, len: usize) -> Type {
     Type {
-        kind: TypeKind::TyArray {
+        kind: TypeKind::Array {
             ptr_to: Box::new(ty.clone()),
             len,
         },
@@ -57,25 +57,25 @@ pub fn new_array_ty(ty: Type, len: usize) -> Type {
 }
 
 pub fn get_common_type(ty1: Type, ty2: Type) -> Type {
-    if let TypeKind::TyPtr { ptr_to } = ty1.kind {
+    if let TypeKind::Ptr { ptr_to } = ty1.kind {
         return new_ptr_to(*ptr_to); // こうなのか？なぜかは知らん
     }
     if ty1.size == 8 || ty2.size == 8 {
         return new_long_ty();
     }
-    return new_int_ty(); // short + shortもintになるらしい
+    new_int_ty() // short + shortもintになるらしい
 }
 
 pub fn is_integer_node(node: &Node) -> bool {
     if let Some(ty) = &node.ty {
-        match ty.kind {
-            TypeKind::TyInt
-            | TypeKind::TyShort
-            | TypeKind::TyChar
-            | TypeKind::TyLong
-            | TypeKind::TyEnum { .. } => true,
-            _ => false,
-        }
+        matches!(
+            ty.kind,
+            TypeKind::Int
+                | TypeKind::Short
+                | TypeKind::Char
+                | TypeKind::Long
+                | TypeKind::Enum { .. }
+        )
     } else {
         false
     }
@@ -83,36 +83,25 @@ pub fn is_integer_node(node: &Node) -> bool {
 
 pub fn is_pointer_node(node: &Node) -> bool {
     match &node.ty {
-        Some(ty) => match &ty.kind {
-            TypeKind::TyPtr { .. } | TypeKind::TyArray { .. } => true,
-            _ => false,
-        },
+        Some(ty) => matches!(ty.kind, TypeKind::Ptr { .. } | TypeKind::Array { .. }),
         None => false,
     }
 }
 
 #[allow(dead_code)]
 pub fn is_integer(ty: &Type) -> bool {
-    if let TypeKind::TyInt | TypeKind::TyShort | TypeKind::TyLong = ty.kind {
-        true
-    } else {
-        false
-    }
+    matches!(ty.kind, TypeKind::Int | TypeKind::Short | TypeKind::Long)
 }
 
 #[allow(dead_code)]
 pub fn is_pointer(ty: &Type) -> bool {
-    if let TypeKind::TyPtr { .. } = ty.kind {
-        true
-    } else {
-        false
-    }
+    matches!(ty.kind, TypeKind::Ptr { .. })
 }
 
 pub fn get_pointer_or_array_size(node: &Node) -> usize {
     match &node.ty {
         Some(ty) => match &ty.kind {
-            TypeKind::TyPtr { ptr_to } | TypeKind::TyArray { ptr_to, .. } => ptr_to.size,
+            TypeKind::Ptr { ptr_to } | TypeKind::Array { ptr_to, .. } => ptr_to.size,
             _ => panic!("not a pointer or array"),
         },
         None => panic!("no type information"),
@@ -134,14 +123,14 @@ impl Ctx<'_> {
         }
 
         match &mut node.kind {
-            NodeKind::NdAdd { lhs, rhs }
-            | NodeKind::NdSub { lhs, rhs }
-            | NodeKind::NdMul { lhs, rhs }
-            | NodeKind::NdDiv { lhs, rhs }
-            | NodeKind::NdMod { lhs, rhs } => {
+            NodeKind::Add { lhs, rhs }
+            | NodeKind::Sub { lhs, rhs }
+            | NodeKind::Mul { lhs, rhs }
+            | NodeKind::Div { lhs, rhs }
+            | NodeKind::Mod { lhs, rhs } => {
                 self.add_type(lhs);
                 self.add_type(rhs);
-                let ty = get_common_type(copy_type(&lhs), copy_type(&rhs));
+                let ty = get_common_type(copy_type(lhs), copy_type(rhs));
                 node.ty = Some(ty);
             }
             NodeKind::NdAssign { lhs, rhs } => {
@@ -149,59 +138,59 @@ impl Ctx<'_> {
                 self.add_type(rhs);
                 node.ty = lhs.ty.clone();
             }
-            NodeKind::NdEq { lhs, rhs }
-            | NodeKind::NdNe { lhs, rhs }
-            | NodeKind::NdLt { lhs, rhs }
-            | NodeKind::NdLe { lhs, rhs }
-            | NodeKind::NdGt { lhs, rhs }
-            | NodeKind::NdGe { lhs, rhs }
-            | NodeKind::NdAnd { lhs, rhs }
-            | NodeKind::NdOr { lhs, rhs } => {
+            NodeKind::Eq { lhs, rhs }
+            | NodeKind::Ne { lhs, rhs }
+            | NodeKind::Lt { lhs, rhs }
+            | NodeKind::Le { lhs, rhs }
+            | NodeKind::Gt { lhs, rhs }
+            | NodeKind::Ge { lhs, rhs }
+            | NodeKind::And { lhs, rhs }
+            | NodeKind::Or { lhs, rhs } => {
                 self.usual_arith_conv(lhs, rhs);
                 node.ty = Some(new_int_ty());
             }
-            NodeKind::NdNum { val } => {
+            NodeKind::Num { val } => {
                 node.ty = if *val == (*val as i32 as isize) {
                     Some(new_int_ty())
                 } else {
                     Some(new_long_ty())
                 }
             }
-            NodeKind::NdVar { var } => {
+            NodeKind::Var { var } => {
                 node.ty = Some(var.borrow().ty.clone());
             }
-            NodeKind::NdAddr { lhs } => {
+            NodeKind::Addr { lhs } => {
                 self.add_type(lhs);
                 if let Some(ty) = &lhs.ty {
                     node.ty = Some(new_ptr_to(ty.clone()));
                 }
             }
-            NodeKind::NdDeref { lhs, tok } => {
+            NodeKind::Deref { lhs, tok } => {
                 self.add_type(lhs);
                 if let Some(ty) = &lhs.ty {
                     match &ty.kind {
-                        TypeKind::TyPtr { ptr_to } | TypeKind::TyArray { ptr_to, .. } => {
+                        TypeKind::Ptr { ptr_to } | TypeKind::Array { ptr_to, .. } => {
                             node.ty = Some((**ptr_to).clone());
                         }
-                        _ => self.error_tok(&tok, "not a pointer or array"),
+                        _ => self.error_tok(tok, "not a pointer or array"),
                     }
                 } else {
                     panic!("no type information");
                 }
             }
-            NodeKind::NdNeg { lhs } => {
+            NodeKind::Neg { lhs } => {
                 self.add_type(lhs);
                 node.ty = lhs.ty.clone();
             }
-            NodeKind::NdReturn { lhs } | NodeKind::NdExprStmt { lhs } => {
+            NodeKind::Return { lhs } | NodeKind::ExprStmt { lhs } => {
                 self.add_type(lhs);
                 node.ty = lhs.ty.clone();
             }
-            NodeKind::NdGNUStmtExpr { body } => {
+            NodeKind::GNUStmtExpr { body } => {
                 let last_node = body.last().unwrap();
                 node.ty = last_node.ty.clone();
             }
-            NodeKind::NdMember { member, .. } => {
+            NodeKind::Member { member, .. } => {
                 node.ty = Some(member.ty.clone()); // よくわからん
             }
             _ => {} // Block, If, For, While, Funccall
@@ -209,7 +198,7 @@ impl Ctx<'_> {
     }
 
     pub fn usual_arith_conv(&mut self, lhs: &mut Node, rhs: &mut Node) {
-        let ty = get_common_type(copy_type(&lhs), copy_type(&lhs));
+        let ty = get_common_type(copy_type(lhs), copy_type(lhs));
         *lhs = self.new_cast(lhs.clone(), ty.clone());
         *rhs = self.new_cast(rhs.clone(), ty);
     }

@@ -16,8 +16,8 @@ fn main() {
     }
     let input = read_file(args[1].clone().as_str());
     let mut ctx = Ctx {
-        input: &input.as_str(),
-        input_copy: &input.as_str(),
+        input: input.as_str(),
+        input_copy: input.as_str(),
         tokens: Vec::new(),
         consumed_tokens: Vec::new(),
         gvars: Vec::new(),
