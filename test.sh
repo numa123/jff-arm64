@@ -14,7 +14,7 @@ assert() {
 	fi
 }
 
-cargo build
+cargo build -q
 
 
 echo OK

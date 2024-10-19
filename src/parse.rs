@@ -409,6 +409,7 @@ impl Ctx<'_> {
             }
             TokenKind::Keyword { name } if name == "for" => {
                 self.advance(1);
+                self.enter_scope();
                 self.skip("(");
                 let init = if self.is_typename(&self.tokens[0].clone()) {
                     self.declaration()
@@ -427,6 +428,7 @@ impl Ctx<'_> {
                 self.skip(")");
                 let body = self.stmt();
                 let node = self.new_for(init, cond, inc, body);
+                self.leave_scope();
                 return node;
             }
             TokenKind::Keyword { name } if name == "while" => {

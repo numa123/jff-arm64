@@ -5,7 +5,7 @@ trap 'rm -rf $tmp' INT TERM HUP EXIT
 
 gcc -c -o "$tmp/common.o" test/common.c || exit
 
-cargo build
+cargo build -q
 
 CC=${CC:-gcc}
 
