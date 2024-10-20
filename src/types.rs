@@ -216,7 +216,7 @@ pub enum NodeKind {
         lhs: Box<Node>,
         member: Member,
     },
-    Cas {
+    Cast {
         lhs: Box<Node>,
     },
 }

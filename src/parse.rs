@@ -931,7 +931,7 @@ impl Ctx<'_> {
                 } else if let Some(n) = self.find_enum_member(&name) {
                     node = n;
                 } else {
-                    self.error_tok(&self.tokens[0], "undefined variable");
+                    self.error_tok(self.get_tok(-1), "undefined variable");
                     // -1しないといけない
                 }
                 node

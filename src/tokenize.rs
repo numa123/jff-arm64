@@ -245,7 +245,7 @@ impl Ctx<'_> {
                 return tok;
             }
         }
-        self.error_tok(&self.tokens[0], format!("expected '{}'", op).as_str())
+        self.error_tok(self.get_tok(0), format!("expected '{}'", op).as_str())
     }
 
     pub fn hequal(&mut self, s: &str) -> bool {

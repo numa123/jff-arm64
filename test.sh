@@ -3,7 +3,7 @@ assert() {
 	expected="$1"
 	input="$2"
 	./target/debug/jff "$input" > tmp.s || exit
-	gcc-14 -o tmp tmp.s tmp2.o
+	gcc-14 -o tmp tmp.s
 	./tmp
 	actual="$?"
 	if [ "$actual" = "$expected" ]; then
@@ -15,6 +15,8 @@ assert() {
 }
 
 cargo build -q
+
+assert 16 'main.c'
 
 
 echo OK

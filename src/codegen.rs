@@ -1,4 +1,7 @@
-use crate::types::*;
+use crate::{
+    type_utils::{copy_type, copy_var_type},
+    types::*,
+};
 fn push16() {
     println!("      str x0, [sp, -16]!  // push"); // 16はハードコードだが、スタックのサイズを計算して動的にするべき?
 }
@@ -117,18 +120,18 @@ fn gen_expr(node: Node) {
             println!("      mov x0, {}", val);
         }
         NodeKind::Var { ref var } => {
-            let ty = var.borrow().ty.clone();
+            let ty = copy_var_type(var);
             gen_addr(node);
             load(&ty);
         }
-        NodeKind::Cas { lhs } => {
-            let to_ty = node.ty.clone().unwrap();
-            let from_ty = lhs.ty.clone().unwrap();
-            gen_expr(*lhs);
+        NodeKind::Cast { ref lhs } => {
+            let to_ty = copy_type(&node);
+            let from_ty = copy_type(lhs);
+            gen_expr(*lhs.clone());
             cast(from_ty, to_ty);
         }
         NodeKind::Member { .. } => {
-            let ty = node.clone().ty.unwrap();
+            let ty = copy_type(&node);
             gen_addr(node); // x.valとかだったら、xのアドレスをx0に入れる。
             load(&ty);
         }

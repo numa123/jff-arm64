@@ -334,7 +334,7 @@ impl Ctx<'_> {
 
     pub fn new_cast(&mut self, lhs: Node, ty: Type) -> Node {
         let mut node = Node {
-            kind: NodeKind::Cas { lhs: Box::new(lhs) },
+            kind: NodeKind::Cast { lhs: Box::new(lhs) },
             ty: Some(ty),
         };
         self.add_type(&mut node);
