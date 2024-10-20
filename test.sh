@@ -17,6 +17,7 @@ assert() {
 cargo build -q
 
 assert 16 'main.c'
+assert 0 'int main() { int i = 1; --i; return i; }'
 
 
 echo OK

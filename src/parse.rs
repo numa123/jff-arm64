@@ -825,6 +825,20 @@ impl Ctx<'_> {
             let cast = self.cast();
             return self.new_deref(cast, self.tokens[0].clone());
         }
+        if self.hequal("++") {
+            self.advance(1);
+            let unary = self.unary();
+            let num = self.new_num(1);
+            let add = self.new_add(unary.clone(), num);
+            return self.new_assign(unary, add);
+        }
+        if self.hequal("--") {
+            self.advance(1);
+            let unary = self.unary();
+            let num = self.new_num(1);
+            let sub = self.new_sub(unary.clone(), num);
+            return self.new_assign(unary, sub);
+        }
         self.postfix()
     }
 
@@ -850,9 +864,14 @@ impl Ctx<'_> {
                 node = self.struct_ref(node);
                 continue;
             }
-            if self.hequal("++") {
-                self.advance(1);
-            }
+            // // これだと後置インクリメントではない。すぐに足した値を返すだけ。
+            // if self.hequal("++") {
+            //     self.advance(1);
+            //     let num = self.new_num(1);
+            //     let add = self.new_add(node.clone(), num);
+            //     node = self.new_assign(node, add);
+            //     continue;
+            // }
             break;
         }
         self.add_type(&mut node);
